@@ -53,7 +53,7 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 .tw{position:relative;cursor:grab}.ttool{position:absolute;top:4px;right:4px;z-index:2;display:flex;gap:2px}.ttool button{padding:0 5px;font-size:11px;line-height:18px;min-height:0}
 .nodrill tr.row,.nodrill .ctag,.nodrill .tag{pointer-events:none}
 </style></head><body>
-<header><b>Satmar Meats · secretary test (sample families)</b><nav id="nav"></nav><span id="who"></span></header>
+<header><b>Satmar Meats</b><nav id="nav"></nav><span id="who"></span></header>
 <main id="app"></main>
 <script>
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -91,7 +91,7 @@ const fcls=c=>c.food=="meals"?"t-meals":c.food=="supper"?"t-sup":c.food=="shabbo
 const optName=(base,food)=>(optList(base,"").find(x=>x[0]==food)||[0,F[food]])[1];
 const tag=c=>(c.base=="box"?"Box":"Meals")+" "+codesFor(c.food,c.hh,c.area);
 let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:false,loading:false,rerr:"",pg:0,dq:"",dpg:0,dflt:"all",msg:"",err:""},log=[],reqs=[];
-S.user={name:"Secretary (test)",email:"secretary@test",role:"secretary"};
+try{const u=localStorage.getItem("sm_user");if(u)S.user=JSON.parse(u)}catch(e){}
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
 const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"],["settings","Settings"],["demo","Demo"]];
@@ -135,7 +135,7 @@ function go(v,id){S.view=v;S.sel=id||null;S.msg="";S.err="";render()}
 function render(){
  const u=S.user,app=document.getElementById("app");
  document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="${S.view==n[0]||(S.view=="card"&&n[0]=="customers")?"on":""}" onclick="go('${n[0]}')">${n[1]}</button>`).join(""):"";
- document.getElementById("who").innerHTML=u?`${esc(u.name)} (${esc(ROLE_NAMES[u.role]||u.role)}) `:"";
+ document.getElementById("who").innerHTML=u?`${esc(u.name)} (${esc(ROLE_NAMES[u.role]||u.role)}) <button onclick="out()">Sign out</button>`:"";
  if(!u){app.innerHTML=`<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
  <label>Email<input id="em" type="email"></label><br><label>Password<input id="pw" type="password"></label><br>
  <label>Role (demo only)<select id="ro"><option value="owner">Owner</option><option value="secretary">Office secretary</option><option value="billing">Billing</option><option value="demo">Demo only</option></select></label>${S.err?`<p class="err">${esc(S.err)}</p>`:""}
@@ -149,8 +149,8 @@ function render(){
 function banner(){
  if(S.user&&S.user.role=="demo")return "";
  if(S.real)return `<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">Real data</b> <span class="note">from the Google Sheet "Meal Sheet New" (Customer_data): ${cust.length.toLocaleString()} customers${S.hist?`, and the last ${S.hist} weeks of history from the SCN Sheet`:""}${MENU.real?", and this week's menu from the Dip List (Menus tab)":""}${BILL.real?", and billing from the Billing sheet ("+BILL.weeks.length+" weeks)":""}. Read only: nothing is saved or copied anywhere. Birth dates, CIN numbers and emails are never loaded.</span></div>`;
- return `<div class="card"><b>Demo data is showing.</b> <span class="note">Test copy: made-up sample families only, no real data.</span>${S.rerr?`<p class="err">${esc(S.rerr)}</p>`:""}</div>`}
-const SHEET_ID="1nIbFihI7lLo6evAh-eSmWexgkfYzBSOdbBFUxXvi1_c",RNG=["A2:D","F2:H","J2:L","O2:R","U2:Y"];
+ return `<div class="card"><b>Demo data is showing.</b> <span class="note">Public test version: made-up sample data only. Sign in with any email and pick a role.</span>${S.rerr?`<p class="err">${esc(S.rerr)}</p>`:""}</div>`}
+const SHEET_ID="",RNG=["A2:D","F2:H","J2:L","O2:R","U2:Y"];
 const TT=v=>/^true$/i.test(String(v==null?"":v).trim());
 function pdate(v){v=String(v==null?"":v).trim();let m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);if(m){const y=+m[3]<100?2000+ +m[3]:+m[3];return new Date(y,+m[1]-1,+m[2])}
  m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
@@ -184,7 +184,7 @@ async function loadReal(){
   try{await loadBill(mcp)}catch(e){S.rerr=(S.rerr?S.rerr+" ":"")+"Billing could not be read from the Billing sheet ("+(e&&(e.message||e.code)||"error")+"). The saved real counts are showing."}
  }catch(e){S.rerr=errMsg(e)}
  S.loading=false;render()}
-const SCN_ID="1ywt0YPqc2KmyI6f9Bz-HJpkJ8BccxgBMWmUm-Zn8cFg",WK_FALLBACK=["Week 10/24-10/31","Week 10/17-10/24","Week 10/10-10/17","Week 10/3-10/9"];
+const SCN_ID="",WK_FALLBACK=["Week 10/24-10/31","Week 10/17-10/24","Week 10/10-10/17","Week 10/3-10/9"];
 const nk=v=>String(v==null?"":v).toLowerCase().replace(/[\s\-]+/g,"");
 async function gvS(mcp,range){const r=await mcp.callTool("Google Sheets","get_values",{spreadsheetId:SCN_ID,range:range},{cache:false});let p=r.payload;if(typeof p==="string"){try{p=JSON.parse(p)}catch(x){p=null}}return p&&Array.isArray(p.values)?p.values:[]}
 async function loadHist(mcp){
@@ -208,7 +208,7 @@ function inn(){const e=document.getElementById("em").value.trim();if(!e)return;
  S.err="";S.user=m?{name:m.name||e.split("@")[0],email:e,role:m.role,pages:m.pages}:{name:e.split("@")[0],email:e,role:document.getElementById("ro").value};
  try{localStorage.setItem("sm_user",JSON.stringify(S.user))}catch(x){}
  S.view=(navFor(S.user)[0]||["customers"])[0];render();if(S.mcpOK&&!S.real&&S.user.role!="demo")loadReal()}
-function out(){return;S.user=null;try{localStorage.removeItem("sm_user")}catch(x){}render()}
+function out(){S.user=null;try{localStorage.removeItem("sm_user")}catch(x){}render()}
 function vList(db){
  const q=(db?S.dq:S.q).toLowerCase(),f=db?S.dflt:"active",pk=db?"dpg":"pg",nA=cust.filter(c=>c.active).length,nI=cust.length-nA;
  const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency).toLowerCase().includes(q));
@@ -328,7 +328,7 @@ function menuSave(k){
  old.forEach(x=>{if(nw.indexOf(x)<0){log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:"Menu "+MENU.week+" · "+k,field:"Item removed",o:x,n:""});ch++}});
  nw.forEach(x=>{if(old.indexOf(x)<0){log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:"Menu "+MENU.week+" · "+k,field:"Item added",o:"",n:x});ch++}});
  MENU.lists[k].lines=nw;S.msg=ch?"Menu "+k+" saved ("+ch+" changes).":"Nothing changed.";S.err="";render()}
-const DIP_ID="1nBYRU_gAyRehzn3gegfv25TjomgBIybdnZEucJ91C1U";
+const DIP_ID="";
 async function loadMenu(mcp){
  const r=await mcp.callTool("Google Sheets","get_values",{spreadsheetId:DIP_ID,range:"Menus!A1:N60"},{cache:false});let p=r.payload;if(typeof p==="string")p=JSON.parse(p);
  const v=(p&&p.values)||[],cell=(i,j)=>{const x=(v[i]||[])[j];return x==null?"":String(x).trim()},lists={},order=[];
@@ -436,10 +436,10 @@ function vDash(){
 
 function vHist(){return `<div class="card"><h2>Change history</h2><div class="wrap"><table><tr><th>When</th><th>Who</th><th>Customer</th><th>What</th><th>Old</th><th>New</th></tr>
  ${log.map(l=>`<tr><td>${esc(l.at)}</td><td>${esc(l.user)}</td><td>${esc(l.who)}</td><td>${esc(l.field)}</td><td>${esc(l.o)}</td><td>${esc(l.n)}</td></tr>`).join("")||"<tr><td colspan=6 class='no'>No changes yet. Edit a customer and it appears here.</td></tr>"}</table></div></div>`}
-const BILL_ID="1XH2N_aNXwhPPDCD6bVCqN12M21PWs5BxIb-X-CEEn38",COS=["UJO","PT","CCS","LH","LT","RY","OR"];
-const PR={UJO:{raw:125,meals:13},PT:{raw:100,meals:11.5},CCS:{raw:100,meals:13.5},LH:{raw:100,meals:9},LT:{raw:100,meals:9},RY:{raw:100,meals:10},OR:{raw:null,meals:null}};
+const BILL_ID="",COS=["UJO","PT","CCS","LH","LT","RY","OR"];
+const PR={UJO:{raw:50,meals:5},PT:{raw:50,meals:5},CCS:{raw:50,meals:5},LH:{raw:50,meals:5},LT:{raw:50,meals:5},RY:{raw:50,meals:5},OR:{raw:null,meals:null}};
 const BILL={weeks:[],real:false,det:{},mcp:null,gv:null};
-BILL.weeks=JSON.parse('[{"k":"10/27","tab":"ORDERS_10_27","a":{"UJO":{"meals":854,"mraw":870,"box":4,"mhh":3453},"LH":{"meals":30,"mraw":18,"box":31,"mhh":87},"PT":{"meals":55,"mraw":62,"box":64,"mhh":234},"CCS":{"meals":87,"mraw":9,"box":31,"mhh":207},"RY":{"meals":18,"mraw":14,"box":30,"mhh":57},"LT":{"meals":7,"mraw":5,"box":2,"mhh":51}}},{"k":"10/20","tab":"ORDERS_10_20","a":{"LH":{"meals":28,"mraw":22,"box":34,"mhh":87},"UJO":{"meals":909,"mraw":826,"box":6,"mhh":3450},"PT":{"meals":62,"mraw":47,"box":73,"mhh":223},"CCS":{"meals":82,"mraw":3,"box":12,"mhh":189},"LT":{"meals":6,"mraw":6,"box":3,"mhh":46},"RY":{"meals":15,"mraw":16,"box":31,"mhh":50}}},{"k":"9/15","tab":"ORDERS_9_15","a":{"UJO":{"meals":1265,"mraw":790,"box":21,"mhh":6790},"CCS":{"meals":94,"mraw":9,"box":31,"mhh":495},"PT":{"meals":55,"mraw":47,"box":116,"mhh":350},"RY":{"meals":20,"mraw":19,"box":13,"mhh":170},"LH":{"meals":37,"mraw":24,"box":37,"mhh":241},"LT":{"meals":5,"mraw":5,"box":3,"mhh":43}}},{"k":"9/8","tab":"ORDERS_9_8","a":{"UJO":{"meals":1182,"mraw":939,"box":18,"mhh":5613},"LH":{"meals":34,"mraw":29,"box":44,"mhh":99},"RY":{"meals":18,"mraw":16,"box":10,"mhh":66},"CCS":{"meals":41,"mraw":2,"box":12,"mhh":119},"PT":{"meals":46,"mraw":24,"box":45,"mhh":110},"LT":{"meals":6,"mraw":5,"box":3,"mhh":47}}}]');BILL.snap=true;BILL.skipped=["10/13","10/6","9/29","9/22","9/1"];
+BILL.weeks=JSON.parse('[{"k":"10/27","tab":"","a":{"UJO":{"meals":199,"mraw":203,"box":4,"mhh":797},"LH":{"meals":10,"mraw":7,"box":10,"mhh":23},"PT":{"meals":16,"mraw":17,"box":18,"mhh":57},"CCS":{"meals":23,"mraw":5,"box":10,"mhh":51},"RY":{"meals":7,"mraw":6,"box":10,"mhh":16},"LT":{"meals":5,"mraw":4,"box":3,"mhh":15}}},{"k":"10/20","tab":"","a":{"LH":{"meals":9,"mraw":8,"box":11,"mhh":23},"UJO":{"meals":212,"mraw":193,"box":4,"mhh":797},"PT":{"meals":17,"mraw":14,"box":20,"mhh":54},"CCS":{"meals":22,"mraw":4,"box":6,"mhh":46},"LT":{"meals":4,"mraw":4,"box":4,"mhh":14},"RY":{"meals":6,"mraw":7,"box":10,"mhh":15}}},{"k":"9/15","tab":"","a":{"UJO":{"meals":294,"mraw":185,"box":8,"mhh":1565},"CCS":{"meals":25,"mraw":5,"box":10,"mhh":117},"PT":{"meals":16,"mraw":14,"box":30,"mhh":83},"RY":{"meals":8,"mraw":7,"box":6,"mhh":42},"LH":{"meals":12,"mraw":9,"box":12,"mhh":58},"LT":{"meals":4,"mraw":4,"box":4,"mhh":13}}},{"k":"9/8","tab":"","a":{"UJO":{"meals":275,"mraw":219,"box":7,"mhh":1294},"LH":{"meals":11,"mraw":10,"box":13,"mhh":26},"RY":{"meals":7,"mraw":7,"box":5,"mhh":18},"CCS":{"meals":12,"mraw":3,"box":6,"mhh":30},"PT":{"meals":14,"mraw":9,"box":13,"mhh":28},"LT":{"meals":4,"mraw":4,"box":4,"mhh":14}}}]');BILL.snap=true;BILL.skipped=["10/13","10/6","9/29","9/22","9/1"];
 const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
 const dcount=x=>x?x.meals+x.mraw+x.box:0;
 const coName=c=>c=="?"?"No company":c;
@@ -460,7 +460,7 @@ function vBill(){
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const nav=`<div class="card"><div class="bar"><button class="${B.t=="dash"?"on":""}" onclick="bgo('dash')">Dashboard</button><span class="note">Companies:</span>${cos.map(c=>`<button class="${B.t=="co"&&B.co==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}</div>
  <div class="bar" style="margin-top:8px"><span class="note">Weeks:</span>${W.map(w=>`<button class="${B.t=="wk"&&B.wk==w.k?"on":""}" onclick="bgo('wk','${w.k}')">${esc(w.k)}</button>`).join("")}</div>
- <p class="note" style="margin:8px 0 0">${BILL.real?"Live from the Billing SCN 82 sheet (the weekly ORDERS export).":"Real weekly counts from the Billing SCN 82 sheet (ORDERS tabs), taken Nov 1. Press <b>Load my real data</b> at the top for the live version and the customer lists."}${BILL.skipped&&BILL.skipped.length?` Not listed: ${BILL.skipped.join(", ")}, because the ORDERS export for those weeks has no Company, Food Type or household size filled in.`:""} Amounts are <b>estimates</b>: a Meals customer pays the meals price × 21 meals × household size (even if he asked for raw); a Box customer pays the box price per box. Payments are not recorded yet.</p></div>`;
+ <p class="note" style="margin:8px 0 0">${BILL.real?"Live from the Billing SCN 82 sheet (the weekly ORDERS export).":"Sample numbers for testing only, not real."}${BILL.skipped&&BILL.skipped.length?` Not listed: ${BILL.skipped.join(", ")}, because the ORDERS export for those weeks has no Company, Food Type or household size filled in.`:""} Amounts are <b>estimates</b>: a Meals customer pays the meals price × 21 meals × household size (even if he asked for raw); a Box customer pays the box price per box. Payments are not recorded yet.</p></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
