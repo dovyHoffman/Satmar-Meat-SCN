@@ -725,7 +725,7 @@ function vImport(){
  const I=S.imp;
  return `<div class="card"><h2>Import customers</h2>
  <ol class="note" style="line-height:1.7"><li>Open the Google Sheet <b>Meal Sheet New</b> and click the <b>Customer_data</b> tab.</li><li>Click <b>File → Download → Comma Separated Values (.csv)</b>.</li><li>Choose that file below.</li></ol>
- <p class="note">Only name, ID, phone, address, household size, food type, location, company, notes and the authorization end date are sent to the database. Birth dates, CIN numbers and emails are never read. Customers that already exist are left untouched, so running this again is safe.</p>
+ <p class="note">Only name, ID, phone, cell, email, legal address, address, household size, food type, location, company, notes and the authorization end date are sent to the database. Birth dates and CIN numbers are never read. Customers that already exist are left untouched, so running this again is safe.</p>
  <input type="file" accept=".csv,text/csv" onchange="importFile(this.files[0])">
  ${I&&I.err?`<p class="err">${esc(I.err)}</p>`:""}
  ${I&&I.rows?`<div class="card" style="margin-top:12px"><b>${I.rows.length.toLocaleString()} customers ready</b> <span class="note">(${I.rows.filter(r=>r.active).length.toLocaleString()} active). Skipped: ${I.skipped.noref} without an ID, ${I.skipped.dup} repeated IDs.</span>
