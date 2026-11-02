@@ -95,8 +95,8 @@ let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:
 
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["import","Import"],["settings","Settings"]];
-const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers"],billing:[],demo:[]};
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["history","History"],["import","Import"],["settings","Settings"]];
+const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes"],billing:[],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
 function navFor(u){const a=upages(u);return PAGES.filter(p=>a.indexOf(p[0])>=0)}
@@ -118,7 +118,7 @@ function uadd(){const n=document.getElementById("nu_name").value.trim(),e=docume
  USERS.push({name:n||e.split("@")[0],email:e,role:r,pages:ROLE_PAGES[r].slice(),active:true});LG("Access · "+e,"Person added",""," "+ROLE_NAMES[r]);usave();S.msg=e+" added.";S.err="";render()}
 function vSettings(){
  const pg=PAGES.filter(p=>p[0]!="settings");
- return `<div class="card"><h2>Changes for next week (Nov 9)</h2>
+ return `<div class="card"><h2>Changes for next week (${nwk()})</h2>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
  <label><input type="checkbox" style="width:auto" ${S.cut?"checked":""} onchange="setOpt('cut',this.checked)"> Cut-off has passed (only the admin can add changes)</label>
  <p class="note">Changes always start next week and never touch this week. When the cut-off has passed, only the admin can add or change a request. Every switch is saved in History.</p></div>
@@ -140,7 +140,7 @@ function render(){
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=banner()+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
- app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings}[S.view])||(()=>""))();
+ app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
 }
 function banner(){
@@ -230,17 +230,17 @@ function opts(c){
  return o.map(x=>[x,F[x]]).concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[])}
 function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
- const own=false,ed=false,n=c.next||{},lock=S.cut&&!own,dis=ed&&!lock?"":"disabled",o=opts(c);
+ const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=S.cut&&!own,dis=ed&&!lock?"":"disabled",o=opts(c);
  const ro=(l,v)=>`<label>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
- const cu=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label>${ro("Last delivery",dlvText(c))}<label class="ac">Delivery address (choose from the list)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label><label>Apartment<input id="f_apt" value="${esc(c.apt)}"></label><label>Notes<textarea id="f_notes" rows="2">${esc(c.notes)}</textarea></label>`:ro("Phone",c.phone)+ro("Last delivery",dlvText(c))+ro("Delivery address",c.addr)+ro("Notes",c.notes);
+ const cu=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label>${ro("Last delivery",dlvText(c))}<label class="ac">Delivery address (street, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label><label>Apartment<input id="f_apt" value="${esc(c.apt)}"></label><label>Notes<textarea id="f_notes" rows="2">${esc(c.notes)}</textarea></label>`:ro("Phone",c.phone)+ro("Last delivery",dlvText(c))+ro("Delivery address",c.addr)+ro("Notes",c.notes);
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
  return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2><div class="grid">
  ${ro("ID",c.ref)}${ro("Agency",c.agency)}${ro("Household size",c.hh)}${ro("Food type",c.base=="box"?"Box":"Meals")}${ro("Option",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>${ro("Area",c.area)}${dlv(c)}${ro("Legal address",c.legal)}${ro("Door lock code",c.lock)}${cu}</div>
  ${own?`<div class="bar"><button class="pri" onclick="saveNow(${c.id})">Save now (admin)</button></div><p class="note">Admin edits change this week immediately and are logged.</p>`:`<p class="note">This week is read-only. Use “Changes for next week” below.</p>`}
  <p class="err" id="ce"></p></div>
- <div class="card"><h2>Changes for next week (Nov 9)</h2>
+ <div class="card"><h2>Changes for next week (${nwk()})</h2>
  ${lock?`<p class="err">The cut-off has passed. Only the admin can add changes now.</p>`:""}
- <div class="grid">${nf("nf_phone","New phone",n.phone,"Current: "+c.phone)}<label class="ac">New delivery address (choose from the list)<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="Start typing, then choose" ${dis}></label>${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}${nf("nf_notes","New notes",n.notes,"Current: "+(c.notes||"none"))}
+ <div class="grid">${nf("nf_phone","New phone",n.phone,"Current: "+c.phone)}<label class="ac">New delivery address (street, city, state, zip)<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}></label>${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}${nf("nf_notes","New notes",n.notes,"Current: "+(c.notes||"none"))}
  <label>Food type<select id="nf_base" ${own&&!lock?"":"disabled"} onchange="fillOpt()"><option value="box" ${(n.base||c.base)=="box"?"selected":""}>Box</option><option value="meals" ${(n.base||c.base)=="meals"?"selected":""}>Meals</option></select></label>
  <label>Option<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
  <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
@@ -278,7 +278,7 @@ function applyNow(id){
 function cancelNext(id){const c=cust.find(x=>x.id==id);c.next=null;L(c,"Changes for next week cancelled","","");S.msg="Cancelled.";render()}
 function vChanges(){
  const own=S.user.role=="owner",rows=cust.filter(c=>c.next);
- return `<div class="card"><h2>Changes for next week (Nov 9)</h2>
+ return `<div class="card"><h2>Changes for next week (${nwk()})</h2>
  <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>${S.cut?"passed (only the admin can add changes)":"open"}</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","notes","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by)}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button> <button onclick="cancelNext(${c.id})">Cancel</button>`:""}</td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
@@ -663,7 +663,8 @@ async function loadDB(){
   try{const since=new Date(Date.now()-35*864e5).toISOString();
    const ds=await fetchAll("deliveries","order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",q=>q.order("delivered_at",{ascending:false,nullsFirst:false}));
    ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[])})});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
-  try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true})}catch(e){}
+  try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
+  try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render()}
@@ -674,7 +675,7 @@ function banner(){
  const own=S.user.role=="owner";
  if(!navFor(S.user).length)return `<div class="card"><b>You are signed in, but no pages are switched on for you yet.</b> <span class="note">Ask the owner to give you access.</span></div>`;
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
- return `<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Editing customers and next-week changes will be switched on in the next step, so for now this is read only.</span></div>`}
+ return `<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(Boolean))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 async function showRealPod(id,lab){
@@ -744,7 +745,7 @@ async function loadUsers(){
 async function updProfile(id,patch){
  const {error}=await sb.from("profiles").update(patch).eq("id",id);
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S.msg="Saved.";S.err=""}await loadUsers()}
-function urole(i,v){const pg=v=="secretary"?["customers"]:[];updProfile(USERS[i].id,{role:v,pages:pg})}
+function urole(i,v){const pg=v=="secretary"?["customers","changes"]:[];updProfile(USERS[i].id,{role:v,pages:pg})}
 function upage(i,p,v){const u=USERS[i],cur=(u.pages||[]).filter(x=>x!=p);if(v)cur.push(p);updProfile(u.id,{pages:cur})}
 function uactive(i,v){updProfile(USERS[i].id,{active:!!v})}
 async function setOpt(k,v){
@@ -755,6 +756,7 @@ function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
  const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
  return `<div class="card"><h2>Changes for next week</h2>
+ <div class="bar"><label>Next week starts (like 11/9)<input id="nw_in" value="${esc(nwk())}" style="max-width:120px"></label><button onclick="saveNextWeek()">Save</button></div>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
  <label><input type="checkbox" style="width:auto" ${S.cut?"checked":""} onchange="setOpt('cut',this.checked)"> Cut-off has passed (only the admin can add changes)</label></div>
  <div class="card"><h2>People and access</h2>
@@ -766,6 +768,99 @@ function vSettings(){
  <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} ${u.id==S.user.id?"disabled":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td></tr>`).join("")||`<tr><td colspan="${pg.length+4}" class="no">Loading…</td></tr>`}</table></div>
  <h3 class="gh">Invite a new person</h3>
  <p class="note">In Supabase: <b>Authentication → Users → Invite user</b>, type their email. They click the link in the email once. After that they sign in here with a code. Then come back to this page and choose their role and pages.</p></div>`}
+
+
+/* ================= STAGE 2: editing, next-week changes, history ================= */
+const nwk=()=>S.nextWk||"11/9";
+const ADDRMSG2="Type the address as: street, city, state, zip (for example 109 Hart St, Brooklyn, NY, 11206). Put the apartment in its own box.";
+function setupAC(){}
+async function saveNow(id){
+ const c=cust.find(x=>x.id==id),ce=document.getElementById("ce"),g=i=>document.getElementById(i);
+ if(S.user.role!="owner")return;
+ const ad=parseAddr(g("f_addr").value),apt=g("f_apt").value.trim();
+ if(!ad.street||!ad.city||!ad.state||!ad.zip){ce.textContent=ADDRMSG2;return}
+ const patch={phone:g("f_phone").value.trim(),street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes:g("f_notes").value.trim()};
+ const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
+ if(error){ce.textContent="Not saved: "+dberr(error);return}
+ const ac=addrStr({st:patch.street,city:patch.city,state:patch.state,zip:patch.zip},patch.apt)!==c.addr;
+ c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes;
+ S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
+async function saveNext(id){
+ const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
+ if(S.cut&&!own){ce.textContent="The cut-off has passed. Only the admin can add changes now.";return}
+ const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",food:(g("nf_opt").value!==c.food||g("nf_base").value!==c.base)?g("nf_opt").value:""},nx={};
+ for(const k in v)if(v[k]&&v[k]!==(k=="food"?c.food:c[k]))nx[k]=v[k];
+ if(nx.food)nx.base=g("nf_base").value;
+ const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
+ if(at||apt){const ad=at?parseAddr(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
+  if(!ad.street||!ad.city||!ad.state||!ad.zip){ce.textContent=ADDRMSG2;return}
+  const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
+  if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap)}}
+ const had=c.next&&c.next.rid;
+ if(!Object.keys(nx).length){
+  if(had){const {error}=await sb.from("change_requests").update({status:"cancelled"}).eq("id",c.next.rid);if(error){ce.textContent="Not saved: "+dberr(error);return}c.next=null;S.msg="Changes for next week cleared."}
+  else S.msg="Nothing to save.";S.err="";render();return}
+ nx.by=S.user.name;
+ let rid=had,error;
+ if(had){({error}=await sb.from("change_requests").update({payload:nx}).eq("id",had))}
+ else{const r=await sb.from("change_requests").insert({customer_id:c.uuid,effective_week:nwk(),payload:nx,requested_by:S.user.id}).select("id").single();error=r.error;rid=r.data&&r.data.id}
+ if(error){ce.textContent="Not saved: "+dberr(error);return}
+ c.next=Object.assign({},nx,{rid:rid,at:new Date().toLocaleDateString()});
+ S.msg="Saved as changes for next week. This week is not changed.";S.err="";render()}
+async function applyNow(id,quiet){
+ const c=cust.find(x=>x.id==id),x=c.next;if(!x||S.user.role!="owner")return false;
+ const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes=x.notes;
+ if(x.a){p.street=x.a.st;p.city=x.a.city;p.state=x.a.state;p.zip=x.a.zip;p.apt=x.apt||""}
+ if(x.food){if(x.food=="mid")p.middleton=true;else{p.food=x.food;p.base=x.base||c.base}}
+ let r=Object.keys(p).length?await sb.from("customers").update(p).eq("id",c.uuid):{error:null};
+ if(!r.error)r=await sb.from("change_requests").update({status:"applied"}).eq("id",x.rid);
+ if(r.error){S.err="Not applied: "+dberr(r.error);S.msg="";render();return false}
+ if(x.phone)c.phone=x.phone;if(x.notes)c.notes=x.notes;
+ if(x.a){c.a=x.a;c.apt=x.apt||"";c.addr=addrStr(c.a,c.apt)}
+ if(x.food){if(x.food=="mid")c.area="Middleton";else{c.food=x.food;c.base=x.base||c.base}}
+ c.next=null;if(!quiet){S.msg="Applied. It is recorded in History.";S.err="";render()}return true}
+async function applyAll(){
+ const ids=cust.filter(c=>c.next).map(c=>c.id);let n=0;
+ for(const id of ids){if(await applyNow(id,true))n++;else return}
+ S.msg=n+" changes applied.";S.err="";render()}
+async function cancelNext(id){
+ const c=cust.find(x=>x.id==id);if(!c.next)return;
+ const {error}=await sb.from("change_requests").update({status:"cancelled"}).eq("id",c.next.rid);
+ if(error){S.err="Not cancelled: "+dberr(error);S.msg="";render();return}
+ c.next=null;S.msg="Cancelled.";S.err="";render()}
+function vChanges(){
+ const own=S.user.role=="owner",rows=cust.filter(c=>c.next);
+ return `<div class="card"><h2>Changes for next week (${esc(nwk())})</h2>
+ <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>${S.cut?"passed (only the admin can add changes)":"open"}</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
+ ${own&&rows.length?`<div class="bar"><button onclick="if(confirm('Apply all ${rows.length} waiting changes now?'))applyAll()">Apply all ${rows.length} now</button></div>`:""}
+ <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
+ ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","notes","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" ${S.cut&&!own?"disabled":""}>Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
+/* history comes from the database audit log (who, what, when) */
+const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb()};
+async function loadHistDb(){
+ S.h={loading:true};render();
+ try{const {data,error}=await sb.from("audit_log").select("at,user_name,table_name,row_id,action,old,new").order("at",{ascending:false}).limit(300);
+  if(error)throw error;S.h={rows:data}}catch(e){S.h={err:dberr(e)}}
+ render()}
+const HNOISE={id_norm:1,created_at:1,updated_at:1,id:1};
+function hDiff(r){
+ const o=r.old||{},n=r.new||{};
+ if(r.action=="INSERT"){return Object.keys(n).filter(k=>!HNOISE[k]&&n[k]!==""&&n[k]!=null).slice(0,6).map(k=>k+": "+n[k]).join(" · ")||"added"}
+ const ks=Object.keys(n).filter(k=>!HNOISE[k]&&JSON.stringify(n[k])!==JSON.stringify(o[k]));
+ return ks.map(k=>`${k}: ${o[k]==null||o[k]===""?"–":typeof o[k]=="object"?JSON.stringify(o[k]):o[k]} → ${n[k]==null||n[k]===""?"–":typeof n[k]=="object"?JSON.stringify(n[k]):n[k]}`).join("<br>")}
+function vHist(){
+ const H=S.h||{};
+ if(H.loading)return `<div class="card"><b>Loading history…</b></div>`;
+ if(H.err)return `<div class="card"><p class="err">${esc(H.err)}</p><button onclick="loadHistDb()">Try again</button></div>`;
+ const byU={};cust.forEach(c=>byU[c.uuid]=c.name);
+ const T={customers:"Customer",change_requests:"Change request",profiles:"Person",app_settings:"Setting",box_settings:"Box setting",menus:"Menu",agency_prices:"Price"};
+ return `<div class="card"><h2>Change history</h2><p class="note">Every change is recorded automatically: who, what and when. The last 300 are shown. Nothing here can be deleted.</p><div class="wrap"><table><tr><th>When</th><th>Who</th><th>What</th><th>About</th><th>Change</th></tr>
+ ${(H.rows||[]).map(r=>{const who=r.table_name=="customers"?byU[r.row_id]:r.table_name=="change_requests"?byU[(r.new||r.old||{}).customer_id]:"";const d=hDiff(r);
+ return `<tr><td style="white-space:nowrap">${esc(fdate(r.at))}</td><td>${esc(r.user_name||"system")}</td><td>${esc((T[r.table_name]||r.table_name)+" · "+r.action.toLowerCase())}</td><td>${esc(who||"")}</td><td style="white-space:normal">${esc(d).replace(/&lt;br&gt;/g,"<br>")}</td></tr>`}).join("")||"<tr><td colspan=5 class='no'>No changes recorded yet.</td></tr>"}</table></div></div>`}
+async function saveNextWeek(){
+ const v=(document.getElementById("nw_in").value||"").trim();if(!/^\d{1,2}\/\d{1,2}$/.test(v)){S.err="Write the date like 11/9.";S.msg="";render();return}
+ const {error}=await sb.from("app_settings").upsert({key:"next_week",value:v,updated_at:new Date().toISOString()});
+ if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S.nextWk=v;S.msg="Saved.";S.err=""}render()}
 
 render();
 boot();
