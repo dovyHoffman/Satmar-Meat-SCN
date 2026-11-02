@@ -113,7 +113,7 @@ label{font-size:12.5px;font-weight:500;color:var(--mut)}
 .g4 .ro{color:var(--tx);font-weight:500;font-size:14.5px}
 .g4 .sec{color:var(--ac);border-bottom:1px solid var(--ln);font-size:11.5px;margin-top:14px;padding-bottom:5px}
 .dlvrow{background:color-mix(in srgb,var(--ok) 7%,var(--card));border-color:color-mix(in srgb,var(--ok) 25%,var(--ln));border-radius:12px}
-.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
+th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{display:inline-block;width:14px;margin-left:3px;color:var(--ac);font-size:10px}.colmenu{position:absolute;right:0;top:100%;margin-top:6px;z-index:10;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(16,24,40,.18);width:250px;max-height:420px;overflow:auto}.colmenu .ck{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;color:var(--tx);cursor:pointer}.colmenu .ck input{width:auto;margin:0;min-height:0}.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
 @media(max-width:820px){#shell{flex-direction:column}#side{width:100%;height:auto;position:static;padding:10px 12px}#side .brand{padding-bottom:10px;margin-bottom:8px}#nav{flex-direction:row;flex-wrap:wrap;flex:none}#nav button.nv{width:auto;padding:8px 11px}#who{display:flex;align-items:center;justify-content:space-between;gap:8px}#who .me{padding:0}#who .acts{flex:none}main{padding:16px}}
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
@@ -275,17 +275,48 @@ function inn(){const e=document.getElementById("em").value.trim();if(!e)return;
  try{localStorage.setItem("sm_user",JSON.stringify(S.user))}catch(x){}
  S.view=(navFor(S.user)[0]||["customers"])[0];render();if(S.mcpOK&&!S.real&&S.user.role!="demo")loadReal()}
 function out(){S.user=null;try{localStorage.removeItem("sm_user")}catch(x){}render()}
+const dpOf=(c,t0)=>S.real?(c.pods||[]).find(x=>x.ts&&x.ts>=t0):null;
+const COLS=[
+ {k:"ref",l:"ID",on:1,v:c=>esc(c.ref),s:c=>c.ref},
+ {k:"name",l:"Name",on:1,v:c=>`<b>${esc(c.name)}</b>`,s:c=>c.name},
+ {k:"addr",l:"Delivery address",on:1,cls:"adr",v:c=>esc(c.addr),s:c=>c.addr},
+ {k:"phone",l:"Phone",on:1,v:c=>esc(c.phone),s:c=>c.phone},
+ {k:"base",l:"Type",on:1,v:c=>c.base=="box"?"Box":"Meals",s:c=>c.base},
+ {k:"hh",l:"HH",on:1,v:c=>c.hh,s:c=>+c.hh||0,num:1},
+ {k:"chose",l:"Customer chose",on:1,v:c=>{const code=codesFor(c.food,c.hh,c.area);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area)+" "+optName(c.base,c.food)},
+ {k:"deliv",l:"Delivery",on:1,v:c=>{const dp=dpOf(c,weekStart()),dd=S.real?!!dp:c.delivered;return `<span class="ctag ${dd?"t-ok":"t-no"}">${dd?"Delivered"+(dp&&dp.at?" · "+esc(dp.at.replace(/^.*?,\s*/,"")):""):"Not yet"}</span>`},s:c=>{const dp=dpOf(c,weekStart());return S.real?(dp?dp.ts:0):(c.delivered?1:0)},num:1},
+ {k:"agency",l:"Agency",v:c=>esc(c.agency),s:c=>c.agency},
+ {k:"area",l:"Area",v:c=>esc(c.area),s:c=>c.area},
+ {k:"cell",l:"Cell",v:c=>esc(c.cell),s:c=>c.cell||""},
+ {k:"email",l:"Email",v:c=>esc(c.email),s:c=>c.email||""},
+ {k:"legal",l:"Legal address",cls:"adr",v:c=>esc(c.legal),s:c=>c.legal||""},
+ {k:"apt",l:"Apartment",v:c=>esc(c.apt),s:c=>c.apt||""},
+ {k:"notes",l:"Notes",cls:"adr",v:c=>esc(c.notes),s:c=>c.notes||""},
+ {k:"note2",l:"Notes 2",cls:"adr",v:c=>esc(c.note2),s:c=>c.note2||""},
+ {k:"auth",l:"Authorization ends",v:c=>c.auth?esc(c.auth.toLocaleDateString("en-US")):"",s:c=>c.auth?+c.auth:0,num:1},
+ {k:"active",l:"Status",v:c=>`<span class="ctag ${c.active?"t-ok":"t-no"}">${c.active?"Active":"Not in list"}</span>`,s:c=>c.active?1:0,num:1}];
+function myPrefs(){const u=S.user||{};let p=u.prefs&&Object.keys(u.prefs).length?u.prefs:null;
+ if(!p){try{p=JSON.parse(localStorage.getItem("sm_prefs_"+(u.id||u.email||"x"))||"null")}catch(e){}}
+ return p||{}}
+function activeCols(){const p=myPrefs(),want=Array.isArray(p.cols)&&p.cols.length?p.cols:COLS.filter(c=>c.on).map(c=>c.k);return COLS.filter(c=>want.indexOf(c.k)>=0)}
+async function savePrefs(patch){const u=S.user;if(!u)return;const p=Object.assign({},myPrefs(),patch);u.prefs=p;
+ try{localStorage.setItem("sm_prefs_"+(u.id||u.email||"x"),JSON.stringify(p))}catch(e){}
+ try{if(sb&&u.id)await sb.rpc("save_my_prefs",{p:p})}catch(e){}}
+function toggleCol(k){const cur=activeCols().map(c=>c.k),i=cur.indexOf(k);if(i>=0){if(cur.length<=1)return;cur.splice(i,1)}else cur.push(k);savePrefs({cols:cur});render()}
+function resetCols(){savePrefs({cols:COLS.filter(c=>c.on).map(c=>c.k)});render()}
+function sortBy(k){const p=myPrefs(),d=p.sortK==k?(p.sortD=="asc"?"desc":"asc"):"asc";savePrefs({sortK:k,sortD:d});S.pg=0;S.dpg=0;render()}
 function vList(db){
  const q=(db?S.dq:S.q).toLowerCase(),f=db?S.dflt:"active",pk=db?"dpg":"pg",nA=cust.filter(c=>c.active).length,nI=cust.length-nA;
- const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency).toLowerCase().includes(q));
+ const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency+(c.email||"")+(c.legal||"")).toLowerCase().includes(q));
+ const cols=activeCols(),pr=myPrefs(),sc=COLS.find(c=>c.k==pr.sortK);
+ if(sc){const dir=pr.sortD=="desc"?-1:1;rows.sort((x,y)=>{const a=sc.s(x),b=sc.s(y);const r=sc.num?(a-b):String(a||"").localeCompare(String(b||""),undefined,{numeric:true,sensitivity:"base"});return r*dir||x.name.localeCompare(y.name)})}
  const pages=Math.max(1,Math.ceil(rows.length/50)),pg=Math.min(S[pk],pages-1),vis=rows.slice(pg*50,pg*50+50),nf=n=>n.toLocaleString();
  const tile=(k,l,n,col)=>`<div class="kpi click ${f==k?"on":""}" onclick="S.dflt='${k}';S.dpg=0;render()"><span class="note">${l}</span><b${col?` style="color:${col}"`:""}>${nf(n)}</b></div>`;
  const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px">${tile("all","Total customers",cust.length)}${tile("active","Active (on this week's list)",nA,"var(--ok)")}${tile("off","Not active (Not in list)",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
- const t0=weekStart();
- return `<div class="card">${head}<input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render();var i=document.querySelector('input');i.focus();i.setSelectionRange(99,99)" style="width:100%;margin-bottom:12px">
- <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Delivery address</th><th>Phone</th><th>Type</th><th>HH</th><th>Customer chose</th><th>Delivery</th></tr>
- ${vis.map(c=>{const code=codesFor(c.food,c.hh,c.area),dp=S.real?(c.pods||[]).find(x=>x.ts&&x.ts>=t0):null,dd=S.real?!!dp:c.delivered;
-  return `<tr class="row" onclick="go('card',${c.id})"><td>${esc(c.ref)}</td><td><b>${esc(c.name)}</b></td><td class="adr" title="${esc(c.addr)}">${esc(c.addr)}</td><td>${esc(c.phone)}</td><td>${c.base=="box"?"Box":"Meals"}</td><td>${c.hh}</td><td><span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span></td><td><span class="ctag ${dd?"t-ok":"t-no"}">${dd?"Delivered"+(dp&&dp.at?" · "+esc(dp.at.replace(/^.*?,\s*/,"")):""):"Not yet"}</span></td></tr>`}).join("")||"<tr><td colspan=8 class='no'>No customers found.</td></tr>"}</table></div>
+ const sel=cols.map(c=>c.k),menu=S.colMenu?`<div class="colmenu"><div class="note" style="margin-bottom:6px">Tick the columns you want. Saved for you.</div>${COLS.map(c=>`<label class="ck"><input type="checkbox" ${sel.indexOf(c.k)>=0?"checked":""} onchange="toggleCol('${c.k}')"> ${c.l}</label>`).join("")}<div class="bar" style="margin-top:8px"><button onclick="resetCols()">Reset</button><button onclick="S.colMenu=false;render()">Close</button></div></div>`:"";
+ return `<div class="card">${head}<div class="bar" style="margin:0 0 12px;align-items:flex-start"><input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render();var i=document.querySelector('#app input');i.focus();i.setSelectionRange(99,99)" style="flex:1"><div style="position:relative"><button onclick="S.colMenu=!S.colMenu;render()">Columns ▾</button>${menu}</div></div>
+ <div class="wrap"><table><tr>${cols.map(c=>`<th class="srt" onclick="sortBy('${c.k}')">${c.l}<span class="ar">${pr.sortK==c.k?(pr.sortD=="desc"?"▼":"▲"):""}</span></th>`).join("")}</tr>
+ ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})">${cols.map(x=>`<td${x.cls?` class="${x.cls}" title="${esc(x.s(c))}"`:""}>${x.v(c)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan=${cols.length} class='no'>No customers found.</td></tr>`}</table></div>
  <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
 const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn",state:"NY",zip:"11211"})).concat([{st:"250 Sample Ave",city:"Brooklyn",state:"NY",zip:"11211"},{st:"18 Example Rd",city:"Brooklyn",state:"NY",zip:"11206"},{st:"77 Demo Blvd",city:"Brooklyn",state:"NY",zip:"11249"},{st:"5 Sample Rd",city:"Monsey",state:"NY",zip:"10952"}]);
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
@@ -721,6 +752,7 @@ async function afterLogin(){
  if(error||!p){S.user=null;S.err="No profile was found for this email. Ask the owner.";await sb.auth.signOut();return}
  if(!p.active){S.user=null;S.err="This account is turned off. Ask the owner.";await sb.auth.signOut();return}
  S.user={id:p.id,name:p.name||p.email,email:p.email,role:p.role,pages:p.pages||[]};S.err="";
+ try{const r=await sb.from("profiles").select("prefs").eq("id",au.id).maybeSingle();if(r&&r.data&&r.data.prefs)S.user.prefs=r.data.prefs}catch(e){}
  const nv=navFor(S.user);S.view=(nv[0]||["customers"])[0];
  await loadDB()}
 async function boot(){
