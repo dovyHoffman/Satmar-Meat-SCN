@@ -664,7 +664,7 @@ async function loadDB(){
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
    const ds=await fetchAll("deliveries","order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",q=>q.order("delivered_at",{ascending:false,nullsFirst:false}));
-   ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[])})});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
+   ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[])})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
@@ -680,8 +680,8 @@ function banner(){
  return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
-async function showRealPod(id,lab){
- const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(!p)return;
+function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
+async function showPodP(c,p){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  d.innerHTML=`<div class="mod" style="max-width:640px"><b>${esc(c.name)}</b><div class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</div><div id="pod_body" class="note">Loading the picture… the first time it can take 10 to 20 seconds.</div><div class="bar"><button class="pri" data-x="1">Close</button></div></div>`;
  document.body.appendChild(d);
@@ -886,6 +886,18 @@ async function syncNow(){
   S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");await loadDB()
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
+
+
+/* ---- deliveries shown from the database ---- */
+function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d.getTime()}   // last Saturday 00:00
+function dlv(c){
+ const t0=weekStart(),p=(c.pods||[]).find(x=>x.ts&&x.ts>=t0);
+ if(!p)return `<label>Delivery this week<div class="ro"><span class="ctag t-no">Not yet</span></div></label>`;
+ const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");
+ return `<label>Delivery this week<div class="ro"><span class="ctag t-ok">Delivered</span> ${esc([p.drv,p.at].filter(Boolean).join(" · "))} ${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo</button>`:""}${/^https?:\/\//i.test(p.rec)?` <a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</div></label>`}
+function podRec(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";const r=p.rec;return (/^https?:\/\//i.test(r)?`<a href="${esc(r)}" target="_blank" rel="noopener noreferrer">Receipt</a> `:"")+`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
+function podPics(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
+function showPodO(id,oid){const c=cust.find(x=>x.id==id),p=(c.pods||[]).find(x=>x.oid==oid);if(p)showPodP(c,p)}
 
 render();
 boot();
