@@ -99,7 +99,7 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font
 #who button{flex:1;background:rgba(255,255,255,.07);border:0;color:var(--sidetx);border-radius:8px;padding:7px 8px;font-size:13px}
 #who button:hover{background:rgba(255,255,255,.14);color:#fff}
 body.anon #side{display:none}
-th,td{padding:7px 8px;font-size:13.5px}td.adr{max-width:210px;overflow:hidden;text-overflow:ellipsis}.wrap td .ctag{font-size:12px;padding:2px 8px}
+th,td{padding:7px 8px;font-size:13.5px}td.adr{max-width:260px;overflow:hidden;text-overflow:ellipsis}.wrap td .ctag{font-size:12px;padding:2px 8px}
 main{max-width:1320px;margin:0 auto;padding:26px 28px;min-width:0;flex:1}
 .card{border-radius:16px;border:1px solid var(--ln);box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.04);padding:20px}
 h2{font-size:20px;font-weight:700;letter-spacing:-.015em}
@@ -113,7 +113,7 @@ label{font-size:12.5px;font-weight:500;color:var(--mut)}
 .g4 .ro{color:var(--tx);font-weight:500;font-size:14.5px}
 .g4 .sec{color:var(--ac);border-bottom:1px solid var(--ln);font-size:11.5px;margin-top:14px;padding-bottom:5px}
 .dlvrow{background:color-mix(in srgb,var(--ok) 7%,var(--card));border-color:color-mix(in srgb,var(--ok) 25%,var(--ln));border-radius:12px}
-.kpi{border-radius:14px}.bx{border-radius:14px}
+.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
 @media(max-width:820px){#shell{flex-direction:column}#side{width:100%;height:auto;position:static;padding:10px 12px}#side .brand{padding-bottom:10px;margin-bottom:8px}#nav{flex-direction:row;flex-wrap:wrap;flex:none}#nav button.nv{width:auto;padding:8px 11px}#who{display:flex;align-items:center;justify-content:space-between;gap:8px}#who .me{padding:0}#who .acts{flex:none}main{padding:16px}}
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
@@ -147,6 +147,9 @@ function codesFor(food,hh,area){
  if(area=="Middleton")return "MN"+(hh>=3?"3+":Math.max(hh,1));
  const r=SET[Math.min(Math.max(hh,1),10)],i={meals:0,raw:1,rawnb:1,supper:2,shabbos:3}[food];let t=r[i];
  if(food=="rawnb")t=t.split(" ").map(x=>({S:"Sc",M:"Mc",L:"Lc"}[x]||x)).join(" ");return t}
+const CODEC={"H":"#3b82f6","B":"#22a559","E C":"#e07b00","A S":"#8b5cf6","3 B":"#0f9d9a","E B":"#e0483e","A M":"#d946a8","A 3":"#7c8a1a","E A":"#0ea5e9","A D L":"#b45309","D A L":"#64748b","E A B":"#c026d3","A 3 3":"#4f46e5","MN1":"#16a34a","MN2":"#ca8a04","MN3+":"#dc2626"};
+const PAL=["#3b82f6","#22a559","#e07b00","#8b5cf6","#0f9d9a","#e0483e","#d946a8","#0ea5e9","#b45309","#64748b","#c026d3","#4f46e5"];
+function codeColor(code){const k=String(code||"").replace(/\b(S|M|L)c\b/g,"$1").trim();if(CODEC[k])return CODEC[k];let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))>>>0;return PAL[h%PAL.length]}
 function optList(base,agency){
  let o=base=="box"?[["raw","Box"],["rawnb","Box - No Beef"]]:[["meals","Meals"],["supper","Suppers"],["shabbos","Shabbos"]].concat(agency=="CCS"?[]:[["raw","Raw"],["rawnb","Raw - No Beef"]]);
  return o}
@@ -276,11 +279,13 @@ function vList(db){
  const q=(db?S.dq:S.q).toLowerCase(),f=db?S.dflt:"active",pk=db?"dpg":"pg",nA=cust.filter(c=>c.active).length,nI=cust.length-nA;
  const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency).toLowerCase().includes(q));
  const pages=Math.max(1,Math.ceil(rows.length/50)),pg=Math.min(S[pk],pages-1),vis=rows.slice(pg*50,pg*50+50),nf=n=>n.toLocaleString();
- const chip=(k,l,n)=>`<button class="${f==k?"on":""}" onclick="S.dflt='${k}';S.dpg=0;render()">${l} (${nf(n)})</button>`;
- const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px"><div class="kpi"><span class="note">Total customers</span><b>${nf(cust.length)}</b></div><div class="kpi"><span class="note">Active (on this week's list)</span><b style="color:var(--ok)">${nf(nA)}</b></div><div class="kpi"><span class="note">Not active (Not in list)</span><b>${nf(nI)}</b></div></div><div class="bar" style="margin:0 0 12px">${chip("all","All",cust.length)}${chip("active","Active",nA)}${chip("off","Not active",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
+ const tile=(k,l,n,col)=>`<div class="kpi click ${f==k?"on":""}" onclick="S.dflt='${k}';S.dpg=0;render()"><span class="note">${l}</span><b${col?` style="color:${col}"`:""}>${nf(n)}</b></div>`;
+ const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px">${tile("all","Total customers",cust.length)}${tile("active","Active (on this week's list)",nA,"var(--ok)")}${tile("off","Not active (Not in list)",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
+ const t0=weekStart();
  return `<div class="card">${head}<input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render();var i=document.querySelector('input');i.focus();i.setSelectionRange(99,99)" style="width:100%;margin-bottom:12px">
- <div class="wrap"><table><tr><th>Name</th><th>ID</th><th>Customer chose</th><th>Type</th><th>HH</th><th>Delivery</th>${db?"<th>Status</th>":""}<th>Phone</th><th>Address</th></tr>
- ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})"><td><b>${esc(c.name)}</b></td><td>${esc(c.ref)}</td><td><span class="ctag ${fcls(c)}" style="cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span></td><td>${c.base=="box"?"Box":"Meals"}</td><td>${c.hh}</td><td><span class="ctag ${c.delivered?"t-ok":"t-no"}">${c.delivered?"Delivered · POD":"Not yet"}</span></td>${db?`<td><span class="ctag ${c.active?"t-ok":"t-no"}">${c.active?"Active":"Not in list"}</span></td>`:""}<td>${esc(c.phone)}</td><td class="adr" title="${esc(c.addr)}">${esc(c.addr)}</td></tr>`).join("")||"<tr><td colspan=9 class='no'>No customers found.</td></tr>"}</table></div>
+ <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Delivery address</th><th>Phone</th><th>Type</th><th>HH</th><th>Customer chose</th><th>Delivery</th></tr>
+ ${vis.map(c=>{const code=codesFor(c.food,c.hh,c.area),dp=S.real?(c.pods||[]).find(x=>x.ts&&x.ts>=t0):null,dd=S.real?!!dp:c.delivered;
+  return `<tr class="row" onclick="go('card',${c.id})"><td>${esc(c.ref)}</td><td><b>${esc(c.name)}</b></td><td class="adr" title="${esc(c.addr)}">${esc(c.addr)}</td><td>${esc(c.phone)}</td><td>${c.base=="box"?"Box":"Meals"}</td><td>${c.hh}</td><td><span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span></td><td><span class="ctag ${dd?"t-ok":"t-no"}">${dd?"Delivered"+(dp&&dp.at?" · "+esc(dp.at.replace(/^.*?,\s*/,"")):""):"Not yet"}</span></td></tr>`}).join("")||"<tr><td colspan=8 class='no'>No customers found.</td></tr>"}</table></div>
  <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
 const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn",state:"NY",zip:"11211"})).concat([{st:"250 Sample Ave",city:"Brooklyn",state:"NY",zip:"11211"},{st:"18 Example Rd",city:"Brooklyn",state:"NY",zip:"11206"},{st:"77 Demo Blvd",city:"Brooklyn",state:"NY",zip:"11249"},{st:"5 Sample Rd",city:"Monsey",state:"NY",zip:"10952"}]);
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
@@ -303,7 +308,7 @@ function vCard(){
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card"><div class="chd"><h2>${esc(c.name)}</h2><span class="ctag ${fcls(c)}">${esc(optName(c.base,c.food))}</span><span class="tag" style="cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">Box ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}
+ return `<div class="card"><div class="chd"><h2>${esc(c.name)}</h2><span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}
  <div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
   <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
