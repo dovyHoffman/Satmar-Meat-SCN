@@ -675,7 +675,7 @@ function banner(){
  const own=S.user.role=="owner";
  if(!navFor(S.user).length)return `<div class="card"><b>You are signed in, but no pages are switched on for you yet.</b> <span class="note">Ask the owner to give you access.</span></div>`;
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
- return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?"Syncing…":"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
+ return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(Boolean))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 async function showRealPod(id,lab){
@@ -864,14 +864,25 @@ async function saveNextWeek(){
 
 
 async function syncNow(){
- if(S.syncing)return;S.syncing=true;S.msg="";S.err="";render();
- try{const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
-  const r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:"{}"});
+ if(S.syncing)return;S.syncing=true;S.msg="";S.err="";S.syncMsg="Starting…";render();
+ const call=async body=>{const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
+  const r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
-  if(!r.ok||!j.ok){S.err="Sync did not work: "+(j.error||("error "+r.status))+(r.status==404?" (the function is not deployed yet)":"")}
-  else{S.msg="Sync done: "+j.deliveries_saved+" deliveries saved, "+j.photos_copied+" photos copied"+(j.more||j.deliveries_waiting_for_photos>j.photos_copied?". More are waiting, press the button again in a minute.":".");await loadDB()}
+  if(r.status==546)throw new Error("Supabase stopped the function (too heavy). Press the button again.");
+  if(r.status==404)throw new Error("the function is not deployed yet");
+  if(!r.ok||!j.ok)throw new Error(j.error||("error "+r.status));return j};
+ let saved=0,copied=0;
+ try{
+  let off=0,total=0;
+  while(off!==null){S.syncMsg="Reading deliveries… "+Math.min(off,total||off)+(total?" / "+total:"")+" customers";render();
+   let j;for(let t=0;;t++){try{j=await call({mode:"orders",offset:off});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
+   saved+=j.deliveries_saved;total=j.total;off=j.next}
+  let idle=0;
+  for(let i=0;i<150;i++){S.syncMsg="Copying pictures… "+copied+" done";render();
+   const j=await call({mode:"photos"});copied+=j.copied;if(!j.tried)break;if(!j.copied){idle++;if(idle>=5)break}else idle=0}
+  S.msg="Sync done: "+saved+" deliveries saved, "+copied+" pictures copied.";await loadDB()
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
- S.syncing=false;render()}
+ S.syncing=false;S.syncMsg="";render()}
 
 render();
 boot();
