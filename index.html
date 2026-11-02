@@ -675,7 +675,7 @@ function banner(){
  const own=S.user.role=="owner";
  if(!navFor(S.user).length)return `<div class="card"><b>You are signed in, but no pages are switched on for you yet.</b> <span class="note">Ask the owner to give you access.</span></div>`;
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
- return `<div class="card" style="border-color:var(--ok)"><b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
+ return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?"Syncing…":"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(Boolean))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 async function showRealPod(id,lab){
@@ -861,6 +861,17 @@ async function saveNextWeek(){
  const v=(document.getElementById("nw_in").value||"").trim();if(!/^\d{1,2}\/\d{1,2}$/.test(v)){S.err="Write the date like 11/9.";S.msg="";render();return}
  const {error}=await sb.from("app_settings").upsert({key:"next_week",value:v,updated_at:new Date().toISOString()});
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S.nextWk=v;S.msg="Saved.";S.err=""}render()}
+
+
+async function syncNow(){
+ if(S.syncing)return;S.syncing=true;S.msg="";S.err="";render();
+ try{const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
+  const r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:"{}"});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.ok){S.err="Sync did not work: "+(j.error||("error "+r.status))+(r.status==404?" (the function is not deployed yet)":"")}
+  else{S.msg="Sync done: "+j.deliveries_saved+" deliveries saved, "+j.photos_copied+" photos copied"+(j.more||j.deliveries_waiting_for_photos>j.photos_copied?". More are waiting, press the button again in a minute.":".");await loadDB()}
+ }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
+ S.syncing=false;render()}
 
 render();
 boot();
