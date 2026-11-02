@@ -664,7 +664,7 @@ async function loadDB(){
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
    const ds=await fetchAll("deliveries","order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",q=>q.order("delivered_at",{ascending:false,nullsFirst:false}));
-   ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[])})});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
+   ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[])})});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
@@ -683,13 +683,17 @@ function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.leng
 async function showRealPod(id,lab){
  const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(!p)return;
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
- d.innerHTML=`<div class="mod" style="max-width:640px"><b>${esc(c.name)}</b><div class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</div><div id="pod_body" class="note">Loading…</div><div class="bar"><button class="pri" data-x="1">Close</button></div></div>`;
+ d.innerHTML=`<div class="mod" style="max-width:640px"><b>${esc(c.name)}</b><div class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</div><div id="pod_body" class="note">Loading the picture… the first time it can take 10 to 20 seconds.</div><div class="bar"><button class="pri" data-x="1">Close</button></div></div>`;
  document.body.appendChild(d);
- const n=Math.max(p.links.length,(p.paths||[]).length),parts=[];
- for(let i=0;i<n;i++){const path=(p.paths||[])[i];let url="";
+ const n=Math.max(p.links.length,(p.paths||[]).length),parts=[];let tok=null;
+ try{const {data:ss}=await sb.auth.getSession();tok=ss&&ss.session&&ss.session.access_token}catch(e){}
+ for(let i=0;i<n;i++){let path=(p.paths||[])[i],url="",info="";
+  if((!path||path=="-")&&p.oid&&p.links[i]){
+   try{const r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"photo",order_id:p.oid,idx:i})});
+    const j=await r.json().catch(()=>({}));if(j.ok&&j.path){path=j.path;(p.paths=p.paths||[])[i]=path}else info=j.info||j.error||""}catch(e){info=String((e&&e.message)||e)}}
   if(path&&path!="-"){const {data}=await sb.storage.from("pods").createSignedUrl(path,3600);url=data&&data.signedUrl||""}
   if(url)parts.push(`<div style="margin:10px 0"><img src="${esc(url)}" style="max-width:100%;border-radius:8px;display:block"></div>`);
-  else if(p.links[i])parts.push(`<div style="margin:10px 0" class="note">This picture is not copied here yet. <a href="${esc(p.links[i])}" target="_blank" rel="noopener noreferrer">Open it in Scanovator</a></div>`)}
+  else if(p.links[i])parts.push(`<div style="margin:10px 0" class="note">The picture could not be copied${info?" ("+esc(info)+")":""}. <a href="${esc(p.links[i])}" target="_blank" rel="noopener noreferrer">Open it in Scanovator</a></div>`)}
  const bd=document.getElementById("pod_body");if(bd)bd.innerHTML=parts.join("")||"No picture yet."}
 /* ---- import (owner): reads a CSV of the Customer_data tab ---- */
 function parseCsv(t){const r=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];
@@ -879,11 +883,7 @@ async function syncNow(){
   while(off!==null){S.syncMsg="Reading deliveries… "+Math.min(off,total||off)+(total?" / "+total:"")+" customers";render();
    let j;for(let t=0;;t++){try{j=await call({mode:"orders",offset:off});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
    saved+=j.deliveries_saved;vid+=j.via_id||0;vph+=j.via_phone||0;nom+=j.no_match||0;if(codes.length<3)codes=codes.concat(j.phone_match_codes||[]).slice(0,3);total=j.total;off=j.next}
-  let idle=0,pinfo="",perr="";
-  try{for(let i=0;i<200;i++){S.syncMsg="Copying pictures… "+copied+" done";render();
-   const j=await call({mode:"photos"});copied+=j.copied;if(j.info)pinfo=j.info;if(!j.tried)break;if(!j.copied){idle++;if(idle>=4)break}else idle=0}}
-  catch(e){perr=(e&&e.message)||String(e)}
-  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures copied: "+copied+"."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"")+(perr?" The picture copying stopped ("+perr+"). The deliveries are saved; pictures open from Scanovator links.":"")+(!copied&&pinfo?" Scanovator said: "+pinfo:"");await loadDB()
+  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");await loadDB()
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
 
