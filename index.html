@@ -4,6 +4,8 @@
 <title>Satmar Meats</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mut:#667085;--ln:#e2e5ea;--ac:#1d5fd1;--ok:#157f3b;--bad:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mut:#9aa3b2;--ln:#2d333d;--ac:#6ea0ff;--ok:#4cc27a;--bad:#ff8a80}}
@@ -65,9 +67,48 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 @media(max-width:820px){.dblk.half{flex-basis:100%}}
 .tw{position:relative;cursor:grab}.ttool{position:absolute;top:4px;right:4px;z-index:2;display:flex;gap:2px}.ttool button{padding:0 5px;font-size:11px;line-height:18px;min-height:0}
 .nodrill tr.row,.nodrill .ctag,.nodrill .tag{pointer-events:none}
+
+/* ===== new look: left sidebar, softer colours ===== */
+:root{--bg:#f3f4f8;--card:#fff;--tx:#172033;--mut:#667085;--ln:#e4e7ee;--ac:#3b4fd8;--ok:#13824a;--bad:#c0392b;--side:#111a33;--side2:#1a2547;--sidetx:#c9d1ea}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1320;--card:#181e30;--tx:#e8ebf5;--mut:#98a2bd;--ln:#262e47;--ac:#8091ff;--side:#0a0f1e;--side2:#161d36}}
+:root[data-theme="dark"]{--bg:#0f1320;--card:#181e30;--tx:#e8ebf5;--mut:#98a2bd;--ln:#262e47;--ac:#8091ff;--side:#0a0f1e;--side2:#161d36}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14.5px;letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+#shell{display:flex;min-height:100vh}
+#side{width:236px;flex:none;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;background:var(--side);color:var(--sidetx);padding:18px 12px 14px}
+#side .brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:12px}
+#side .brand img{height:34px;width:auto;background:#fff;border-radius:8px;padding:3px}
+#side .brand b{color:#fff;font-size:16px;font-weight:700;letter-spacing:-.01em}
+#nav{display:flex;flex-direction:column;flex-wrap:nowrap;gap:3px;flex:1;overflow:auto}
+#nav button.nv{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:10px;background:transparent;color:var(--sidetx);font-weight:500;font-size:14px}
+#nav button.nv svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+#nav button.nv:hover{background:rgba(255,255,255,.06);color:#fff}
+#nav button.nv.on{background:var(--ac);color:#fff;font-weight:600;box-shadow:0 4px 12px rgba(59,79,216,.35)}
+#who{border-top:1px solid rgba(255,255,255,.08);padding-top:12px;margin-top:10px}
+#who .me{display:flex;align-items:center;gap:10px;padding:4px 6px 10px}
+#who .av{width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+#who .nm{color:#fff;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#who .rl{font-size:12px;color:var(--sidetx);opacity:.8}
+#who .acts{display:flex;gap:6px}
+#who button{flex:1;background:rgba(255,255,255,.07);border:0;color:var(--sidetx);border-radius:8px;padding:7px 8px;font-size:13px}
+#who button:hover{background:rgba(255,255,255,.14);color:#fff}
+body.anon #side{display:none}
+th,td{padding:9px 8px}
+main{max-width:1320px;margin:0 auto;padding:26px 28px;min-width:0;flex:1}
+.card{border-radius:16px;border:1px solid var(--ln);box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.04);padding:20px}
+h2{font-size:20px;font-weight:700;letter-spacing:-.015em}
+button,select,input,textarea{border-radius:10px;border-color:var(--ln)}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 20%,transparent)}
+button:hover{border-color:color-mix(in srgb,var(--ac) 50%,var(--ln))}
+button.pri{box-shadow:0 2px 8px color-mix(in srgb,var(--ac) 35%,transparent);font-weight:600}button.pri:hover{filter:brightness(1.07)}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+tr.row:hover{background:color-mix(in srgb,var(--ac) 6%,var(--card))}
+label{font-size:12.5px;font-weight:500;color:var(--mut)}
+.g4 .ro{color:var(--tx);font-weight:500;font-size:14.5px}
+.g4 .sec{color:var(--ac);border-bottom:1px solid var(--ln);font-size:11.5px;margin-top:14px;padding-bottom:5px}
+.dlvrow{background:color-mix(in srgb,var(--ok) 7%,var(--card));border-color:color-mix(in srgb,var(--ok) 25%,var(--ln));border-radius:12px}
+.kpi{border-radius:14px}.bx{border-radius:14px}
+@media(max-width:820px){#shell{flex-direction:column}#side{width:100%;height:auto;position:static;padding:10px 12px}#side .brand{padding-bottom:10px;margin-bottom:8px}#nav{flex-direction:row;flex-wrap:wrap;flex:none}#nav button.nv{width:auto;padding:8px 11px}#who{display:flex;align-items:center;justify-content:space-between;gap:8px}#who .me{padding:0}#who .acts{flex:none}main{padding:16px}}
 </style></head><body>
-<header><span style="display:inline-flex;align-items:center;gap:10px"><img src="logo.png" alt="" style="height:38px;width:auto"><b>Satmar Meats</b></span><nav id="nav"></nav><span id="who"></span></header>
-<main id="app"></main>
+<div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -146,10 +187,13 @@ function vSettings(){
  <p class="note">The role fills in the usual pages (secretary: Customers, Changes, Menu; billing: Billing; demo: Demo). You can then tick or untick any page for that person.</p></div>
  <div class="card"><h2>Demo</h2><p class="note">The <b>Demo</b> page shows Customers and the Dashboard with made-up sample families only, never your real data. Give someone the "Demo only" role to show them the system without exposing any real family. A demo person cannot load or see real data.</p></div>`}
 function go(v,id){S.view=v;S.sel=id||null;S.msg="";S.err="";render()}
+const ICONS={dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',customers:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .6 3.2 2.3 3.5 5.2"/>',changes:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',import:'<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'};
+const icon=k=>`<svg viewBox="0 0 24 24">${ICONS[k]||'<circle cx="12" cy="12" r="8"/>'}</svg>`;
 function render(){
  const u=S.user,app=document.getElementById("app");
- document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="${S.view==n[0]||(S.view=="card"&&n[0]=="customers")?"on":""}" onclick="go('${n[0]}')">${n[1]}</button>`).join(""):"";
- document.getElementById("who").innerHTML=u?`${esc(u.name)} (${esc(ROLE_NAMES[u.role]||u.role)}) <button onclick="openPw()">Password</button> <button onclick="out()">Sign out</button>`:"";
+ document.body.classList.toggle("anon",!u);
+ document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="nv ${S.view==n[0]||(S.view=="card"&&n[0]=="customers")?"on":""}" onclick="go('${n[0]}')">${icon(n[0])}<span>${n[1]}</span></button>`).join(""):"";
+ document.getElementById("who").innerHTML=u?`<div class="me"><div class="av">${esc((u.name||"?").trim().charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(ROLE_NAMES[u.role]||u.role)}</div></div></div><div class="acts"><button onclick="openPw()">Password</button><button onclick="out()">Sign out</button></div>`:"";
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=banner()+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
