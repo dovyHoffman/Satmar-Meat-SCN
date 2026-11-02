@@ -881,7 +881,7 @@ async function syncNow(){
   try{for(let i=0;i<200;i++){S.syncMsg="Copying pictures… "+copied+" done";render();
    const j=await call({mode:"photos"});copied+=j.copied;if(j.info)pinfo=j.info;if(!j.tried)break;if(!j.copied){idle++;if(idle>=4)break}else idle=0}}
   catch(e){perr=(e&&e.message)||String(e)}
-  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+", by phone only: "+vph+"; orders with no customer found: "+nom+"). Pictures copied: "+copied+"."+(vph&&codes.length?" Customer codes seen on phone-matched orders: "+codes.join(", ")+".":"")+(perr?" The picture copying stopped ("+perr+"). The deliveries are saved; pictures open from Scanovator links.":"")+(!copied&&pinfo?" Scanovator said: "+pinfo:"");await loadDB()
+  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures copied: "+copied+"."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"")+(perr?" The picture copying stopped ("+perr+"). The deliveries are saved; pictures open from Scanovator links.":"")+(!copied&&pinfo?" Scanovator said: "+pinfo:"");await loadDB()
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
 
