@@ -677,7 +677,7 @@ function banner(){
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
  return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
 function podNote(){return ""}
-function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(Boolean))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
+function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 async function showRealPod(id,lab){
  const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(!p)return;
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
@@ -685,7 +685,7 @@ async function showRealPod(id,lab){
  document.body.appendChild(d);
  const n=Math.max(p.links.length,(p.paths||[]).length),parts=[];
  for(let i=0;i<n;i++){const path=(p.paths||[])[i];let url="";
-  if(path){const {data}=await sb.storage.from("pods").createSignedUrl(path,3600);url=data&&data.signedUrl||""}
+  if(path&&path!="-"){const {data}=await sb.storage.from("pods").createSignedUrl(path,3600);url=data&&data.signedUrl||""}
   if(url)parts.push(`<div style="margin:10px 0"><img src="${esc(url)}" style="max-width:100%;border-radius:8px;display:block"></div>`);
   else if(p.links[i])parts.push(`<div style="margin:10px 0" class="note">This picture is not copied here yet. <a href="${esc(p.links[i])}" target="_blank" rel="noopener noreferrer">Open it in Scanovator</a></div>`)}
  const bd=document.getElementById("pod_body");if(bd)bd.innerHTML=parts.join("")||"No picture yet."}
@@ -877,10 +877,11 @@ async function syncNow(){
   while(off!==null){S.syncMsg="Reading deliveries… "+Math.min(off,total||off)+(total?" / "+total:"")+" customers";render();
    let j;for(let t=0;;t++){try{j=await call({mode:"orders",offset:off});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
    saved+=j.deliveries_saved;total=j.total;off=j.next}
-  let idle=0;
-  for(let i=0;i<150;i++){S.syncMsg="Copying pictures… "+copied+" done";render();
-   const j=await call({mode:"photos"});copied+=j.copied;if(!j.tried)break;if(!j.copied){idle++;if(idle>=5)break}else idle=0}
-  S.msg="Sync done: "+saved+" deliveries saved, "+copied+" pictures copied.";await loadDB()
+  let idle=0,pinfo="",perr="";
+  try{for(let i=0;i<200;i++){S.syncMsg="Copying pictures… "+copied+" done";render();
+   const j=await call({mode:"photos"});copied+=j.copied;if(j.info)pinfo=j.info;if(!j.tried)break;if(!j.copied){idle++;if(idle>=4)break}else idle=0}}
+  catch(e){perr=(e&&e.message)||String(e)}
+  S.msg="Deliveries saved: "+saved+". Pictures copied: "+copied+"."+(perr?" The picture copying stopped ("+perr+"). The deliveries are saved; pictures open from Scanovator links.":"")+(!copied&&pinfo?" Scanovator said: "+pinfo:"");await loadDB()
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
 
