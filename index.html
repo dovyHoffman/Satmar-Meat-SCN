@@ -24,6 +24,15 @@ tr.row{cursor:pointer}tr.row:hover{background:var(--bg)}
 .ok{color:var(--ok)}.no{color:var(--mut)}.msg{color:var(--ok);margin:0 0 12px}.err{color:var(--bad);margin:0 0 12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,label select{width:100%;margin-top:3px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 16px;align-items:start}
+.g4 .s2{grid-column:span 2}
+.g4 .sec{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--bd,#e3e6ea);padding-bottom:4px;margin-top:10px}
+.g4 .sec:first-child{margin-top:0}
+.g4 .ro{min-height:34px;box-sizing:border-box;display:flex;align-items:center;padding:0;margin-top:3px}
+.g4 label input,.g4 label textarea{box-sizing:border-box;min-height:34px}
+.g4 label textarea{resize:vertical}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g4 .s2{grid-column:span 2}}
+@media(max-width:520px){.g4{grid-template-columns:1fr}.g4 .s2{grid-column:auto}}
 .dlvrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0 14px;padding:8px 12px;border:1px solid var(--bd,#e3e6ea);border-radius:10px;background:color-mix(in srgb,var(--mut) 6%,transparent)}.dlvone{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;padding-right:14px;margin-right:4px;border-right:1px solid var(--bd,#e3e6ea)}.dlvone:last-child{border-right:0}.dlvrow b{font-size:13px;color:var(--mut);font-weight:600}
 .ro{margin-top:3px;padding:7px 0;color:var(--tx)}
 .note{font-size:13px;color:var(--mut)}h2{margin:0 0 12px;font-size:18px}.bar{display:flex;gap:8px;margin-top:14px}
@@ -234,14 +243,23 @@ function opts(c){
 function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
  const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=S.cut&&!own,dis=ed&&!lock?"":"disabled",o=opts(c);
- const ro=(l,v)=>`<label>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
+ const ro=(l,v,w)=>`<label${w?` class="${w}"`:""}>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
  const fPhone=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label>`:ro("Phone",c.phone);
- const fAddr=own?`<label class="ac">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr);
+ const fAddr=own?`<label class="ac s2">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr,"s2");
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
- const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="2">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="2">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
+ const fNotes=(own?`<label class="s2">Notes<textarea id="f_notes" rows="3">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes,"s2"))+(own?`<label class="s2">Notes 2<textarea id="f_notes2" rows="3">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2,"s2"));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2>${dlv(c)}<div class="grid">
- ${ro("ID",c.ref)}${ro("Agency",c.agency)}${ro("Legal address",c.legal)}${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email)}${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>${ro("Area",c.area)}${fAddr}${fApt}${fNotes}</div>
+ return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2>${dlv(c)}<div class="grid g4">
+ <div class="sec">Customer</div>
+ ${ro("ID",c.ref)}${ro("Agency",c.agency)}${fPhone}${ro("Cell",c.cell)}
+ ${ro("Legal address",c.legal,"s2")}${ro("Email",c.email,"s2")}
+ <div class="sec">Food</div>
+ ${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>
+ ${ro("Area",c.area)}
+ <div class="sec">Delivery</div>
+ ${fAddr}${fApt}
+ <div class="sec">Notes</div>
+ ${fNotes}</div>
  ${own?`<div class="bar"><button class="pri" onclick="saveNow(${c.id})">Save now (admin)</button></div><p class="note">Admin edits change this week immediately and are logged.</p>`:`<p class="note">This week is read-only. Use “Changes for next week” below.</p>`}
  <p class="err" id="ce"></p></div>
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
