@@ -163,7 +163,7 @@ function mapRows(parts){
   const food=base=="box"?(TT(u[0])?"rawnb":"raw"):TT(u[1])?(TT(u[0])?"rawnb":"raw"):TT(u[3])?"supper":TT(u[4])?"shabbos":"meals";
   const addr=String(f[2]||"").trim(),ag=String(o[3]||"").trim()||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase();
   out.push({id:out.length+1,name:name,ref:ref,agency:ag,legal:String(a[1]||addr).trim(),cell:String(a[2]||"").trim(),addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:String(f[1]||a[2]||"").trim(),email:String(f[3]||"").trim(),
-   auth:pdate(j[2]),hh:Math.round(Number(String(j[0]==null?"":j[0]).replace(/[^0-9.]/g,""))||0),food:food,base:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(String(o[2]||"").trim()),lock:"",notes:String(o[1]||"").trim(),
+   auth:pdate(j[2]),hh:Math.round(Number(String(j[0]==null?"":j[0]).replace(/[^0-9.]/g,""))||0),food:food,base:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(String(o[2]||"").trim()),lock:"",notes:String(o[1]||"").trim(),notesL:String(o[4]||"").trim(),note2:String(o[5]||"").trim(),
    delivered:false,active:!String(a[0]||"").trim()&&!!String(o[0]||"").trim()&&!!name,weeks:[]})}
  return out}
 function errMsg(e){const c=e&&e.code;return c=="server_not_connected"||c=="selection_required"?"Add the Google Sheets connector in Claude (Settings, Connectors), then try again.":c=="needs_reauth"?"Reconnect the Google Sheets connector in Claude (Settings, Connectors), then try again.":c=="not_in_manifest"||c=="approval_required"||c=="consent_required"?"Access to Google Sheets was not allowed for this page. Click the button again and choose Allow.":c=="tool_error"?"Google Sheets refused the request (check that your Google account can open the sheet). "+(e.message||""):c=="server_unavailable"||c=="upstream_error"?"Google Sheets did not answer. Try again in a moment.":(e&&e.message)||"Could not load the real data ("+(c||"error")+")."}
@@ -241,7 +241,7 @@ function vCard(){
  const fNotes=own?`<label>Notes<textarea id="f_notes" rows="2">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes);
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
  return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2>${dlv(c)}<div class="grid">
- ${ro("ID",c.ref)}${ro("Agency",c.agency)}${ro("Legal address",c.legal)}${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email)}${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>${ro("Area",c.area)}${fAddr}${fApt}${fNotes}${ro("Door lock code",c.lock)}</div>
+ ${ro("ID",c.ref)}${ro("Agency",c.agency)}${ro("Legal address",c.legal)}${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email)}${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>${ro("Area",c.area)}${fAddr}${fApt}${fNotes}${ro("Notes on labels",c.notesL)}${ro("Note 2",c.note2)}</div>
  ${own?`<div class="bar"><button class="pri" onclick="saveNow(${c.id})">Save now (admin)</button></div><p class="note">Admin edits change this week immediately and are logged.</p>`:`<p class="note">This week is read-only. Use “Changes for next week” below.</p>`}
  <p class="err" id="ce"></p></div>
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
@@ -660,10 +660,10 @@ const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocal
 async function loadDB(){
  S.loading=true;S.rerr="";render();
  try{
-  const rows=await fetchAll("customers","id,agency,agency_ref,name,phone,legal_address,cell,email,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name"));
+  const rows=await fetchAll("customers","id,agency,agency_ref,name,phone,legal_address,cell,email,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name"));
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
-   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
+   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",notesL:c.notes_labels||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
@@ -715,17 +715,17 @@ function toDbRows(recs){const seen={},out=[],skipped={noref:0,dup:0};
   const ag=(r.agency||"").trim().toUpperCase()||((ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase());if(!ag){skipped.noref++;return}
   const k=ag+"|"+nk(ref);if(seen[k]){skipped.dup++;return}seen[k]=1;
   const ad=parseAddr(r.addr),mid=r.area=="Middleton",area=mid?"lee":(r.area=="Monsey/Monroe"?"monsey_monroe":/^bedford$/i.test(r.area)?"bedford":/^bp$/i.test(r.area)?"bp":"lee");
-  out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:r.phone||"",legal_address:String(r.legal||"").trim(),cell:String(r.cell||"").trim(),email:String(r.email||"").trim(),street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",
+  out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:r.phone||"",legal_address:String(r.legal||"").trim(),cell:String(r.cell||"").trim(),email:String(r.email||"").trim(),street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",notes_labels:String(r.notesL||"").trim(),note2:String(r.note2||"").trim(),
    hh:Math.max(1,Math.min(30,r.hh||1)),base:r.base,food:r.food,area:area,middleton:mid,active:!!r.active,auth_end:dstr(r.auth),door_lock:""})});
  return {rows:out,skipped:skipped}}
 function csvToRecs(text){const rows=parseCsv(text).slice(1),col=(a,b)=>rows.map(r=>r.slice(a,b+1));
- return mapRows([col(0,3),col(5,8),col(9,11),col(14,17),col(20,24)])}
+ return mapRows([col(0,3),col(5,8),col(9,11),col(14,19),col(20,24)])}
 function vImport(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can import.</p></div>`;
  const I=S.imp;
  return `<div class="card"><h2>Import customers</h2>
  <ol class="note" style="line-height:1.7"><li>Open the Google Sheet <b>Meal Sheet New</b> and click the <b>Customer_data</b> tab.</li><li>Click <b>File → Download → Comma Separated Values (.csv)</b>.</li><li>Choose that file below.</li></ol>
- <p class="note">Only name, ID, phone, cell, email, legal address, address, household size, food type, location, company, notes and the authorization end date are sent to the database. Birth dates and CIN numbers are never read. Customers that already exist are left untouched, so running this again is safe.</p>
+ <p class="note">Only name, ID, phone, cell, email, legal address, address, household size, notes on labels, note 2, food type, location, company, notes and the authorization end date are sent to the database. Birth dates and CIN numbers are never read. Customers that already exist are left untouched, so running this again is safe.</p>
  <input type="file" accept=".csv,text/csv" onchange="importFile(this.files[0])">
  ${I&&I.err?`<p class="err">${esc(I.err)}</p>`:""}
  ${I&&I.rows?`<div class="card" style="margin-top:12px"><b>${I.rows.length.toLocaleString()} customers ready</b> <span class="note">(${I.rows.filter(r=>r.active).length.toLocaleString()} active). Skipped: ${I.skipped.noref} without an ID, ${I.skipped.dup} repeated IDs.</span>
@@ -744,8 +744,8 @@ async function doImport(){
   let r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error;
   for(let i=0;i<I.rows.length;i+=300){const b=I.rows.slice(i,i+300);
    r=await sb.from("customers").upsert(b,{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error;I.done=Math.min(i+300,I.rows.length);render()}
-  let filled=0;for(let i=0;i<I.rows.length;i+=500){const b=I.rows.slice(i,i+500).filter(x=>x.legal_address||x.cell||x.email).map(x=>({agency:x.agency,ref:x.agency_ref,legal:x.legal_address,cell:x.cell,email:x.email}));if(!b.length)continue;const q=await sb.rpc("fill_legal_addresses",{p:b});if(q.error)throw q.error;filled+=(q.data||0)}
-  const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed, only empty legal address, cell and email were filled ("+filled.toLocaleString()+")."};await loadDB()
+  let filled=0;for(let i=0;i<I.rows.length;i+=500){const b=I.rows.slice(i,i+500).filter(x=>x.legal_address||x.cell||x.email||x.notes_labels||x.note2).map(x=>({agency:x.agency,ref:x.agency_ref,legal:x.legal_address,cell:x.cell,email:x.email,nl:x.notes_labels,n2:x.note2}));if(!b.length)continue;const q=await sb.rpc("fill_legal_addresses",{p:b});if(q.error)throw q.error;filled+=(q.data||0)}
+  const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed, only empty legal address, cell, email and label notes were filled ("+filled.toLocaleString()+")."};await loadDB()
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";}
  render()}
 /* ---- settings: people and next-week switches ---- */
