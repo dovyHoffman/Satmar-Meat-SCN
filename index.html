@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Satmar Meats – first version</title>
+<title>Satmar Meats</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mut:#667085;--ln:#e2e5ea;--ac:#1d5fd1;--ok:#157f3b;--bad:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mut:#9aa3b2;--ln:#2d333d;--ac:#6ea0ff;--ok:#4cc27a;--bad:#ff8a80}}
@@ -53,7 +55,7 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 .tw{position:relative;cursor:grab}.ttool{position:absolute;top:4px;right:4px;z-index:2;display:flex;gap:2px}.ttool button{padding:0 5px;font-size:11px;line-height:18px;min-height:0}
 .nodrill tr.row,.nodrill .ctag,.nodrill .tag{pointer-events:none}
 </style></head><body>
-<header><b>Satmar Meats</b><nav id="nav"></nav><span id="who"></span></header>
+<header><span style="display:inline-flex;align-items:center;gap:10px"><img src="logo.png" alt="" style="height:38px;width:auto"><b>Satmar Meats</b></span><nav id="nav"></nav><span id="who"></span></header>
 <main id="app"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -586,17 +588,17 @@ const dberr=e=>{const m=(e&&(e.message||e.error_description))||"error";return /n
 S.lg={step:"email",email:"",busy:false,mode:"pw"};
 function vLogin(){
  if(S.boot)return `<div class="card" style="max-width:380px;margin:40px auto"><b>Loading…</b></div>`;
- if(!sb)return `<div class="card" style="max-width:420px;margin:40px auto"><h2>Sign in</h2><p class="err">The login library could not be loaded. Check the internet connection and refresh.</p></div>`;
+ if(!sb)return `<div class="card" style="max-width:420px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2><p class="err">The login library could not be loaded. Check the internet connection and refresh.</p></div>`;
  const L=S.lg,err=S.err?`<p class="err">${esc(S.err)}</p>`:"";
- if(L.step=="code")return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
+ if(L.step=="code")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <p class="note">We sent an email to <b>${esc(L.email)}</b>. <b>Click the sign-in link in it</b> and you will come back here signed in. If the email shows a code instead, type it below.</p>
  <label>Code (only if the email has one)<input id="lg_code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" onkeydown="if(event.key=='Enter')checkCode()"></label>
  <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.err='';render()">Back</button></div>${err}</div>`;
- if(L.mode=="link")return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
+ if(L.mode=="link")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <label>Email<input id="lg_em" type="email" autocomplete="email" value="${esc(L.email)}" onkeydown="if(event.key=='Enter')sendCode()"></label>
  <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Email me a sign-in link"}</button><button onclick="S.lg.mode='pw';S.err='';render()">Use my password</button></div>
  <p class="note">Only invited people can sign in.</p>${err}</div>`;
- return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
+ return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <label>Email<input id="lg_em" type="email" autocomplete="username" value="${esc(L.email)}"></label>
  <label>Password<input id="lg_pw" type="password" autocomplete="current-password" onkeydown="if(event.key=='Enter')signInPw()"></label>
  <div class="bar"><button class="pri" onclick="signInPw()" ${L.busy?"disabled":""}>${L.busy?"Signing in…":"Sign in"}</button><button onclick="S.lg.email=(document.getElementById('lg_em').value||'').trim();S.lg.mode='link';S.err='';render()">Email me a link instead</button></div>
