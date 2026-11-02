@@ -136,7 +136,7 @@ function go(v,id){S.view=v;S.sel=id||null;S.msg="";S.err="";render()}
 function render(){
  const u=S.user,app=document.getElementById("app");
  document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="${S.view==n[0]||(S.view=="card"&&n[0]=="customers")?"on":""}" onclick="go('${n[0]}')">${n[1]}</button>`).join(""):"";
- document.getElementById("who").innerHTML=u?`${esc(u.name)} (${esc(ROLE_NAMES[u.role]||u.role)}) <button onclick="out()">Sign out</button>`:"";
+ document.getElementById("who").innerHTML=u?`${esc(u.name)} (${esc(ROLE_NAMES[u.role]||u.role)}) <button onclick="openPw()">Password</button> <button onclick="out()">Sign out</button>`:"";
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=banner()+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
@@ -583,19 +583,45 @@ const SB_URL="https://znszotxuhkxgbszhyqcp.supabase.co",SB_KEY="eyJhbGciOiJIUzI1
 let sb=null;try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}})}catch(e){}
 const AREAL={lee:"Lee",bedford:"Bedford",bp:"BP",monsey_monroe:"Monsey/Monroe"};
 const dberr=e=>{const m=(e&&(e.message||e.error_description))||"error";return /not allowed|signups? not allowed|user not found/i.test(m)?"This email has not been invited. Ask the owner to invite it.":/rate limit|too many|seconds/i.test(m)?"Too many tries. Wait a minute and try again.":/invalid|expired|token/i.test(m)?"That code is wrong or has expired. Ask for a new one.":m};
-S.lg={step:"email",email:"",busy:false};
+S.lg={step:"email",email:"",busy:false,mode:"pw"};
 function vLogin(){
  if(S.boot)return `<div class="card" style="max-width:380px;margin:40px auto"><b>Loading…</b></div>`;
  if(!sb)return `<div class="card" style="max-width:420px;margin:40px auto"><h2>Sign in</h2><p class="err">The login library could not be loaded. Check the internet connection and refresh.</p></div>`;
- const L=S.lg;
- return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
- ${L.step=="email"?`<label>Email<input id="lg_em" type="email" autocomplete="email" value="${esc(L.email)}" onkeydown="if(event.key=='Enter')sendCode()"></label>
- <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Send me a code"}</button></div>
- <p class="note">Only invited people can sign in. We email you a sign-in link, no password needed. This device stays signed in until you sign out.</p>`
- :`<p class="note">We sent an email to <b>${esc(L.email)}</b>. <b>Click the sign-in link in it</b> and you will come back here signed in. If the email shows a code instead, type it below.</p>
+ const L=S.lg,err=S.err?`<p class="err">${esc(S.err)}</p>`:"";
+ if(L.step=="code")return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
+ <p class="note">We sent an email to <b>${esc(L.email)}</b>. <b>Click the sign-in link in it</b> and you will come back here signed in. If the email shows a code instead, type it below.</p>
  <label>Code (only if the email has one)<input id="lg_code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" onkeydown="if(event.key=='Enter')checkCode()"></label>
- <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.err='';render()">Use another email</button></div>`}
- ${S.err?`<p class="err">${esc(S.err)}</p>`:""}</div>`}
+ <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.err='';render()">Back</button></div>${err}</div>`;
+ if(L.mode=="link")return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
+ <label>Email<input id="lg_em" type="email" autocomplete="email" value="${esc(L.email)}" onkeydown="if(event.key=='Enter')sendCode()"></label>
+ <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Email me a sign-in link"}</button><button onclick="S.lg.mode='pw';S.err='';render()">Use my password</button></div>
+ <p class="note">Only invited people can sign in.</p>${err}</div>`;
+ return `<div class="card" style="max-width:380px;margin:40px auto"><h2>Sign in</h2>
+ <label>Email<input id="lg_em" type="email" autocomplete="username" value="${esc(L.email)}"></label>
+ <label>Password<input id="lg_pw" type="password" autocomplete="current-password" onkeydown="if(event.key=='Enter')signInPw()"></label>
+ <div class="bar"><button class="pri" onclick="signInPw()" ${L.busy?"disabled":""}>${L.busy?"Signing in…":"Sign in"}</button><button onclick="S.lg.email=(document.getElementById('lg_em').value||'').trim();S.lg.mode='link';S.err='';render()">Email me a link instead</button></div>
+ <p class="note">Only invited people can sign in. This device stays signed in until you press Sign out, so you do not have to sign in again each time.</p>${err}</div>`}
+async function signInPw(){
+ const e=(document.getElementById("lg_em").value||"").trim().toLowerCase(),p=document.getElementById("lg_pw").value||"";
+ if(!e||!p){S.err="Enter your email and password.";render();return}
+ S.lg.email=e;S.lg.busy=true;S.err="";render();
+ const {error}=await sb.auth.signInWithPassword({email:e,password:p});
+ S.lg.busy=false;if(error){S.err=/invalid login/i.test(error.message||"")?"Wrong email or password.":dberr(error);render();return}
+ await afterLogin();render()}
+function openPw(){
+ const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ d.innerHTML=`<div class="mod" style="max-width:380px"><b>Change my password</b>
+ <label>New password (at least 8 characters)<input id="pw1" type="password" autocomplete="new-password"></label>
+ <label>New password again<input id="pw2" type="password" autocomplete="new-password"></label>
+ <p class="err" id="pwe"></p><div class="bar"><button class="pri" id="pwb">Save password</button><button data-x="1">Cancel</button></div></div>`;
+ document.body.appendChild(d);
+ document.getElementById("pwb").onclick=async()=>{
+  const a=document.getElementById("pw1").value,b=document.getElementById("pw2").value,er=document.getElementById("pwe");
+  if(a.length<8){er.textContent="Use at least 8 characters.";return}
+  if(a!==b){er.textContent="The two passwords are not the same.";return}
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){er.textContent=dberr(error);return}
+  d.remove();S.msg="Your password was saved.";S.err="";render()}}
 async function sendCode(){
  const e=(document.getElementById("lg_em").value||"").trim().toLowerCase();if(!e||e.indexOf("@")<1){S.err="Enter your email.";render();return}
  S.lg.email=e;S.lg.busy=true;S.err="";render();
