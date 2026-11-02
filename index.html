@@ -26,7 +26,7 @@ tr.row{cursor:pointer}tr.row:hover{background:var(--bg)}
 .ok{color:var(--ok)}.no{color:var(--mut)}.msg{color:var(--ok);margin:0 0 12px}.err{color:var(--bad);margin:0 0 12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,label select{width:100%;margin-top:3px}
-.g4{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 16px;align-items:start}
+.g4{grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:4px 16px;align-items:start}
 .g4 .s2{grid-column:span 2}
 .g4 .sec{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--bd,#e3e6ea);padding-bottom:3px;margin-top:8px}
 .g4 .sec:first-child{margin-top:0}
@@ -34,8 +34,16 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 .g4 label input,.g4 label textarea,.g4 label select{box-sizing:border-box;min-height:32px;margin-top:2px}
 .g4 label textarea{height:34px;padding-top:6px}
 .g4 label textarea{resize:vertical}
-@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g4 .s2{grid-column:span 2}}
-@media(max-width:520px){.g4{grid-template-columns:1fr}.g4 .s2{grid-column:auto}}
+@media(max-width:900px){.g4{--n:2}.g4 .s2{grid-column:span 2}.cg{grid-template-columns:1fr!important}}
+@media(max-width:520px){.g4{--n:1}.g4 .s2{grid-column:auto}}
+.cg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.pnl{background:color-mix(in srgb,var(--ac) 3%,var(--card));border:1px solid var(--ln);border-radius:14px;padding:12px 16px 14px;margin-bottom:0}
+.cg+.pnl,.pnl+.pnl{margin-top:14px}.cg .pnl{margin-top:0!important}
+.pnl h4{margin:0 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ac)}
+.pnl .g4{gap:2px 16px}
+.chd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px}
+.chd h2{margin:0;font-size:24px}
+.chd .sub{color:var(--mut);font-size:13.5px}
 .dlvrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0 14px;padding:8px 12px;border:1px solid var(--bd,#e3e6ea);border-radius:10px;background:color-mix(in srgb,var(--mut) 6%,transparent)}.dlvone{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;padding-right:14px;margin-right:4px;border-right:1px solid var(--bd,#e3e6ea)}.dlvone:last-child{border-right:0}.dlvrow b{font-size:13px;color:var(--mut);font-weight:600}
 .ro{margin-top:3px;padding:7px 0;color:var(--tx)}
 .note{font-size:13px;color:var(--mut)}h2{margin:0 0 12px;font-size:18px}.bar{display:flex;gap:8px;margin-top:14px}
@@ -91,7 +99,7 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font
 #who button{flex:1;background:rgba(255,255,255,.07);border:0;color:var(--sidetx);border-radius:8px;padding:7px 8px;font-size:13px}
 #who button:hover{background:rgba(255,255,255,.14);color:#fff}
 body.anon #side{display:none}
-th,td{padding:9px 8px}
+th,td{padding:7px 8px;font-size:13.5px}td.adr{max-width:210px;overflow:hidden;text-overflow:ellipsis}.wrap td .ctag{font-size:12px;padding:2px 8px}
 main{max-width:1320px;margin:0 auto;padding:26px 28px;min-width:0;flex:1}
 .card{border-radius:16px;border:1px solid var(--ln);box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.04);padding:20px}
 h2{font-size:20px;font-weight:700;letter-spacing:-.015em}
@@ -271,8 +279,8 @@ function vList(db){
  const chip=(k,l,n)=>`<button class="${f==k?"on":""}" onclick="S.dflt='${k}';S.dpg=0;render()">${l} (${nf(n)})</button>`;
  const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px"><div class="kpi"><span class="note">Total customers</span><b>${nf(cust.length)}</b></div><div class="kpi"><span class="note">Active (on this week's list)</span><b style="color:var(--ok)">${nf(nA)}</b></div><div class="kpi"><span class="note">Not active (Not in list)</span><b>${nf(nI)}</b></div></div><div class="bar" style="margin:0 0 12px">${chip("all","All",cust.length)}${chip("active","Active",nA)}${chip("off","Not active",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
  return `<div class="card">${head}<input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render();var i=document.querySelector('input');i.focus();i.setSelectionRange(99,99)" style="width:100%;margin-bottom:12px">
- <div class="wrap"><table><tr><th>Name</th><th>ID</th><th>Phone</th><th>Address</th><th>Household</th><th>Food type</th><th>Customer chose</th><th>Delivery</th>${db?"<th>Status</th>":""}<th>Agency</th></tr>
- ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})"><td>${esc(c.name)}</td><td>${esc(c.ref)}</td><td>${esc(c.phone)}</td><td>${esc(c.addr)}</td><td>${c.hh}</td><td>${c.base=="box"?"Box":"Meals"}</td><td><span class="ctag ${fcls(c)}" style="cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span></td><td><span class="ctag ${c.delivered?"t-ok":"t-no"}">${c.delivered?"Delivered · POD":"Not yet"}</span></td>${db?`<td><span class="ctag ${c.active?"t-ok":"t-no"}">${c.active?"Active":"Not in list"}</span></td>`:""}<td>${esc(c.agency)}</td></tr>`).join("")||"<tr><td colspan=10 class='no'>No customers found.</td></tr>"}</table></div>
+ <div class="wrap"><table><tr><th>Name</th><th>ID</th><th>Customer chose</th><th>Type</th><th>HH</th><th>Delivery</th>${db?"<th>Status</th>":""}<th>Phone</th><th>Address</th></tr>
+ ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})"><td><b>${esc(c.name)}</b></td><td>${esc(c.ref)}</td><td><span class="ctag ${fcls(c)}" style="cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span></td><td>${c.base=="box"?"Box":"Meals"}</td><td>${c.hh}</td><td><span class="ctag ${c.delivered?"t-ok":"t-no"}">${c.delivered?"Delivered · POD":"Not yet"}</span></td>${db?`<td><span class="ctag ${c.active?"t-ok":"t-no"}">${c.active?"Active":"Not in list"}</span></td>`:""}<td>${esc(c.phone)}</td><td class="adr" title="${esc(c.addr)}">${esc(c.addr)}</td></tr>`).join("")||"<tr><td colspan=9 class='no'>No customers found.</td></tr>"}</table></div>
  <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
 const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn",state:"NY",zip:"11211"})).concat([{st:"250 Sample Ave",city:"Brooklyn",state:"NY",zip:"11211"},{st:"18 Example Rd",city:"Brooklyn",state:"NY",zip:"11206"},{st:"77 Demo Blvd",city:"Brooklyn",state:"NY",zip:"11249"},{st:"5 Sample Rd",city:"Monsey",state:"NY",zip:"10952"}]);
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
@@ -293,18 +301,15 @@ function vCard(){
  const fAddr=own?`<label class="ac s2">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr,"s2");
  const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
- const fNotes=(own?`<label class="s2">Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes,"s2"))+(own?`<label class="s2">Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2,"s2"));
+ const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2>${dlv(c)}<div class="grid g4">
- <div class="sec">Customer</div>
- ${ro("ID",c.ref)}${ro("Agency",c.agency)}${fPhone}${ro("Cell",c.cell)}
- ${ro("Legal address",c.legal,"s2")}${ro("Email",c.email,"s2")}
- <div class="sec">Food</div>
- ${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>
- <div class="sec">Delivery</div>
- ${fAddr}${fApt}${fArea}
- <div class="sec">Notes</div>
- ${fNotes}</div>
+ return `<div class="card"><div class="chd"><h2>${esc(c.name)}</h2><span class="ctag ${fcls(c)}">${esc(optName(c.base,c.food))}</span><span class="tag" style="cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">Box ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}
+ <div class="cg">
+  <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
+  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
+ </div>
+ <div class="pnl"><h4>Delivery</h4><div class="grid g4" style="--n:4">${fAddr}${fApt}${fArea}</div></div>
+ <div class="pnl"><h4>Notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
  ${own?`<div class="bar"><button class="pri" onclick="saveNow(${c.id})">Save now (admin)</button></div><p class="note">Admin edits change this week immediately and are logged.</p>`:`<p class="note">This week is read-only. Use “Changes for next week” below.</p>`}
  <p class="err" id="ce"></p></div>
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
