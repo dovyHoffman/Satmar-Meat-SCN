@@ -24,6 +24,7 @@ tr.row{cursor:pointer}tr.row:hover{background:var(--bg)}
 .ok{color:var(--ok)}.no{color:var(--mut)}.msg{color:var(--ok);margin:0 0 12px}.err{color:var(--bad);margin:0 0 12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,label select{width:100%;margin-top:3px}
+.dlvrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0 14px;padding:8px 12px;border:1px solid var(--bd,#e3e6ea);border-radius:10px;background:color-mix(in srgb,var(--mut) 6%,transparent)}.dlvrow b{font-size:13px;color:var(--mut);font-weight:600}
 .ro{margin-top:3px;padding:7px 0;color:var(--tx)}
 .note{font-size:13px;color:var(--mut)}h2{margin:0 0 12px;font-size:18px}.bar{display:flex;gap:8px;margin-top:14px}
 .ac{position:relative}.dd{display:none;position:absolute;left:0;right:0;top:100%;z-index:5;background:var(--card);border:1px solid var(--ln);border-radius:8px;margin-top:2px;box-shadow:0 4px 14px rgba(0,0,0,.15)}.dd div{padding:8px 10px;cursor:pointer;font-size:14px}.dd div:hover{background:var(--bg)}
@@ -234,10 +235,10 @@ function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
  const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=S.cut&&!own,dis=ed&&!lock?"":"disabled",o=opts(c);
  const ro=(l,v)=>`<label>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
- const cu=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label>${ro("Last delivery",dlvText(c))}<label class="ac">Delivery address (street, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label><label>Apartment<input id="f_apt" value="${esc(c.apt)}"></label><label>Notes<textarea id="f_notes" rows="2">${esc(c.notes)}</textarea></label>`:ro("Phone",c.phone)+ro("Last delivery",dlvText(c))+ro("Delivery address",c.addr)+ro("Notes",c.notes);
+ const cu=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label><label class="ac">Delivery address (street, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label><label>Apartment<input id="f_apt" value="${esc(c.apt)}"></label><label>Notes<textarea id="f_notes" rows="2">${esc(c.notes)}</textarea></label>`:ro("Phone",c.phone)+ro("Delivery address",c.addr)+ro("Notes",c.notes);
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2><div class="grid">
- ${ro("ID",c.ref)}${ro("Agency",c.agency)}${ro("Household size",c.hh)}${ro("Food type",c.base=="box"?"Box":"Meals")}${ro("Option",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>${ro("Area",c.area)}${dlv(c)}${ro("Legal address",c.legal)}${ro("Door lock code",c.lock)}${cu}</div>
+ return `<div class="card"><h2>${esc(c.name)} <span class="note">– this week</span></h2>${dlv(c)}<div class="grid">
+ ${ro("ID",c.ref)}${ro("Agency",c.agency)}${ro("Household size",c.hh)}${ro("Food type",c.base=="box"?"Box":"Meals")}${ro("Option",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label>${ro("Area",c.area)}${ro("Legal address",c.legal)}${ro("Door lock code",c.lock)}${cu}</div>
  ${own?`<div class="bar"><button class="pri" onclick="saveNow(${c.id})">Save now (admin)</button></div><p class="note">Admin edits change this week immediately and are logged.</p>`:`<p class="note">This week is read-only. Use “Changes for next week” below.</p>`}
  <p class="err" id="ce"></p></div>
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
@@ -656,10 +657,10 @@ const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocal
 async function loadDB(){
  S.loading=true;S.rerr="";render();
  try{
-  const rows=await fetchAll("customers","id,agency,agency_ref,name,phone,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name"));
+  const rows=await fetchAll("customers","id,agency,agency_ref,name,phone,legal_address,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name"));
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
-   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:"",
+   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:"",
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
@@ -711,7 +712,7 @@ function toDbRows(recs){const seen={},out=[],skipped={noref:0,dup:0};
   const ag=(r.agency||"").trim().toUpperCase()||((ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase());if(!ag){skipped.noref++;return}
   const k=ag+"|"+nk(ref);if(seen[k]){skipped.dup++;return}seen[k]=1;
   const ad=parseAddr(r.addr),mid=r.area=="Middleton",area=mid?"lee":(r.area=="Monsey/Monroe"?"monsey_monroe":/^bedford$/i.test(r.area)?"bedford":/^bp$/i.test(r.area)?"bp":"lee");
-  out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:r.phone||"",street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",
+  out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:r.phone||"",legal_address:String(r.legal||"").trim(),street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",
    hh:Math.max(1,Math.min(30,r.hh||1)),base:r.base,food:r.food,area:area,middleton:mid,active:!!r.active,auth_end:dstr(r.auth),door_lock:""})});
  return {rows:out,skipped:skipped}}
 function csvToRecs(text){const rows=parseCsv(text).slice(1),col=(a,b)=>rows.map(r=>r.slice(a,b+1));
@@ -740,7 +741,8 @@ async function doImport(){
   let r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error;
   for(let i=0;i<I.rows.length;i+=300){const b=I.rows.slice(i,i+300);
    r=await sb.from("customers").upsert(b,{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error;I.done=Math.min(i+300,I.rows.length);render()}
-  const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed."};await loadDB()
+  let filled=0;for(let i=0;i<I.rows.length;i+=500){const b=I.rows.slice(i,i+500).filter(x=>x.legal_address).map(x=>({agency:x.agency,ref:x.agency_ref,legal:x.legal_address}));if(!b.length)continue;const q=await sb.rpc("fill_legal_addresses",{p:b});if(q.error)throw q.error;filled+=(q.data||0)}
+  const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed, only empty legal addresses were filled ("+filled.toLocaleString()+")."};await loadDB()
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";}
  render()}
 /* ---- settings: people and next-week switches ---- */
@@ -892,9 +894,9 @@ async function syncNow(){
 function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d.getTime()}   // last Saturday 00:00
 function dlv(c){
  const t0=weekStart(),p=(c.pods||[]).find(x=>x.ts&&x.ts>=t0);
- if(!p)return `<label>Delivery this week<div class="ro"><span class="ctag t-no">Not yet</span></div></label>`;
+ if(!p)return `<div class="dlvrow"><b>Delivery this week</b><span class="ctag t-no">Not yet</span></div>`;
  const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");
- return `<label>Delivery this week<div class="ro"><span class="ctag t-ok">Delivered</span> ${esc([p.drv,p.at].filter(Boolean).join(" · "))} ${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo</button>`:""}${/^https?:\/\//i.test(p.rec)?` <a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</div></label>`}
+ return `<div class="dlvrow"><b>Delivery this week</b><span class="ctag t-ok">Delivered</span><span>${esc([p.drv,p.at].filter(Boolean).join(" · "))}</span>${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo</button>`:""}${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</div>`}
 function podRec(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";const r=p.rec;return (/^https?:\/\//i.test(r)?`<a href="${esc(r)}" target="_blank" rel="noopener noreferrer">Receipt</a> `:"")+`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
 function podPics(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showPodO(id,oid){const c=cust.find(x=>x.id==id),p=(c.pods||[]).find(x=>x.oid==oid);if(p)showPodP(c,p)}
