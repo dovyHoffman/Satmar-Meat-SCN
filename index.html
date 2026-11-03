@@ -816,7 +816,7 @@ function lettersOf(c,p){
   const take=pool.splice(0,Math.min(b,pool.length));out[x.oid]={t:take.join(" "),sure:toks.length==1}});
  return out[p.oid]||{t:toks.join(" "),sure:true}}
 function letterChip(c,p){const L=lettersOf(c,p);if(!L.t)return "";
- return `<span class="ctag ${L.sure?"":"guess"}" style="--c:${codeColor(L.t)};cursor:pointer" title="${L.sure?"Box delivered. Click to change.":"Guessed from the delivery order. Click to change which box this was."}" onclick="cycleLetters(${c.id},'${esc(p.oid)}')">Box ${esc(L.t)}${L.sure?"":" ?"}</span>`}
+ return `<span class="ctag ${L.sure?"":"guess"}" style="--c:${codeColor(L.t)};cursor:pointer" title="${L.sure?"Box delivered. Click to change.":"Guessed from the delivery order. Click to change which box this was."}" onclick="cycleLetters(${c.id},'${esc(p.oid)}')">Box ${esc(L.t)}</span>`}
 async function cycleLetters(id,oid){const c=cust.find(x=>x.id==id),p=(c.pods||[]).find(x=>x.oid==oid);if(!p)return;
  const toks=codeOf(c,p).split(/\s+/).filter(Boolean),b=p.snap&&p.snap.boxes>0?Math.min(p.snap.boxes,toks.length):toks.length,opts=combos(toks,b).map(x=>x.join(" "));
  if(opts.length<2)return;const cur=lettersOf(c,p).t,next=opts[(opts.indexOf(cur)+1)%opts.length];
