@@ -694,7 +694,7 @@ async function billXlsx(c,k){
   XLSX.utils.book_append_sheet(wb,s1,"Summary");XLSX.utils.book_append_sheet(wb,s2,"Customers");
   XLSX.writeFile(wb,"Satmar-billing-"+(c||"all")+"-week-"+k.replace("/","-")+".xlsx");bmsg("Excel downloaded ✓")}
  catch(e){bmsg("Could not make the Excel file: "+((e&&e.message)||e),true)}}
-function billInvoice(c,k){
+function billInvoice(c,k,brief){
  const w=BILL.weeks.find(x=>x.k==k),x=w&&w.a[c];if(!x){bmsg("Nothing to invoice for this week.",true);return}
  const p=PR[c]||{},rows=billCust(c,k),e=estA(c,x),mealsN=x.meals+x.mraw,mm=x.mhh*21,mAmt=p.meals==null?null:mm*p.meals,bAmt=p.raw==null?null:x.box*p.raw;
  const m=n=>n==null?"—":"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}),H=esc;
@@ -708,14 +708,14 @@ function billInvoice(c,k){
  <div class="top"><div><h1>Invoice</h1><div class="mut">No. ${H(no)}</div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
  <div class="top"><div><div class="mut">Bill to</div><b style="font-size:18px">${H(coName(c))}</b></div><div class="r"><div class="mut">Delivery week</div><b>${H(weekRange(k))}</b><div class="mut">Date: ${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div></div>
  <table><tr><th>Description</th><th class="n">Quantity</th><th class="n">Price</th><th class="n">Amount</th></tr>
- ${mealsN?`<tr><td>Meals customers (${mealsN} customer${mealsN==1?"":"s"}, household total ${x.mhh}) × 21 meals each</td><td class="n">${mm.toLocaleString()} meals</td><td class="n">${m(p.meals)}</td><td class="n">${m(mAmt)}</td></tr>`:""}
- ${x.box?`<tr><td>Boxes delivered</td><td class="n">${x.box}</td><td class="n">${m(p.raw)}</td><td class="n">${m(bAmt)}</td></tr>`:""}
+ ${mealsN?`<tr><td>${brief?`Meals: ${mealsN} deliver${mealsN==1?"y":"ies"} · household total ${x.mhh} × 21 meals`:`Meals customers (${mealsN} customer${mealsN==1?"":"s"}, household total ${x.mhh}) × 21 meals each`}</td><td class="n">${mm.toLocaleString()} meals</td><td class="n">${m(p.meals)}</td><td class="n">${m(mAmt)}</td></tr>`:""}
+ ${x.box?`<tr><td>${brief?`Boxes: ${x.box} deliver${x.box==1?"y":"ies"}`:"Boxes delivered"}</td><td class="n">${x.box}</td><td class="n">${m(p.raw)}</td><td class="n">${m(bAmt)}</td></tr>`:""}
  <tr class="tot"><td colspan="3">Total</td><td class="n">${m(e)}</td></tr></table>
  ${e==null?`<p class="mut">No price is set for ${H(c)} yet, so the amount is blank.</p>`:""}
- <h2>Customers billed (${rows.length})</h2>
+ ${brief?"":`<h2>Customers billed (${rows.length})</h2>
  <table><tr><th>ID</th><th>Name</th><th>Type</th><th class="n">HH</th><th>Deliveries</th><th class="n">Amount</th></tr>
  ${rows.map(r=>`<tr><td>${H(r.id)}</td><td>${H(r.name)}</td><td>${r.base=="box"?"Box"+(r.boxes>1?" ×"+r.boxes:""):"Meals"}</td><td class="n">${r.hh||""}</td><td>${r.dl.map(d=>H(fdt(d.delivered_at))+(d.letters?" ("+H(d.letters)+")":"")+(/^https?:\/\//i.test(d.receipt_url)?` <a href="${H(d.receipt_url)}">receipt</a>`:"")).join("<br>")}</td><td class="n">${m(billAmt(r))}</td></tr>`).join("")}</table>
- <p class="mut">Each delivery has a receipt with the driver's proof of delivery (link above).</p></body></html>`;
+ <p class="mut">Each delivery has a receipt with the driver's proof of delivery (link above).</p>`}</body></html>`;
  const url=URL.createObjectURL(new Blob([html],{type:"text/html"})),win=window.open(url,"_blank");
  if(!win)bmsg("The invoice was blocked by the browser. Allow pop-ups for this site and try again.",true);else bmsg("Invoice opened ✓")}
 async function loadBillDb(){
@@ -743,7 +743,7 @@ function bDb(c,k){
  const fd=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",hour:"numeric",minute:"2-digit"})};
  const dl=r=>`<div class="dl1">${r.letters?`<span class="ctag" style="--c:${codeColor(r.letters)}">Box ${esc(r.letters)}</span> `:""}<span class="note">${esc(fd(r.delivered_at))}</span> ${LNK(r.receipt_url,"Receipt")} ${(r.photo_urls||[]).filter(u=>/^https?:\/\//i.test(u)).map((u,i,a)=>LNK(u,"Photo"+(a.length>1?" "+(i+1):""))).join(" ")}</div>`;
  return `<div class="card"><h2>Customers · ${esc(coName(c))} · week of ${esc(k)} <span class="note">${all.length} customers billed · ${all.reduce((t,r)=>t+r.dl.length,0)} deliveries${rows.length!=all.length?" · "+rows.length+" shown":""}</span></h2>
- <div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"><button class="pri" onclick="billXlsx('${c}','${k}')">Download Excel</button><button onclick="billInvoice('${c}','${k}')">Invoice (print / PDF)</button><span id="bill_msg" class="note"></span></div>
+ <div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"><button class="pri" onclick="billXlsx('${c}','${k}')">Download Excel</button><button onclick="billInvoice('${c}','${k}',true)">Invoice · totals only</button><button onclick="billInvoice('${c}','${k}')">Invoice · with customers</button><span id="bill_msg" class="note"></span></div>
  <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th></tr>
  ${rows.slice(0,200).map(r=>{const p=PR[c]||{},amt=r.base=="box"?(p.raw==null?null:r.boxes*p.raw):(p.meals==null?null:21*(r.hh||1)*p.meals);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(r.food||"")}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td></tr>`}).join("")||`<tr><td colspan="7" class="no">None.</td></tr>`}</table></div>
  ${rows.length>200?`<p class="note">Showing the first 200 of ${rows.length}. Use the search to find the rest.</p>`:""}</div>`}
