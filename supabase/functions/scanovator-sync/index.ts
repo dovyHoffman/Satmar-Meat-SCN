@@ -216,6 +216,8 @@ Deno.serve(async (req) => {
         const rows: any[] = [];
         let oldest = Infinity;
         const unmatched: string[] = [];
+        const om = new Map<string, any>();   // order number -> Application ID + box letters (uploaded from the Scanovator export)
+        { const ids = (j.data || []).map((o: any) => String(o.order_id)); if (ids.length) { const r: any = await sb.from("order_map").select("order_id,app_id,letters").in("order_id", ids); if (!r.error) (r.data || []).forEach((x: any) => om.set(String(x.order_id), x)); } }
         for (const o of j.data || []) {
           seen++;
           const created = new Date(o.createdAtIso).getTime();
@@ -226,7 +228,9 @@ Deno.serve(async (req) => {
           if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
           // match ONLY by the customer ID Scanovator keeps on the order (customer code). The phone is used just to find the orders.
           let c: any = null;
-          for (const f of [o.customercode, o.online_order_id]) { const hit = byId.get(idKey(f)); if (hit && idKey(f)) { c = hit; viaId++; break; } }
+          const mp = om.get(String(o.order_id));
+          if (mp && idKey(mp.app_id)) { const hit = byId.get(idKey(mp.app_id)); if (hit) { c = hit; viaId++; } }
+          if (!c) for (const f of [o.customercode, o.online_order_id]) { const hit = byId.get(idKey(f)); if (hit && idKey(f)) { c = hit; viaId++; break; } }
                     if (!c && loose) { const h = byNamePhone(o); if (h) { c = h; viaName++; } }
           if (!c && diagN < 40) { diagN++; const fl: [string, string][] = []; flat(o, "", fl);
             const PII = /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/;
@@ -241,7 +245,8 @@ Deno.serve(async (req) => {
           let caseRaw: any = null, caseKey = "";
           for (const [k, v] of Object.entries(o)) { if (/case/i.test(k) && v !== null && v !== undefined && typeof v !== "object" && String(v).trim()) { caseRaw = v; caseKey = k; break; } }
           if (caseKey && caseKeys.length < 3 && !caseKeys.includes(caseKey + "=" + String(caseRaw).slice(0, 12))) caseKeys.push(caseKey + "=" + String(caseRaw).slice(0, 12));
-          const letters = caseRaw ? String(caseRaw).split(/[^A-Za-z0-9]+/).filter(Boolean).map((x) => x.toUpperCase()).join(" ") : "";
+          const letters0 = caseRaw ? String(caseRaw).split(/[^A-Za-z0-9]+/).filter(Boolean).map((x) => x.toUpperCase()).join(" ") : "";
+          const letters = mp && mp.letters ? String(mp.letters).split(/[^A-Za-z0-9]+/).filter(Boolean).map((x) => x.toUpperCase()).join(" ") : letters0;
           rows.push({
             order_id: String(o.order_id), customer_id: c.id,
             week_label: label(delivered || o.createdAtIso),

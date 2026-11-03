@@ -645,7 +645,7 @@ function bWk(k){
  const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const e=wkEst(w),cos=Object.keys(w.a).sort((a,b)=>dcount(w.a[b])-dcount(w.a[a])),mx=Math.max(1,...cos.map(c=>dcount(w.a[c])));
  return `<div class="card"><h2>Week ${esc(k)} <span class="note">${wkCnt(w).toLocaleString()} deliveries · ${money(e.t)}${e.miss?"+":""}</span></h2><div class="wrap"><table><tr><th>Company</th><th style="text-align:right">Meals</th><th style="text-align:right">Box</th><th style="text-align:right">Deliveries</th><th style="text-align:right">Estimated</th><th style="width:30%"></th></tr>
  ${cos.map(c=>{const x=w.a[c];return `<tr class="row" onclick="bsel2('${c}','${k}')"><td><b>${esc(coName(c))}</b></td><td style="text-align:right">${x.meals+x.mraw}</td><td style="text-align:right">${x.box}</td><td style="text-align:right"><b>${dcount(x)}</b></td><td style="text-align:right">${money(estA(c,x))}</td><td><div class="tr" style="--c:var(--ac)"><i style="width:${Math.round(dcount(x)/mx*100)}%"></i></div></td></tr>`}).join("")}</table></div>
- <p class="note">Click a company to see its customers for this week.</p></div>`}
+ <div class="bar"><button class="pri" onclick="billXlsx('','${k}')">Download Excel (all companies)</button><span id="bill_msg" class="note"></span></div><p class="note">Click a company to see its customers for this week, with its own Excel and invoice.</p></div>`}
 function bsel2(c,k){S.b.t="co";S.b.co=c;S.b.wk=k;S.b.q="";render();bdet(k)}
 function bCo(c){
  const B=S.b,W=BILL.weeks.filter(w=>w.a[c]);
@@ -673,6 +673,51 @@ async function loadBill(mcp){
 /* ---- billing from the database: deliveries (Scanovator) x prices ---- */
 const wkKey=t=>{const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d};
 const wkLab=d=>(d.getMonth()+1)+"/"+d.getDate();
+
+/* ---- billing downloads: Excel and invoice ---- */
+function billCust(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return [];
+ return Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>!c||x.co==c).sort((a,b)=>(a.co+a.name).localeCompare(b.co+b.name))}
+function billAmt(r){const p=PR[r.co]||{};return r.base=="box"?(p.raw==null?null:r.boxes*p.raw):(p.meals==null?null:21*(r.hh||1)*p.meals)}
+const fdt=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
+function weekRange(k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const a=new Date(w.t),b=new Date(w.t+6*864e5),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
+function bmsg(t,bad){const el=document.getElementById("bill_msg");if(el){el.textContent=t;el.style.color=bad?"#b42318":"var(--ok)"}}
+async function billXlsx(c,k){
+ try{bmsg("Preparing…");await loadXlsx();
+  const rows=billCust(c,k),w=BILL.weeks.find(x=>x.k==k),cos=[...new Set(rows.map(r=>r.co))];
+  const sum=[["Satmar Meats billing","Week "+weekRange(k)],[],["Company","Meals customers","Meals household total","Meals price","Boxes","Box price","Estimated amount"]];
+  let tot=0,miss=false;cos.forEach(co=>{const x=w.a[co]||{meals:0,mraw:0,box:0,mhh:0},p=PR[co]||{},e=estA(co,x);if(e==null)miss=true;else tot+=e;sum.push([co,x.meals+x.mraw,x.mhh,p.meals==null?"":p.meals,x.box,p.raw==null?"":p.raw,e==null?"no price":Math.round(e*100)/100])});
+  sum.push([],["Total","","","","","",Math.round(tot*100)/100]);if(miss)sum.push(["A company without a price is not included in the total."]);
+  const det=[["Company","ID","Name","Type","Food","Household","Boxes billed","Amount","Deliveries (date)","Box letters","Receipt links","Picture links"]];
+  rows.forEach(r=>{const a=billAmt(r);det.push([r.co,r.id,r.name,r.base=="box"?"Box":"Meals",r.food||"",r.hh||"",r.base=="box"?r.boxes:"",a==null?"":Math.round(a*100)/100,r.dl.map(d=>fdt(d.delivered_at)).join("; "),r.dl.map(d=>d.letters).filter(Boolean).join("; "),r.dl.map(d=>d.receipt_url).filter(Boolean).join("\n"),r.dl.map(d=>(d.photo_urls||[]).join(" ")).filter(Boolean).join("\n")])});
+  const wb=XLSX.utils.book_new(),s1=XLSX.utils.aoa_to_sheet(sum),s2=XLSX.utils.aoa_to_sheet(det);
+  s1["!cols"]=[{wch:14},{wch:16},{wch:20},{wch:12},{wch:8},{wch:10},{wch:16}];s2["!cols"]=[{wch:8},{wch:14},{wch:26},{wch:8},{wch:10},{wch:10},{wch:12},{wch:12},{wch:34},{wch:12},{wch:50},{wch:50}];
+  XLSX.utils.book_append_sheet(wb,s1,"Summary");XLSX.utils.book_append_sheet(wb,s2,"Customers");
+  XLSX.writeFile(wb,"Satmar-billing-"+(c||"all")+"-week-"+k.replace("/","-")+".xlsx");bmsg("Excel downloaded ✓")}
+ catch(e){bmsg("Could not make the Excel file: "+((e&&e.message)||e),true)}}
+function billInvoice(c,k){
+ const w=BILL.weeks.find(x=>x.k==k),x=w&&w.a[c];if(!x){bmsg("Nothing to invoice for this week.",true);return}
+ const p=PR[c]||{},rows=billCust(c,k),e=estA(c,x),mealsN=x.meals+x.mraw,mm=x.mhh*21,mAmt=p.meals==null?null:mm*p.meals,bAmt=p.raw==null?null:x.box*p.raw;
+ const m=n=>n==null?"—":"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}),H=esc;
+ const no=c+"-"+k.replace("/","")+"-"+new Date(w.t).getFullYear();
+ const html=`<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${H(no)}</title><style>
+ body{font:14px/1.45 Inter,Arial,sans-serif;color:#111;margin:32px auto;max-width:820px;padding:0 24px}h1{font-size:26px;margin:0}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}
+ .r{text-align:right}table{width:100%;border-collapse:collapse;margin:14px 0}th,td{padding:8px 10px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#555;background:#f6f6f6}td.n,th.n{text-align:right}
+ .tot td{font-weight:700;border-top:2px solid #111;font-size:16px}.mut{color:#666;font-size:12px}.bar{margin:0 0 18px}button{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid #888;background:#fff;cursor:pointer}
+ h2{font-size:16px;margin:28px 0 0}@media print{.bar{display:none}body{margin:0;max-width:none}}</style></head><body>
+ <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
+ <div class="top"><div><h1>Invoice</h1><div class="mut">No. ${H(no)}</div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
+ <div class="top"><div><div class="mut">Bill to</div><b style="font-size:18px">${H(coName(c))}</b></div><div class="r"><div class="mut">Delivery week</div><b>${H(weekRange(k))}</b><div class="mut">Date: ${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div></div>
+ <table><tr><th>Description</th><th class="n">Quantity</th><th class="n">Price</th><th class="n">Amount</th></tr>
+ ${mealsN?`<tr><td>Meals customers (${mealsN} customer${mealsN==1?"":"s"}, household total ${x.mhh}) × 21 meals each</td><td class="n">${mm.toLocaleString()} meals</td><td class="n">${m(p.meals)}</td><td class="n">${m(mAmt)}</td></tr>`:""}
+ ${x.box?`<tr><td>Boxes delivered</td><td class="n">${x.box}</td><td class="n">${m(p.raw)}</td><td class="n">${m(bAmt)}</td></tr>`:""}
+ <tr class="tot"><td colspan="3">Total</td><td class="n">${m(e)}</td></tr></table>
+ ${e==null?`<p class="mut">No price is set for ${H(c)} yet, so the amount is blank.</p>`:""}
+ <h2>Customers billed (${rows.length})</h2>
+ <table><tr><th>ID</th><th>Name</th><th>Type</th><th class="n">HH</th><th>Deliveries</th><th class="n">Amount</th></tr>
+ ${rows.map(r=>`<tr><td>${H(r.id)}</td><td>${H(r.name)}</td><td>${r.base=="box"?"Box"+(r.boxes>1?" ×"+r.boxes:""):"Meals"}</td><td class="n">${r.hh||""}</td><td>${r.dl.map(d=>H(fdt(d.delivered_at))+(d.letters?" ("+H(d.letters)+")":"")+(/^https?:\/\//i.test(d.receipt_url)?` <a href="${H(d.receipt_url)}">receipt</a>`:"")).join("<br>")}</td><td class="n">${m(billAmt(r))}</td></tr>`).join("")}</table>
+ <p class="mut">Each delivery has a receipt with the driver's proof of delivery (link above).</p></body></html>`;
+ const url=URL.createObjectURL(new Blob([html],{type:"text/html"})),win=window.open(url,"_blank");
+ if(!win)bmsg("The invoice was blocked by the browser. Allow pop-ups for this site and try again.",true);else bmsg("Invoice opened ✓")}
 async function loadBillDb(){
  if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
  try{
@@ -698,7 +743,7 @@ function bDb(c,k){
  const fd=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",hour:"numeric",minute:"2-digit"})};
  const dl=r=>`<div class="dl1">${r.letters?`<span class="ctag" style="--c:${codeColor(r.letters)}">Box ${esc(r.letters)}</span> `:""}<span class="note">${esc(fd(r.delivered_at))}</span> ${LNK(r.receipt_url,"Receipt")} ${(r.photo_urls||[]).filter(u=>/^https?:\/\//i.test(u)).map((u,i,a)=>LNK(u,"Photo"+(a.length>1?" "+(i+1):""))).join(" ")}</div>`;
  return `<div class="card"><h2>Customers · ${esc(coName(c))} · week of ${esc(k)} <span class="note">${all.length} customers billed · ${all.reduce((t,r)=>t+r.dl.length,0)} deliveries${rows.length!=all.length?" · "+rows.length+" shown":""}</span></h2>
- <div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"></div>
+ <div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"><button class="pri" onclick="billXlsx('${c}','${k}')">Download Excel</button><button onclick="billInvoice('${c}','${k}')">Invoice (print / PDF)</button><span id="bill_msg" class="note"></span></div>
  <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th></tr>
  ${rows.slice(0,200).map(r=>{const p=PR[c]||{},amt=r.base=="box"?(p.raw==null?null:r.boxes*p.raw):(p.meals==null?null:21*(r.hh||1)*p.meals);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(r.food||"")}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td></tr>`}).join("")||`<tr><td colspan="7" class="no">None.</td></tr>`}</table></div>
  ${rows.length>200?`<p class="note">Showing the first 200 of ${rows.length}. Use the search to find the rest.</p>`:""}</div>`}
@@ -942,7 +987,41 @@ function vImport(){
  ${I&&I.err?`<p class="err">${esc(I.err)}</p>`:""}
  ${I&&I.rows?`<div class="card" style="margin-top:12px"><b>${I.rows.length.toLocaleString()} customers ready</b> <span class="note">(${I.rows.filter(r=>r.active).length.toLocaleString()} active). Skipped: ${I.skipped.noref} without an ID, ${I.skipped.dup} repeated IDs.</span>
  <div class="bar"><button class="pri" onclick="doImport()" ${I.busy?"disabled":""}>${I.busy?"Importing… "+I.done+" / "+I.rows.length:"Import them now"}</button></div></div>`:""}
- ${I&&I.ok?`<p class="msg">${esc(I.ok)}</p>`:""}</div>`}
+ ${I&&I.ok?`<p class="msg">${esc(I.ok)}</p>`:""}</div>
+ <div class="card"><h2>Order IDs and box letters (from Scanovator)</h2>
+ <p class="note">Scanovator's delivery feed does not send the Application ID or the case description, but your billing sheet has both for every order. Upload them once and every delivery matches its customer by ID, with the real box letters.</p>
+ <ol class="note" style="line-height:1.7"><li>Open the Google Sheet <b>Billing SCN 82</b>.</li><li>Click <b>File → Download → Microsoft Excel (.xlsx)</b> (all the ORDERS tabs are read at once), or download one ORDERS tab as .csv.</li><li>Choose the file below.</li></ol>
+ <p class="note">Only three columns are read: <b>Order ID</b>, <b>Application ID</b> and <b>case description</b>. Names, phones and addresses in the file are not read or sent.</p>
+ <input type="file" accept=".xlsx,.xls,.csv,text/csv" onchange="omFile(this.files[0])">
+ ${S.om&&S.om.busyRead?`<p class="note">Reading the file…</p>`:""}
+ ${S.om&&S.om.err?`<p class="err">${esc(S.om.err)}</p>`:""}
+ ${S.om&&S.om.rows?`<div class="card" style="margin-top:12px"><b>${S.om.rows.length.toLocaleString()} orders</b> <span class="note">from ${S.om.tabs} tab${S.om.tabs==1?"":"s"} · ${S.om.withId.toLocaleString()} with an Application ID · ${S.om.withL.toLocaleString()} with box letters</span>
+ <div class="bar"><button class="pri" onclick="omSave()" ${S.om.busy?"disabled":""}>${S.om.busy?"Saving… "+S.om.done+" / "+S.om.rows.length:"Save them now"}</button></div></div>`:""}
+ ${S.om&&S.om.ok?`<p class="msg">${esc(S.om.ok)}</p>`:""}</div>`}
+function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("The file reader could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
+async function omFile(f){
+ if(!f)return;S.om={busyRead:true};render();
+ try{await loadXlsx();
+  const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),one=wb.SheetNames.length==1,rows=[],seen=new Set();let tabs=0;
+  const norm=h=>String(h||"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  for(const name of wb.SheetNames){
+   if(!one&&!/^orders[ _-]/i.test(name))continue;
+   const a=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:""});if(!a.length)continue;
+   const hd=a[0].map(norm),io=hd.indexOf("order id"),ia=hd.indexOf("application id"),il=hd.indexOf("case description");
+   if(io<0||(ia<0&&il<0))continue;tabs++;
+   for(let r=1;r<a.length;r++){const o=String(a[r][io]||"").trim().replace(/\.0+$/,"");if(!/^\d{6,}$/.test(o)||seen.has(o))continue;seen.add(o);
+    const id=ia>=0?String(a[r][ia]||"").trim():"",l=il>=0?String(a[r][il]||"").split(/[^A-Za-z0-9]+/).filter(Boolean).map(x=>x.toUpperCase()).join(","):"";
+    if(id||l)rows.push({o:o,a:id,l:l})}}
+  if(!rows.length){S.om={err:"No orders with an Application ID or case description were found. Is it the Billing SCN 82 file with the ORDERS tabs?"};render();return}
+  S.om={rows:rows,tabs:tabs,withId:rows.filter(x=>x.a).length,withL:rows.filter(x=>x.l).length,done:0}
+ }catch(e){S.om={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+async function omSave(){
+ const M=S.om;if(!M||!M.rows||M.busy)return;M.busy=true;M.done=0;M.ok="";M.err="";render();
+ try{for(let i=0;i<M.rows.length;i+=1000){const r=await sb.rpc("save_order_map",{p:M.rows.slice(i,i+1000)});if(r.error)throw r.error;M.done=Math.min(i+1000,M.rows.length);render()}
+  S.om={ok:"Saved "+M.rows.length.toLocaleString()+" orders. Now go to Customers and click Sync deliveries now (leave the name + phone box unticked). Deliveries will match by ID and show the real box letters."}
+ }catch(e){M.busy=false;M.err="Not saved: "+dberr(e)+(/save_order_map|function/i.test(String(e&&e.message))?" (The database update 011 has not been run yet.)":"")}
+ render()}
 async function importFile(f){
  if(!f)return;S.imp={};render();
  try{const t=await f.text(),recs=csvToRecs(t),{rows,skipped}=toDbRows(recs);
@@ -968,7 +1047,7 @@ async function loadUsers(){
 async function updProfile(id,patch){
  const {error}=await sb.from("profiles").update(patch).eq("id",id);
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S.msg="Saved.";S.err=""}await loadUsers()}
-function urole(i,v){const pg=v=="secretary"?["customers","changes"]:[];updProfile(USERS[i].id,{role:v,pages:pg})}
+function urole(i,v){const pg=v=="secretary"?["customers","changes","menu"]:v=="billing"?["billing"]:[];updProfile(USERS[i].id,{role:v,pages:pg})}
 function upage(i,p,v){const u=USERS[i],cur=(u.pages||[]).filter(x=>x!=p);if(v)cur.push(p);updProfile(u.id,{pages:cur})}
 function uactive(i,v){updProfile(USERS[i].id,{active:!!v})}
 async function setOpt(k,v){
