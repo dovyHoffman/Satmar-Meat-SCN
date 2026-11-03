@@ -14,6 +14,6 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - run: supabase functions deploy scanovator-sync --project-ref znszotxuhkxgbszhyqcp --no-verify-jwt
+      - run: supabase functions deploy scanovator-sync --project-ref znszotxuhkxgbszhyqcp --no-verify-jwt --yes
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
