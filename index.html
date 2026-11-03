@@ -114,7 +114,7 @@ label{font-size:12.5px;font-weight:500;color:var(--mut)}
 .g4 .sec{color:var(--ac);border-bottom:1px solid var(--ln);font-size:11.5px;margin-top:14px;padding-bottom:5px}
 .dlvrow{background:color-mix(in srgb,var(--ok) 7%,var(--card));border-color:color-mix(in srgb,var(--ok) 25%,var(--ln));border-radius:12px}
 th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{display:inline-block;width:14px;margin-left:3px;color:var(--ac);font-size:10px}.colmenu{position:absolute;right:0;top:100%;margin-top:6px;z-index:10;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(16,24,40,.18);width:250px;max-height:420px;overflow:auto}.colmenu .ck{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;color:var(--tx);cursor:pointer}.colmenu .ck input{width:auto;margin:0;min-height:0}.podmod{max-width:min(1100px,96vw)!important;width:96vw;max-height:94vh;overflow:auto}.podh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}.podstage{display:flex;justify-content:center;background:color-mix(in srgb,var(--mut) 8%,var(--card));border-radius:12px;padding:8px}.podimg{max-width:100%;max-height:68vh;object-fit:contain;border-radius:8px;display:block;cursor:zoom-in}.podnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}.podth{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.podth button{position:relative;padding:0;width:84px;height:64px;overflow:hidden;border-radius:10px;border:2px solid var(--ln)}.podth button.on{border-color:var(--ac)}.podth img{width:100%;height:100%;object-fit:cover;display:block}.podth span{position:absolute;right:4px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;border-radius:6px;padding:0 5px}
-.dlvl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 0}.dlvl+.dlvl{border-top:1px dashed var(--ln)}.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
+.t-part{--c:#e07b00}.dlvrow.part{background:color-mix(in srgb,#e07b00 9%,var(--card));border-color:color-mix(in srgb,#e07b00 35%,var(--ln))}.dlvl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 0}.dlvl+.dlvl{border-top:1px dashed var(--ln)}.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
 @media(max-width:820px){#shell{flex-direction:column}#side{width:100%;height:auto;position:static;padding:10px 12px}#side .brand{padding-bottom:10px;margin-bottom:8px}#nav{flex-direction:row;flex-wrap:wrap;flex:none}#nav button.nv{width:auto;padding:8px 11px}#who{display:flex;align-items:center;justify-content:space-between;gap:8px}#who .me{padding:0}#who .acts{flex:none}main{padding:16px}}
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
@@ -285,7 +285,7 @@ const COLS=[
  {k:"base",l:"Type",on:1,v:c=>c.base=="box"?"Box":"Meals",s:c=>c.base},
  {k:"hh",l:"HH",on:1,v:c=>c.hh,s:c=>+c.hh||0,num:1},
  {k:"chose",l:"Customer chose",on:1,v:c=>{const code=codesFor(c.food,c.hh,c.area);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area)+" "+optName(c.base,c.food)},
- {k:"deliv",l:"Delivery",on:1,v:c=>{const dp=dpOf(c,weekStart()),dd=S.real?!!dp:c.delivered;return `<span class="ctag ${dd?"t-ok":"t-no"}">${dd?"Delivered"+(dp&&dp.at?" · "+esc(dp.at.replace(/^.*?,\s*/,"")):""):"Not yet"}</span>`},s:c=>{const dp=dpOf(c,weekStart());return S.real?(dp?dp.ts:0):(c.delivered?1:0)},num:1},
+ {k:"deliv",l:"Delivery",on:1,v:c=>delTag(c),s:c=>{const w=S.real?weekDel(c):null;return w?(w.last?w.last.ts:0)+(w.state=="part"?0:0):(c.delivered?1:0)},num:1},
  {k:"agency",l:"Agency",v:c=>esc(c.agency),s:c=>c.agency},
  {k:"area",l:"Area",v:c=>esc(c.area),s:c=>c.area},
  {k:"cell",l:"Cell",v:c=>esc(c.cell),s:c=>c.cell||""},
@@ -792,6 +792,17 @@ function banner(){
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
  return `<div class="card" style="border-color:var(--ok)">${own?`<span style="float:right;text-align:right"><button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button><label style="display:block;margin-top:4px;font-size:12px"><input type="checkbox" style="width:auto;margin:0 4px 0 0;min-height:0" ${S.loose?"checked":""} onchange="S.loose=this.checked"> also match by name + phone (strict)</label></span>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span>${(()=>{const t0=weekStart();let d=0,ph=0,tot=0;cust.forEach(c=>(c.pods||[]).forEach(p=>{tot++;if(p.ts&&p.ts>=t0){d++;if(p.links.length||(p.paths||[]).some(x=>x&&x!="-"))ph++}}));return `<div class="note" style="margin-top:6px"><b>Deliveries on file:</b> ${tot.toLocaleString()} matched to customers · this week ${d.toLocaleString()} (${ph.toLocaleString()} with a picture)${S.syncRes?`<br><b>Last sync:</b> ${esc(S.syncRes)}`:""}</div>`})()}</div>`}
 
+/* ---- how many boxes were delivered this week (a code like "E B" is two boxes, sometimes delivered separately) ---- */
+const shortAt=a=>String(a||"").replace(/\/\d{4},/,"");
+function boxNeed(c){return Math.max(1,String(codesFor(c.food,c.hh,c.area)).trim().split(/\s+/).filter(Boolean).length)}
+function weekDel(c){const t0=weekStart(),ps=(c.pods||[]).filter(x=>x.ts&&x.ts>=t0),need=boxNeed(c);
+ let got=0;ps.forEach(p=>{const b=p.snap&&p.snap.boxes;got+=b>0?b:need});   // an order whose box count is unknown counts as complete
+ const last=ps.slice().sort((a,b)=>b.ts-a.ts)[0];
+ return {ps:ps,need:need,got:got,state:!ps.length?"none":got>=need?"full":"part",last:last}}
+function delTag(c){const w=weekDel(c);
+ if(w.state=="none")return `<span class="ctag t-no">Not yet</span>`;
+ if(w.state=="full")return `<span class="ctag t-ok">Delivered · ${esc(shortAt(w.last.at))}</span>`;
+ return `<span class="ctag t-part" title="Scanovator shows ${w.got} of ${w.need} boxes delivered so far">${w.got} of ${w.need} boxes · ${esc(shortAt(w.last.at))}</span>`}
 /* ---- past weeks: one row per week, every delivery of that week inside it ---- */
 function wkStartOf(t){const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d}
 function podTime(p){if(p.ts)return p.ts;const m=String(p.k||"").match(/^(\d{1,2})\/(\d{1,2})/);if(!m)return 0;const n=new Date();let d=new Date(n.getFullYear(),+m[1]-1,+m[2]);if(d>n)d=new Date(n.getFullYear()-1,+m[1]-1,+m[2]);return d.getTime()}
@@ -803,7 +814,7 @@ function pastReal(c){
  const wk=new Map();(c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;const ws=wkStartOf(t),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[]});wk.get(k).list.push(p)});
  const rows=[...wk.values()].sort((a,b)=>b.ws-a.ws),fm=d=>(d.getMonth()+1)+"/"+d.getDate();
  const line=p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");const done=!!p.ts;
-  return `<div class="dlvl">${boxAt(c,p)}<span>${done?esc([p.drv,p.at].filter(Boolean).join(" · ")):`<span class="note">${esc(p.k||"")} · not delivered yet</span>`}</span>${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:(done?'<span class="note">no photo yet</span>':"")}</div>`};
+  return `<div class="dlvl">${boxAt(c,p)}<span>${done?esc([p.drv,p.at].filter(Boolean).join(" · ")):`<span class="note">${esc(p.k||"")} · not delivered yet</span>`}</span>${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}${p.snap&&p.snap.boxes>0?`<span class="note">${p.snap.boxes} box${p.snap.boxes>1?"es":""}</span>`:""}${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:(done?'<span class="note">no photo yet</span>':"")}</div>`};
  return `<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>Deliveries</th></tr>
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b>${r.list.length>1?`<div class="note">${r.list.length} deliveries</div>`:""}</td><td style="white-space:normal">${r.list.map(line).join("")}</td></tr>`}).join("")||"<tr><td colspan=2 class='no'>No past deliveries found.</td></tr>"}</table></div></div>`}
 function podNote(){return ""}
@@ -1029,10 +1040,11 @@ async function syncNow(){
 /* ---- deliveries shown from the database ---- */
 function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d.getTime()}   // last Saturday 00:00
 function dlv(c){
- const t0=weekStart(),ps=(c.pods||[]).filter(x=>x.ts&&x.ts>=t0);
+ const w=weekDel(c),ps=w.ps;
  if(!ps.length)return `<div class="dlvrow"><b>Delivery this week</b><span class="ctag t-no">Not yet</span></div>`;
- return `<div class="dlvrow"><b>Delivery this week${ps.length>1?" ("+ps.length+")":""}</b>`+ps.map(p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");
-  return `<span class="dlvone"><span class="ctag t-ok">Delivered</span> <span>${esc([p.drv,p.at].filter(Boolean).join(" · "))}</span>${has?` <button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo</button>`:""}${/^https?:\/\//i.test(p.rec)?` <a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</span>`}).join("")+`</div>`}
+ const head=w.state=="part"?`<span class="ctag t-part">${w.got} of ${w.need} boxes delivered</span>`:(w.need>1?`<span class="ctag t-ok">All ${w.need} boxes</span>`:"");
+ return `<div class="dlvrow ${w.state=="part"?"part":""}"><b>Delivery this week${ps.length>1?" ("+ps.length+")":""}</b>${head}`+ps.map(p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-"),bx=p.snap&&p.snap.boxes>0?p.snap.boxes:0;
+  return `<span class="dlvone"><span class="ctag t-ok">Delivered</span> <span>${esc([p.drv,shortAt(p.at)].filter(Boolean).join(" · "))}${bx?` · ${bx} box${bx>1?"es":""}`:""}</span>${has?` <button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo</button>`:""}${/^https?:\/\//i.test(p.rec)?` <a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</span>`}).join("")+`</div>`}
 function podRec(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";const r=p.rec;return (/^https?:\/\//i.test(r)?`<a href="${esc(r)}" target="_blank" rel="noopener noreferrer">Receipt</a> `:"")+`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
 function podPics(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showPodO(id,oid){const c=cust.find(x=>x.id==id),p=(c.pods||[]).find(x=>x.oid==oid);if(p)showPodP(c,p)}

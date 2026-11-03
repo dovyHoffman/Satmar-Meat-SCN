@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
             delivered_at: delivered, route_started: nyIso(o.route_started),
             receipt_url: o.receipt_url ? https(o.receipt_url) : "",
             photo_urls: (o.photos || []).map(String).filter(Boolean).map(https), synced_at: new Date().toISOString(),
-            snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base },   // what the customer had when it was delivered
+            snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: Number(o.total_boxes) || 0 },   // what the customer had when it was delivered
           });
         }
         // an order that does not match by ID must not stay attached to anybody (older syncs matched by phone)
@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
           for (const r of rows) {
             const h: any = hv.get(r.order_id);
             r.photo_paths = ((h && h.photo_paths) || []).slice(0, r.photo_urls.length);
-            if (snapOk) { if (h && h.snap) r.snap = h.snap; } else delete r.snap;   // keep the first snapshot; no column yet = skip it
+            if (snapOk) { if (h && h.snap) r.snap = { ...h.snap, boxes: r.snap.boxes }; } else delete r.snap;   // first food/household snapshot stays; the box count is refreshed   // keep the first snapshot; no column yet = skip it
           }
           const { error: e2 } = await sb.from("deliveries").upsert(rows, { onConflict: "order_id" });
           if (e2) throw e2;
