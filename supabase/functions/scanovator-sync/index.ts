@@ -203,6 +203,7 @@ Deno.serve(async (req) => {
     const examples: string[] = [];
     let withCode = 0, withOnline = 0, deliveredN = 0; const codeEx = new Set<string>(); let deliveredSample: string[] = [];
     // diagnostics: where on an order does Scanovator keep our customer ID?
+    const caseKeys: string[] = [];
     const idPaths: Record<string, number> = {}; let samplePaths: string[] = []; let diagN = 0;
     const flat = (v: any, path: string, out: [string, string][], d = 0) => {
       if (v === null || v === undefined) return;
@@ -236,6 +237,11 @@ Deno.serve(async (req) => {
             if (samplePaths.length < 60 && diagN <= 2) for (const [pa, va] of fl) samplePaths.push(PII.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)); }
           if (!c) { noMatch++; unmatched.push(String(o.order_id)); if (examples.length < 3) examples.push(String(o.customercode || o.online_order_id || "(none)").slice(0, 20)); continue; }  // only match by customer ID
           const delivered = nyIso(o.actually_delivered);
+          // "Case description" (Scanovator column AI) holds the box letters of this delivery, e.g. "B" or "A,S"
+          let caseRaw: any = null, caseKey = "";
+          for (const [k, v] of Object.entries(o)) { if (/case/i.test(k) && v !== null && v !== undefined && typeof v !== "object" && String(v).trim()) { caseRaw = v; caseKey = k; break; } }
+          if (caseKey && caseKeys.length < 3 && !caseKeys.includes(caseKey + "=" + String(caseRaw).slice(0, 12))) caseKeys.push(caseKey + "=" + String(caseRaw).slice(0, 12));
+          const letters = caseRaw ? String(caseRaw).split(/[^A-Za-z0-9]+/).filter(Boolean).map((x) => x.toUpperCase()).join(" ") : "";
           rows.push({
             order_id: String(o.order_id), customer_id: c.id,
             week_label: label(delivered || o.createdAtIso),
@@ -243,7 +249,7 @@ Deno.serve(async (req) => {
             delivered_at: delivered, route_started: nyIso(o.route_started),
             receipt_url: o.receipt_url ? https(o.receipt_url) : "",
             photo_urls: (o.photos || []).map(String).filter(Boolean).map(https), synced_at: new Date().toISOString(),
-            snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: Number(o.total_boxes) || 0 },   // what the customer had when it was delivered
+            snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: letters ? letters.split(" ").length : (Number(o.total_boxes) || 0), ...(letters ? { letters } : {}) },   // what the customer had when it was delivered
           });
         }
         // an order that does not match by ID must not stay attached to anybody (older syncs matched by phone)
@@ -257,7 +263,7 @@ Deno.serve(async (req) => {
           for (const r of rows) {
             const h: any = hv.get(r.order_id);
             r.photo_paths = ((h && h.photo_paths) || []).slice(0, r.photo_urls.length);
-            if (snapOk) { if (h && h.snap) r.snap = { ...h.snap, boxes: r.snap.boxes }; } else delete r.snap;   // first food/household snapshot stays; the box count is refreshed   // keep the first snapshot; no column yet = skip it
+            if (snapOk) { if (h && h.snap) r.snap = { ...h.snap, boxes: r.snap.boxes, ...(r.snap.letters ? { letters: r.snap.letters } : {}) }; } else delete r.snap;   // first food/household snapshot stays; the box count is refreshed   // keep the first snapshot; no column yet = skip it
           }
           const { error: e2 } = await sb.from("deliveries").upsert(rows, { onConflict: "order_id" });
           if (e2) throw e2;
@@ -268,7 +274,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, phone_match_codes: examples, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
