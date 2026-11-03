@@ -201,6 +201,7 @@ Deno.serve(async (req) => {
       return hits.size === 1 ? [...hits.values()][0] : null;
     };
     const examples: string[] = [];
+    let withCode = 0, withOnline = 0, deliveredN = 0; const codeEx = new Set<string>(); let deliveredSample: string[] = [];
     // diagnostics: where on an order does Scanovator keep our customer ID?
     const idPaths: Record<string, number> = {}; let samplePaths: string[] = []; let diagN = 0;
     const flat = (v: any, path: string, out: [string, string][], d = 0) => {
@@ -219,6 +220,9 @@ Deno.serve(async (req) => {
           const created = new Date(o.createdAtIso).getTime();
           if (created < oldest) oldest = created;
           if (created < since) continue;
+          if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
+          if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
+          if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
           // match ONLY by the customer ID Scanovator keeps on the order (customer code). The phone is used just to find the orders.
           let c: any = null;
           for (const f of [o.customercode, o.online_order_id]) { const hit = byId.get(idKey(f)); if (hit && idKey(f)) { c = hit; viaId++; break; } }
@@ -256,7 +260,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, no_match: noMatch, phone_match_codes: examples, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, phone_match_codes: examples, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
