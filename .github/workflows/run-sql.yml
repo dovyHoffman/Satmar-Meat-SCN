@@ -1,0 +1,28 @@
+# Runs ONE SQL file from supabase/migrations on the Supabase database (only when started by hand / by Claude).
+# One-time setup: repository secret SUPABASE_DB_TOKEN = a Supabase access token that has Database write access.
+name: Run SQL file
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "File name inside supabase/migrations, e.g. 008_delivery_snapshot.sql"
+        required: true
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the file
+        env:
+          TOKEN: ${{ secrets.SUPABASE_DB_TOKEN }}
+          FILE: ${{ github.event.inputs.file }}
+        run: |
+          set -e
+          case "$FILE" in */*|*..*) echo "bad file name"; exit 1;; esac
+          test -f "supabase/migrations/$FILE"
+          jq -Rs '{query: .}' "supabase/migrations/$FILE" > body.json
+          code=$(curl -sS -o out.json -w "%{http_code}" -X POST \
+            "https://api.supabase.com/v1/projects/znszotxuhkxgbszhyqcp/database/query" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @body.json)
+          echo "HTTP $code"; cat out.json; echo
+          test "$code" -lt 300
