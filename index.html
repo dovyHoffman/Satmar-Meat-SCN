@@ -432,7 +432,15 @@ function vMenu(){
  <div class="card">${tabs}</div>
  <div class="card mcard" style="--c:${col(code)}"><div class="mtop"><div class="lt">${esc(code)}</div><div><h2 style="margin:0">Menu ${esc(code)}</h2><div class="note">${m.lines.length} items${cnt[code]!=null?" · "+cnt[code]+" boxes to prepare":""}</div></div></div>
   ${chips.length?`<div class="chips">${chips.map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</div>`:""}
-  ${m.lines.length?`<div class="mgrid">${m.lines.map((x,i)=>`<div class="mit"><span class="mn">${i+1}</span><span>${esc(x)}</span></div>`).join("")}</div>`:`<p class="no">Nothing on the menu yet for code ${esc(code)} this week.</p>`}</div>${edit}`}
+  ${m.lines.length?`<div class="mgrid">${m.lines.map((x,i)=>`<div class="mit"><span class="mn">${i+1}</span><span>${esc(x)}</span></div>`).join("")}</div>`:`<p class="no">Nothing on the menu yet for code ${esc(code)} this week.</p>`}</div>
+ <div class="card"><h2>Copy for the office</h2><p class="note">Plain text, ready to paste into an email, WhatsApp or a document.</p>
+  <div class="bar"><button class="pri" onclick="menuCopy('${esc(code)}')">Copy menu ${esc(code)}</button><button onclick="menuCopy('all')">Copy all ${codes.length} menus</button><span id="menu_copied" class="note"></span></div>
+  <textarea id="menu_copy" readonly rows="${Math.min(Math.max(m.lines.length+3,6),22)}" style="width:100%;max-width:560px" onfocus="this.select()">${esc(menuText(code))}</textarea></div>${edit}`}
+function menuText(k){const m=MENU.lists[k]||{info:"",lines:[]};return "Menu "+k+"\n"+(m.info?m.info.split("\n").map(x=>x.trim()).filter(Boolean).join("\n")+"\n":"")+m.lines.map(x=>"- "+x).join("\n")}
+async function menuCopy(w){
+ const ks=MENU.order.filter(k=>MENU.lists[k]),t=w=="all"?ks.map(menuText).join("\n\n"):menuText(w);let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){try{const a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();ok=document.execCommand("copy");a.remove()}catch(e2){}}
+ const el=document.getElementById("menu_copied");if(el){el.textContent=ok?(w=="all"?"All menus copied ✓":"Menu "+w+" copied ✓"):"Could not copy automatically. Select the text in the box and press Ctrl+C.";el.style.color=ok?"var(--ok)":"var(--bad,#b42318)"}}
 async function menuSave(k){
  const nw=document.getElementById("menu_ta").value.split("\n").map(x=>x.trim()).filter(Boolean),old=MENU.lists[k].lines;
  let ch=0;old.forEach(x=>{if(nw.indexOf(x)<0)ch++});nw.forEach(x=>{if(old.indexOf(x)<0)ch++});
