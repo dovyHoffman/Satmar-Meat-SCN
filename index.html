@@ -996,7 +996,8 @@ async function syncNow(){
   while(off!==null){S.syncMsg="Reading deliveries… "+Math.min(off,total||off)+(total?" / "+total:"")+" customers";render();
    let j;for(let t=0;;t++){try{j=await call({mode:"orders",offset:off});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
    saved+=j.deliveries_saved;vid+=j.via_id||0;vph+=j.via_phone||0;nom+=j.no_match||0;if(codes.length<3)codes=codes.concat(j.phone_match_codes||[]).slice(0,3);total=j.total;off=j.next}
-  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");await loadDB()
+  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");await loadDB();
+  {const t0=weekStart(),n=cust.filter(c=>(c.pods||[]).some(p=>p.ts&&p.ts>=t0)).length;S.msg+=" Customers with a delivery this week: "+n+". Example IDs in your list: "+cust.slice(0,3).map(c=>c.ref).join(", ")+"."}
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
 
