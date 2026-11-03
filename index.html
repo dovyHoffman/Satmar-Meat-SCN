@@ -113,7 +113,8 @@ label{font-size:12.5px;font-weight:500;color:var(--mut)}
 .g4 .ro{color:var(--tx);font-weight:500;font-size:14.5px}
 .g4 .sec{color:var(--ac);border-bottom:1px solid var(--ln);font-size:11.5px;margin-top:14px;padding-bottom:5px}
 .dlvrow{background:color-mix(in srgb,var(--ok) 7%,var(--card));border-color:color-mix(in srgb,var(--ok) 25%,var(--ln));border-radius:12px}
-th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{display:inline-block;width:14px;margin-left:3px;color:var(--ac);font-size:10px}.colmenu{position:absolute;right:0;top:100%;margin-top:6px;z-index:10;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(16,24,40,.18);width:250px;max-height:420px;overflow:auto}.colmenu .ck{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;color:var(--tx);cursor:pointer}.colmenu .ck input{width:auto;margin:0;min-height:0}.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
+th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{display:inline-block;width:14px;margin-left:3px;color:var(--ac);font-size:10px}.colmenu{position:absolute;right:0;top:100%;margin-top:6px;z-index:10;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(16,24,40,.18);width:250px;max-height:420px;overflow:auto}.colmenu .ck{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;color:var(--tx);cursor:pointer}.colmenu .ck input{width:auto;margin:0;min-height:0}.podmod{max-width:min(1100px,96vw)!important;width:96vw;max-height:94vh;overflow:auto}.podh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}.podstage{display:flex;justify-content:center;background:color-mix(in srgb,var(--mut) 8%,var(--card));border-radius:12px;padding:8px}.podimg{max-width:100%;max-height:68vh;object-fit:contain;border-radius:8px;display:block;cursor:zoom-in}.podnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}.podth{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.podth button{position:relative;padding:0;width:84px;height:64px;overflow:hidden;border-radius:10px;border:2px solid var(--ln)}.podth button.on{border-color:var(--ac)}.podth img{width:100%;height:100%;object-fit:cover;display:block}.podth span{position:absolute;right:4px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;border-radius:6px;padding:0 5px}
+.dlvl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 0}.dlvl+.dlvl{border-top:1px dashed var(--ln)}.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
 @media(max-width:820px){#shell{flex-direction:column}#side{width:100%;height:auto;position:static;padding:10px 12px}#side .brand{padding-bottom:10px;margin-bottom:8px}#nav{flex-direction:row;flex-wrap:wrap;flex:none}#nav button.nv{width:auto;padding:8px 11px}#who{display:flex;align-items:center;justify-content:space-between;gap:8px}#who .me{padding:0}#who .acts{flex:none}main{padding:16px}}
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
@@ -356,8 +357,8 @@ function vCard(){
  <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
  <p class="note">Leave a field empty to keep it as is. These changes start next week and do not touch this week. One set of changes per customer per week.</p>
  <div class="bar">${ed?`<button class="pri" onclick="saveNext(${c.id})" ${lock?"disabled":""}>Save changes for next week</button>`:""}<button onclick="go('customers')">Back</button></div></div>
- <div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>On list</th><th>Got</th><th>Customer request / change</th><th>Delivered by · when</th><th>POD</th></tr>
- ${c.weeks.length?"":"<tr><td colspan=6 class='no'>No past weeks found.</td></tr>"}${c.weeks.map(w=>`<tr><td>${w.w}</td><td>${w.on?"Yes":"Not in list"}</td><td>${esc(w.got)}</td><td>${esc(w.req||"")}</td><td>${w.pod?esc(podInfo(c,w.w).who)+" · "+esc(podInfo(c,w.w).at):podRec(c,w)}</td><td>${w.pod?`<button onclick="showPod(${c.id},'${w.w}')">View photo</button>`:podPics(c,w)}</td></tr>`).join("")}</table></div>${podNote()}</div>`}
+ ${S.real?pastReal(c):`<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>On list</th><th>Got</th><th>Customer request / change</th><th>Delivered by · when</th><th>POD</th></tr>
+ ${c.weeks.length?"":"<tr><td colspan=6 class='no'>No past weeks found.</td></tr>"}${c.weeks.map(w=>`<tr><td>${w.w}</td><td>${w.on?"Yes":"Not in list"}</td><td>${esc(w.got)}</td><td>${esc(w.req||"")}</td><td>${w.pod?esc(podInfo(c,w.w).who)+" · "+esc(podInfo(c,w.w).at):podRec(c,w)}</td><td>${w.pod?`<button onclick="showPod(${c.id},'${w.w}')">View photo</button>`:podPics(c,w)}</td></tr>`).join("")}</table></div>${podNote()}</div>`}`}
 function saveNow(id){
  const c=cust.find(x=>x.id==id),ce=document.getElementById("ce"),p=f_addr.dataset.pick;
  if(!p){ce.textContent=ADDRMSG;return}
@@ -775,8 +776,8 @@ async function loadDB(){
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
-   const ds=await fetchAll("deliveries","order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",q=>q.order("delivered_at",{ascending:false,nullsFirst:false}));
-   ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[])})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
+   const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.order("delivered_at",{ascending:false,nullsFirst:false});let ds;try{ds=await fetchAll("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAll("deliveries",dcols,dord)}
+   ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
@@ -790,23 +791,46 @@ function banner(){
  if(!navFor(S.user).length)return `<div class="card"><b>You are signed in, but no pages are switched on for you yet.</b> <span class="note">Ask the owner to give you access.</span></div>`;
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
  return `<div class="card" style="border-color:var(--ok)">${own?`<span style="float:right;text-align:right"><button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button><label style="display:block;margin-top:4px;font-size:12px"><input type="checkbox" style="width:auto;margin:0 4px 0 0;min-height:0" ${S.loose?"checked":""} onchange="S.loose=this.checked"> also match by name + phone (strict)</label></span>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span>${(()=>{const t0=weekStart();let d=0,ph=0,tot=0;cust.forEach(c=>(c.pods||[]).forEach(p=>{tot++;if(p.ts&&p.ts>=t0){d++;if(p.links.length||(p.paths||[]).some(x=>x&&x!="-"))ph++}}));return `<div class="note" style="margin-top:6px"><b>Deliveries on file:</b> ${tot.toLocaleString()} matched to customers · this week ${d.toLocaleString()} (${ph.toLocaleString()} with a picture)${S.syncRes?`<br><b>Last sync:</b> ${esc(S.syncRes)}`:""}</div>`})()}</div>`}
+
+/* ---- past weeks: one row per week, every delivery of that week inside it ---- */
+function wkStartOf(t){const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d}
+function podTime(p){if(p.ts)return p.ts;const m=String(p.k||"").match(/^(\d{1,2})\/(\d{1,2})/);if(!m)return 0;const n=new Date();let d=new Date(n.getFullYear(),+m[1]-1,+m[2]);if(d>n)d=new Date(n.getFullYear()-1,+m[1]-1,+m[2]);return d.getTime()}
+function boxAt(c,p){const sn=p.snap;let food=c.food,hh=c.hh,area=c.area,now=true;
+ if(sn&&sn.food){food=sn.food;hh=sn.hh||hh;area=sn.mid?"Middleton":(AREAL[sn.area]||"Lee");now=false}
+ const code=codesFor(food,hh,area),base=sn&&sn.base||c.base;
+ return `<span class="ctag" style="--c:${codeColor(code)};${now?"opacity:.6;":""}" title="${now?"The customer's choice today (the choice at that delivery was not saved)":"What the customer had when this was delivered"}">${esc(optName(base,food))} · ${esc(code)}</span>`}
+function pastReal(c){
+ const wk=new Map();(c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;const ws=wkStartOf(t),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[]});wk.get(k).list.push(p)});
+ const rows=[...wk.values()].sort((a,b)=>b.ws-a.ws),fm=d=>(d.getMonth()+1)+"/"+d.getDate();
+ const line=p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");const done=!!p.ts;
+  return `<div class="dlvl">${boxAt(c,p)}<span>${done?esc([p.drv,p.at].filter(Boolean).join(" · ")):`<span class="note">${esc(p.k||"")} · not delivered yet</span>`}</span>${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:(done?'<span class="note">no photo yet</span>':"")}</div>`};
+ return `<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>Deliveries</th></tr>
+ ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b>${r.list.length>1?`<div class="note">${r.list.length} deliveries</div>`:""}</td><td style="white-space:normal">${r.list.map(line).join("")}</td></tr>`}).join("")||"<tr><td colspan=2 class='no'>No past deliveries found.</td></tr>"}</table></div></div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
 async function showPodP(c,p){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
- d.innerHTML=`<div class="mod" style="max-width:640px"><b>${esc(c.name)}</b><div class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</div><div id="pod_body" class="note">Loading the picture… the first time it can take 10 to 20 seconds.</div><div class="bar"><button class="pri" data-x="1">Close</button></div></div>`;
+ d.innerHTML=`<div class="mod podmod"><div class="podh"><div><b>${esc(c.name)}</b><div class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</div></div><button class="pri" data-x="1">Close</button></div><div id="pod_body" class="note">Loading the pictures… the first time it can take 10 to 20 seconds each.</div></div>`;
  document.body.appendChild(d);
- const n=Math.max(p.links.length,(p.paths||[]).length),parts=[];let tok=null;
+ const n=Math.max(p.links.length,(p.paths||[]).length),items=[];let tok=null;
  try{const {data:ss}=await sb.auth.getSession();tok=ss&&ss.session&&ss.session.access_token}catch(e){}
  for(let i=0;i<n;i++){let path=(p.paths||[])[i],url="",info="";
   if((!path||path=="-")&&p.oid&&p.links[i]){
    try{const r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"photo",order_id:p.oid,idx:i})});
     const j=await r.json().catch(()=>({}));if(j.ok&&j.path){path=j.path;(p.paths=p.paths||[])[i]=path}else info=j.info||j.error||""}catch(e){info=String((e&&e.message)||e)}}
   if(path&&path!="-"){const {data}=await sb.storage.from("pods").createSignedUrl(path,3600);url=data&&data.signedUrl||""}
-  if(url)parts.push(`<div style="margin:10px 0"><img src="${esc(url)}" style="max-width:100%;border-radius:8px;display:block"></div>`);
-  else if(p.links[i])parts.push(`<div style="margin:10px 0" class="note">The picture could not be copied${info?" ("+esc(info)+")":""}. <a href="${esc(p.links[i])}" target="_blank" rel="noopener noreferrer">Open it in Scanovator</a></div>`)}
- const bd=document.getElementById("pod_body");if(bd)bd.innerHTML=parts.join("")||"No picture yet."}
+  items.push({url:url,link:p.links[i]||"",info:info})}
+ const bd=document.getElementById("pod_body");if(!bd)return;
+ if(!items.length){bd.textContent="No picture yet.";return}
+ window.__pod={items:items,i:0};podShow(0)}
+function podShow(i){
+ const P=window.__pod,bd=document.getElementById("pod_body");if(!P||!bd)return;P.i=i;const it=P.items[i],n=P.items.length;
+ const main=it.url?`<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" title="Open full size"><img class="podimg" src="${esc(it.url)}" alt=""></a>`
+  :`<div class="note" style="padding:30px 0">The picture could not be copied${it.info?" ("+esc(it.info)+")":""}. ${it.link?`<a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">Open it in Scanovator</a>`:""}</div>`;
+ const thumbs=n>1?`<div class="podth">${P.items.map((t,k)=>`<button class="${k==i?"on":""}" onclick="podShow(${k})">${t.url?`<img src="${esc(t.url)}" alt="">`:"?"}<span>${k+1}</span></button>`).join("")}</div>`:"";
+ const nav=n>1?`<div class="podnav"><button onclick="podShow(${(i+n-1)%n})">‹ Previous</button><span class="note">Picture ${i+1} of ${n} · click it to open full size</span><button onclick="podShow(${(i+1)%n})">Next ›</button></div>`:(it.url?`<div class="note" style="text-align:center">Click the picture to open it full size</div>`:"");
+ bd.innerHTML=`<div class="podstage">${main}</div>${nav}${thumbs}`}
 /* ---- import (owner): reads a CSV of the Customer_data tab ---- */
 function parseCsv(t){const r=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];
  if(q){if(ch=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=ch}
