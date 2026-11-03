@@ -789,7 +789,7 @@ function banner(){
  const own=S.user.role=="owner";
  if(!navFor(S.user).length)return `<div class="card"><b>You are signed in, but no pages are switched on for you yet.</b> <span class="note">Ask the owner to give you access.</span></div>`;
  if(S.real&&!cust.length)return `<div class="card"><b>No customers in the database yet.</b> <span class="note">${own?"Open the Import page to add them.":"Ask the owner to import them."}</span></div>`;
- return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span></div>`}
+ return `<div class="card" style="border-color:var(--ok)">${own?`<button style="float:right" onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now"}</button>`:""}<b style="color:var(--ok)">Live database</b> <span class="note">${cust.length.toLocaleString()} customers. Everything you see is saved on the server. Changes are saved on the server and recorded in History.</span>${(()=>{const t0=weekStart();let d=0,ph=0,tot=0;cust.forEach(c=>(c.pods||[]).forEach(p=>{tot++;if(p.ts&&p.ts>=t0){d++;if(p.links.length||(p.paths||[]).some(x=>x&&x!="-"))ph++}}));return `<div class="note" style="margin-top:6px"><b>Deliveries on file:</b> ${tot.toLocaleString()} matched to customers · this week ${d.toLocaleString()} (${ph.toLocaleString()} with a picture)${S.syncRes?`<br><b>Last sync:</b> ${esc(S.syncRes)}`:""}</div>`})()}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
@@ -997,7 +997,7 @@ async function syncNow(){
    let j;for(let t=0;;t++){try{j=await call({mode:"orders",offset:off});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
    saved+=j.deliveries_saved;vid+=j.via_id||0;vph+=j.via_phone||0;nom+=j.no_match||0;if(codes.length<3)codes=codes.concat(j.phone_match_codes||[]).slice(0,3);total=j.total;off=j.next}
   S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");await loadDB();
-  {const t0=weekStart(),n=cust.filter(c=>(c.pods||[]).some(p=>p.ts&&p.ts>=t0)).length;S.msg+=" Customers with a delivery this week: "+n+". Example IDs in your list: "+cust.slice(0,3).map(c=>c.ref).join(", ")+"."}
+  {const t0=weekStart(),n=cust.filter(c=>(c.pods||[]).some(p=>p.ts&&p.ts>=t0)).length;S.msg+=" Customers with a delivery this week: "+n+". Example IDs in your list: "+cust.slice(0,3).map(c=>c.ref).join(", ")+".";S.syncRes=S.msg}
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
 
