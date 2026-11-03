@@ -161,8 +161,8 @@ let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:
 
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["history","History"],["import","Import"],["settings","Settings"]];
-const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes"],billing:[],demo:[]};
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
+const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
 function navFor(u){const a=upages(u);return PAGES.filter(p=>a.indexOf(p[0])>=0)}
@@ -199,7 +199,7 @@ function vSettings(){
  <p class="note">The role fills in the usual pages (secretary: Customers, Changes, Menu; billing: Billing; demo: Demo). You can then tick or untick any page for that person.</p></div>
  <div class="card"><h2>Demo</h2><p class="note">The <b>Demo</b> page shows Customers and the Dashboard with made-up sample families only, never your real data. Give someone the "Demo only" role to show them the system without exposing any real family. A demo person cannot load or see real data.</p></div>`}
 function go(v,id){S.view=v;S.sel=id||null;S.msg="";S.err="";render()}
-const ICONS={dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',customers:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .6 3.2 2.3 3.5 5.2"/>',changes:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',import:'<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'};
+const ICONS={menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8"/><path d="M7 3v6"/><path d="M16 3c-2 1.5-3 4-3 7h3v11"/>',billing:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',customers:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .6 3.2 2.3 3.5 5.2"/>',changes:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',import:'<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'};
 const icon=k=>`<svg viewBox="0 0 24 24">${ICONS[k]||'<circle cx="12" cy="12" r="8"/>'}</svg>`;
 function render(){
  const u=S.user,app=document.getElementById("app");
@@ -208,8 +208,8 @@ function render(){
  document.getElementById("who").innerHTML=u?`<div class="me"><div class="av">${esc((u.name||"?").trim().charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(ROLE_NAMES[u.role]||u.role)}</div></div></div><div class="acts"><button onclick="openPw()">Password</button><button onclick="out()">Sign out</button></div>`:"";
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
- const m=banner()+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
- app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist}[S.view])||(()=>""))();
+ const m=(S.view=="menu"||S.view=="billing"?"":banner())+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
+ app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,menu:vMenu,billing:vBill}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
 }
 function banner(){
@@ -399,7 +399,7 @@ function dlv(c){
  if(!c.delivered)return `<label>Delivery this week<div class="ro"><span class="ctag t-no">Not yet</span></div></label>`;
  const i=podInfo(c,"11/2");
  return `<label>Delivery this week<div class="ro"><span class="ctag t-ok">Delivered</span> ${esc(i.who)} · ${esc(i.at)} <button onclick="showPod(${c.id},'11/2')">View photo</button></div></label>`}
-const MENU={week:"Nov 6",order:["A","B","C","D","F","3","5","G","E","H","S","M","L","Sc","Mc","Lc"],lists:{},real:false};
+const MENU={week:"this week",order:["A","B","C","D","F","3","5","G","E","H","S","M","L","Sc","Mc","Lc"],lists:{},real:false,loading:false,err:""};
 MENU.order.forEach(k=>{MENU.lists[k]={info:"",lines:[1,2,3,4,5,6].map(i=>"Sample item "+i)}});
 function menuLines(k){const m=MENU.lists[k];return m?m.lines:null}
 function menuHtml(k){const l=menuLines(k);if(!l)return `<p class="note">No menu for code ${esc(k)}.</p>`;
@@ -415,28 +415,38 @@ function showMenu(id){
  document.body.appendChild(d)}
 const MGRP=[["Grocery boxes",["A","B","C","D"]],["Meals",["E","H","F"]],["Shabbos",["3","5","G"]],["Raw meat",["S","M","L"]],["No Beef",["Sc","Mc","Lc"]]];
 function vMenu(){
+ if(!MENU.real)return `<div class="card"><h2>Menu</h2>${MENU.err?`<p class="err">${esc(MENU.err)}</p>`:`<p class="note">Loading the menu…</p>`}</div>`;
  const own=S.user.role=="owner",codes=MENU.order.filter(k=>MENU.lists[k]),code=S.mcode&&MENU.lists[S.mcode]?S.mcode:codes[0];
  const cnt={};cust.forEach(c=>{if(c.active)codesFor(c.food,c.hh,c.area).split(" ").forEach(k=>cnt[k]=(cnt[k]||0)+1)});
  const col=k=>(typeof LC!=="undefined"&&LC[k])||"#667085",used={};
- const pill=k=>{used[k]=1;return `<button class="mt${k==code?" on":""}" style="--c:${col(k)}" onclick="S.mcode='${k}';render()"><span class="mk">${esc(k)}</span><span class="mi2"><b>${MENU.lists[k].lines.length} items</b><small>${cnt[k]!=null?cnt[k]+" boxes":"–"}</small></span></button>`};
+ const pill=k=>{used[k]=1;return `<button class="mt${k==code?" on":""}" style="--c:${col(k)}" onclick="S.mcode='${k}';render()"><span class="mk">${esc(k)}</span><span class="mi2"><b>${MENU.lists[k].lines.length} item${MENU.lists[k].lines.length==1?"":"s"}</b><small>${cnt[k]!=null?cnt[k]+" boxes":"–"}</small></span></button>`};
  let tabs=MGRP.map(g=>{const ks=g[1].filter(k=>MENU.lists[k]);return ks.length?`<div class="mg"><div class="mgl">${g[0]}</div><div class="mrow">${ks.map(pill).join("")}</div></div>`:""}).join("");
  const rest=codes.filter(k=>!used[k]);if(rest.length)tabs+=`<div class="mg"><div class="mgl">Other</div><div class="mrow">${rest.map(pill).join("")}</div></div>`;
  const m=MENU.lists[code]||{info:"",lines:[]},chips=(m.info||"").split("\n").map(x=>x.trim()).filter(Boolean);
  const total=new Set(MENU.order.reduce((a,k)=>a.concat(MENU.lists[k]?MENU.lists[k].lines:[]),[]).map(x=>x.toLowerCase())).size;
- const edit=own?`<div class="card"><h2>Edit menu ${esc(code)}</h2><p class="note">One item per line. Every change is saved in History (who and when). Changes stay in this page only until the database is connected.</p>
+ const edit=own?`<div class="card"><h2>Edit menu ${esc(code)}</h2><p class="note">One item per line. Every change is saved on the server and recorded in History (who and when).</p>
   <textarea id="menu_ta" rows="${Math.min(Math.max(m.lines.length+2,6),24)}" style="width:100%;max-width:560px">${esc(m.lines.join("\n"))}</textarea>
   <p><button class="pri" onclick="menuSave('${code}')">Save menu ${esc(code)}</button> <button onclick="render()">Undo my edits</button></p></div>`:"";
- return `<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. ${MENU.real?"Loaded from the Menus tab of the Dip List.":"Demo items are showing until the real menu loads."}</p></div>
+ return `<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
   <div class="mst"><div><b>${codes.length}</b><span>menus</span></div><div><b>${total}</b><span>different items</span></div></div></div>
  <div class="card">${tabs}</div>
  <div class="card mcard" style="--c:${col(code)}"><div class="mtop"><div class="lt">${esc(code)}</div><div><h2 style="margin:0">Menu ${esc(code)}</h2><div class="note">${m.lines.length} items${cnt[code]!=null?" · "+cnt[code]+" boxes to prepare":""}</div></div></div>
   ${chips.length?`<div class="chips">${chips.map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</div>`:""}
   ${m.lines.length?`<div class="mgrid">${m.lines.map((x,i)=>`<div class="mit"><span class="mn">${i+1}</span><span>${esc(x)}</span></div>`).join("")}</div>`:`<p class="no">Nothing on the menu yet for code ${esc(code)} this week.</p>`}</div>${edit}`}
-function menuSave(k){
- const nw=document.getElementById("menu_ta").value.split("\n").map(x=>x.trim()).filter(Boolean),old=MENU.lists[k].lines;let ch=0;
- old.forEach(x=>{if(nw.indexOf(x)<0){log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:"Menu "+MENU.week+" · "+k,field:"Item removed",o:x,n:""});ch++}});
- nw.forEach(x=>{if(old.indexOf(x)<0){log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:"Menu "+MENU.week+" · "+k,field:"Item added",o:"",n:x});ch++}});
- MENU.lists[k].lines=nw;S.msg=ch?"Menu "+k+" saved ("+ch+" changes).":"Nothing changed.";S.err="";render()}
+async function menuSave(k){
+ const nw=document.getElementById("menu_ta").value.split("\n").map(x=>x.trim()).filter(Boolean),old=MENU.lists[k].lines;
+ let ch=0;old.forEach(x=>{if(nw.indexOf(x)<0)ch++});nw.forEach(x=>{if(old.indexOf(x)<0)ch++});
+ if(!ch&&nw.length==old.length){S.msg="Nothing changed.";S.err="";render();return}
+ try{const r=await sb.from("menus").upsert({code:k,info:MENU.lists[k].info||"",lines:nw,updated_at:new Date().toISOString()},{onConflict:"code"});if(r.error)throw r.error;
+  MENU.lists[k].lines=nw;S.msg="Menu "+k+" saved ("+ch+" changes).";S.err=""}catch(e){S.err="Not saved: "+dberr(e);S.msg=""}render()}
+async function loadMenuDb(){
+ if(!sb||!S.user||MENU.loading)return;MENU.loading=true;MENU.err="";
+ try{const {data,error}=await sb.from("menus").select("code,info,lines");if(error)throw error;
+  const lists={};(data||[]).forEach(r=>{lists[r.code]={info:r.info||"",lines:(r.lines||[]).slice()}});
+  const base=["A","B","C","D","F","3","5","G","E","H","S","M","L","Sc","Mc","Lc"];
+  MENU.lists=lists;MENU.order=base.filter(k=>lists[k]).concat(Object.keys(lists).filter(k=>base.indexOf(k)<0));MENU.real=true;if(!lists[S.mcode])S.mcode=MENU.order[0]}
+ catch(e){MENU.err="The menu could not be read ("+dberr(e)+")."}
+ MENU.loading=false;render()}
 const DIP_ID="1nBYRU_gAyRehzn3gegfv25TjomgBIybdnZEucJ91C1U";
 async function loadMenu(mcp){
  const r=await mcp.callTool("Google Sheets","get_values",{spreadsheetId:DIP_ID,range:"Menus!A1:N60"},{cache:false});let p=r.payload;if(typeof p==="string")p=JSON.parse(p);
@@ -580,7 +590,7 @@ function vHist(){return `<div class="card"><h2>Change history</h2><div class="wr
 const BILL_ID="1XH2N_aNXwhPPDCD6bVCqN12M21PWs5BxIb-X-CEEn38",COS=["UJO","PT","CCS","LH","LT","RY","OR"];
 const PR={UJO:{raw:125,meals:13},PT:{raw:100,meals:11.5},CCS:{raw:100,meals:13.5},LH:{raw:100,meals:9},LT:{raw:100,meals:9},RY:{raw:100,meals:10},OR:{raw:null,meals:null}};
 const BILL={weeks:[],real:false,det:{},mcp:null,gv:null};
-BILL.weeks=JSON.parse('[{"k":"10/27","tab":"ORDERS_10_27","a":{"UJO":{"meals":854,"mraw":870,"box":4,"mhh":3453},"LH":{"meals":30,"mraw":18,"box":31,"mhh":87},"PT":{"meals":55,"mraw":62,"box":64,"mhh":234},"CCS":{"meals":87,"mraw":9,"box":31,"mhh":207},"RY":{"meals":18,"mraw":14,"box":30,"mhh":57},"LT":{"meals":7,"mraw":5,"box":2,"mhh":51}}},{"k":"10/20","tab":"ORDERS_10_20","a":{"LH":{"meals":28,"mraw":22,"box":34,"mhh":87},"UJO":{"meals":909,"mraw":826,"box":6,"mhh":3450},"PT":{"meals":62,"mraw":47,"box":73,"mhh":223},"CCS":{"meals":82,"mraw":3,"box":12,"mhh":189},"LT":{"meals":6,"mraw":6,"box":3,"mhh":46},"RY":{"meals":15,"mraw":16,"box":31,"mhh":50}}},{"k":"9/15","tab":"ORDERS_9_15","a":{"UJO":{"meals":1265,"mraw":790,"box":21,"mhh":6790},"CCS":{"meals":94,"mraw":9,"box":31,"mhh":495},"PT":{"meals":55,"mraw":47,"box":116,"mhh":350},"RY":{"meals":20,"mraw":19,"box":13,"mhh":170},"LH":{"meals":37,"mraw":24,"box":37,"mhh":241},"LT":{"meals":5,"mraw":5,"box":3,"mhh":43}}},{"k":"9/8","tab":"ORDERS_9_8","a":{"UJO":{"meals":1182,"mraw":939,"box":18,"mhh":5613},"LH":{"meals":34,"mraw":29,"box":44,"mhh":99},"RY":{"meals":18,"mraw":16,"box":10,"mhh":66},"CCS":{"meals":41,"mraw":2,"box":12,"mhh":119},"PT":{"meals":46,"mraw":24,"box":45,"mhh":110},"LT":{"meals":6,"mraw":5,"box":3,"mhh":47}}}]');BILL.snap=true;BILL.skipped=["10/13","10/6","9/29","9/22","9/1"];
+BILL.weeks=[];
 const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
 const dcount=x=>x?x.meals+x.mraw+x.box:0;
 const coName=c=>c=="?"?"No company":c;
@@ -590,18 +600,23 @@ function wkCnt(w){return Object.keys(w.a).reduce((t,c)=>t+dcount(w.a[c]),0)}
 function allCos(){const s=new Set(COS);BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>s.add(c)));return [...s].filter(c=>COS.indexOf(c)>=0||BILL.weeks.some(w=>w.a[c]))}
 function bgo(t,x){const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""};B.t=t;if(t=="co"){B.co=x;if(!B.wk||!(BILL.weeks.find(w=>w.k==B.wk)||{a:{}}).a[x]){const f=BILL.weeks.find(w=>w.a[x]);B.wk=f?f.k:""}}if(t=="wk")B.wk=x;B.q="";render();if(t=="co"&&B.wk)bdet(B.wk)}
 function tabFor(c,k){const T=(BILL.tabs||{})[c]||{},m=String(k).split("/"),a=+m[0],b=+m[1];return T[k]||T[a+"/"+(b-1)]||T[a+"/"+(b+1)]||""}
-function bdet(k){if(!BILL.real)return;const c=S.b.co,t=tabFor(c,k),w=BILL.weeks.find(x=>x.k==k);if(t)loadSheet(t);else if(w&&w.tab)loadDet(w.tab)}
+function bdet(k){}
 function bsel(k){S.b.wk=k;render();bdet(k)}
-function savePrices(){
- if(!S.user||(S.user.role!="owner"&&S.user.role!="billing")){S.err="Only the admin or billing can change prices.";render();return}let ch=0;COS.forEach(c=>["raw","meals"].forEach(f=>{const el=document.getElementById("pr_"+c+"_"+f),t=String(el.value).trim().replace(/[$,]/g,""),n=t===""?null:Number(t);
-  if(n!==null&&!(n>=0)){S.err="Prices must be numbers.";return}
-  if(PR[c][f]!==n){log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:"Billing price · "+c,field:f=="raw"?"Box price":"Meals price",o:money(PR[c][f]),n:money(n)});PR[c][f]=n;ch++}}));
- if(!S.err){S.msg=ch?"Prices saved ("+ch+" changed). The totals are updated.":"Nothing changed.";}render()}
+async function savePrices(){
+ if(!S.user||(S.user.role!="owner"&&S.user.role!="billing")){S.err="Only the admin or billing can change prices.";render();return}
+ let ch=0,bad=false;const up=[];
+ COS.forEach(c=>{const n={};["raw","meals"].forEach(f=>{const el=document.getElementById("pr_"+c+"_"+f),t=String(el.value).trim().replace(/[$,]/g,""),v=t===""?null:Number(t);if(v!==null&&!(v>=0))bad=true;n[f]=v});if(PR[c].raw!==n.raw||PR[c].meals!==n.meals)up.push([c,n])});
+ if(bad){S.err="Prices must be numbers.";S.msg="";render();return}
+ try{for(const [c,n] of up){const r=await sb.from("agency_prices").upsert({agency:c,box_price:n.raw,meal_price:n.meals},{onConflict:"agency"});if(r.error)throw r.error;PR[c]={raw:n.raw,meals:n.meals};ch++}
+  S.msg=ch?"Prices saved ("+ch+" companies changed). The totals are updated.":"Nothing changed.";S.err=""}catch(e){S.err="Not saved: "+dberr(e);S.msg=""}
+ render()}
 function vBill(){
+ if(!BILL.real)return `<div class="card"><h2>Billing</h2>${BILL.err?`<p class="err">${esc(BILL.err)}</p>`:`<p class="note">Loading the deliveries…</p>`}</div>`;
+ if(!BILL.weeks.length)return `<div class="card"><h2>Billing</h2><p class="note">No delivered orders in the database yet. Press Sync deliveries now on the Customers page.</p></div>`;
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const nav=`<div class="card"><div class="bar"><button class="${B.t=="dash"?"on":""}" onclick="bgo('dash')">Dashboard</button><span class="note">Companies:</span>${cos.map(c=>`<button class="${B.t=="co"&&B.co==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}</div>
  <div class="bar" style="margin-top:8px"><span class="note">Weeks:</span>${W.map(w=>`<button class="${B.t=="wk"&&B.wk==w.k?"on":""}" onclick="bgo('wk','${w.k}')">${esc(w.k)}</button>`).join("")}</div>
- <p class="note" style="margin:8px 0 0">${BILL.real?"Live from the Billing SCN 82 sheet (the weekly ORDERS export).":"Real weekly counts from the Billing SCN 82 sheet (ORDERS tabs), taken Nov 1. Press <b>Load my real data</b> at the top for the live version and the customer lists."}${BILL.skipped&&BILL.skipped.length?` Not listed: ${BILL.skipped.join(", ")}, because the ORDERS export for those weeks has no Company, Food Type or household size filled in.`:""} Amounts are <b>estimates</b>: a Meals customer pays the meals price × 21 meals × household size (even if he asked for raw); a Box customer pays the box price per box. Payments are not recorded yet.</p></div>`;
+ <p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.err?`<span class="err">${esc(BILL.err)}</span>`:BILL.real?"Counted live from the deliveries in the database (Scanovator). A week runs Saturday to Friday. A Meals customer is billed once a week; a Box customer once per box delivered. Customers not matched to a delivery are not counted.":"Loading…"}</p></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
@@ -628,17 +643,8 @@ function bCo(c){
  const B=S.b,W=BILL.weeks.filter(w=>w.a[c]);
  let h=`<div class="card"><h2>${esc(coName(c))} · billing by week</h2>${PR[c]&&(PR[c].raw==null||PR[c].meals==null)?`<p class="note">No price set for ${esc(c)} yet, so amounts show —. Add it on the Dashboard.</p>`:""}<div class="wrap"><table><tr><th>Week</th><th style="text-align:right">Meals</th><th style="text-align:right">Box</th><th style="text-align:right">Deliveries</th><th style="text-align:right">Estimated</th></tr>
  ${W.map(w=>{const x=w.a[c];return `<tr class="row" style="${B.wk==w.k?"background:color-mix(in srgb,var(--ac) 10%,transparent)":""}" onclick="bsel('${w.k}')"><td><b>${esc(w.k)}</b></td><td style="text-align:right">${x.meals+x.mraw}</td><td style="text-align:right">${x.box}</td><td style="text-align:right"><b>${dcount(x)}</b></td><td style="text-align:right">${money(estA(c,x))}</td></tr>`}).join("")||`<tr><td colspan="6" class="no">No deliveries.</td></tr>`}</table></div><p class="note">Click a week to see the customers billed that week.</p></div>`;
- if(B.wk){const w=BILL.weeks.find(x=>x.k==B.wk),st=tabFor(c,B.wk);
-  if(BILL.real&&st)h+=bSheet(c,B.wk,st);
-  else{if(!BILL.real||!w||!w.tab)h+=`<div class="card"><h2>Customers · week ${esc(B.wk)}</h2><p class="note">The customer list for a week loads with the real billing sheet.</p></div>`;
-  else{const d=BILL.det[w.tab];
-   if(!d||d=="loading")h+=`<div class="card"><h2>Customers · week ${esc(B.wk)}</h2><p class="note">Loading…</p></div>`;
-   else if(d.err)h+=`<div class="card"><h2>Customers · week ${esc(B.wk)}</h2><p class="err">${esc(d.err)}</p></div>`;
-   else{const q=(B.q||"").toLowerCase(),rows=d.filter(r=>r.co==c&&(!q||(r.name+" "+r.id).toLowerCase().indexOf(q)>=0)),link=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`:"";
-    const dup={};d.forEach(r=>{if(r.co==c&&r.id){dup[r.id]=(dup[r.id]||0)+1}});
-    h+=`<div class="card"><h2>Customers · week ${esc(B.wk)} <span class="note">${rows.length} deliveries</span></h2><div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"></div>
-    <div class="wrap"><table><tr><th>Name</th><th>ID</th><th>Food type</th><th>Receipt</th><th>Proof of delivery</th></tr>${rows.slice(0,100).map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.id)}${dup[r.id]>1?` <span class="ctag t-sup">${dup[r.id]} deliveries</span>`:""}</td><td>${esc(r.food)}</td><td>${link(r.rec,"Receipt")}</td><td>${link(r.pod,"View photo")}</td></tr>`).join("")||`<tr><td colspan="5" class="no">None.</td></tr>`}</table></div>${rows.length>100?`<p class="note">Showing the first 100 of ${rows.length}. Use the search.</p>`:""}</div>`}}}
-} return h}
+ if(B.wk)h+=bDb(c,B.wk);
+ return h}
 async function loadBill(mcp){
  BILL.mcp=mcp;
  const gv=async(tab,rg)=>{const r=await mcp.callTool("Google Sheets","get_values",{spreadsheetId:BILL_ID,range:"'"+tab+"'!"+rg},{cache:false});let p=r.payload;if(typeof p==="string")p=JSON.parse(p);return (p&&p.values)||[]};
@@ -655,6 +661,39 @@ async function loadBill(mcp){
   if(hhOk<mealRows*0.5){skipped.push(m[1]+"/"+m[2]);continue}
   weeks.push({k:m[1]+"/"+m[2],tab:t,a:a})}
  BILL.weeks=weeks;BILL.skipped=skipped;BILL.snap=false;BILL.real=true;BILL.det={};S.b=null}
+
+/* ---- billing from the database: deliveries (Scanovator) x prices ---- */
+const wkKey=t=>{const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d};
+const wkLab=d=>(d.getMonth()+1)+"/"+d.getDate();
+async function loadBillDb(){
+ if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
+ try{
+  const pr=await sb.from("agency_prices").select("agency,box_price,meal_price");if(pr.error)throw pr.error;
+  (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
+  const rows=[];for(let a=0;;a+=1000){const r=await sb.rpc("billing_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>rows.push(x));if(!r.data||r.data.length<1000)break}
+  BILL.rows=rows;BILL.weeks=buildWeeks(rows);BILL.real=true;BILL.det={};
+  BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
+ }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
+ BILL.loading=false;render()}
+function buildWeeks(rows){
+ const W={};
+ rows.forEach(r=>{
+  const d=wkKey(Date.parse(r.delivered_at)),k=wkLab(d),w=W[k]=W[k]||{k:k,t:d.getTime(),a:{},cust:{}},co=r.agency||"?",x=w.a[co]=w.a[co]||{meals:0,mraw:0,box:0,mhh:0};
+  const key=co+"|"+r.agency_ref,cu=w.cust[key]=w.cust[key]||{co:co,id:r.agency_ref,name:r.name,base:r.base,food:r.food,hh:r.hh,dl:[],boxes:0};
+  cu.dl.push(r);cu.boxes+=Math.max(1,r.boxes||0)});
+ Object.keys(W).forEach(k=>{const w=W[k];Object.keys(w.cust).forEach(key=>{const cu=w.cust[key],x=w.a[cu.co];
+  if(cu.base=="box"){x.box+=cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
+ return Object.keys(W).map(k=>W[k]).sort((a,b)=>b.t-a.t).slice(0,12)}
+function bDb(c,k){
+ const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const B=S.b,q=(B.q||"").toLowerCase();
+ const all=Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>x.co==c).sort((a,b)=>a.name.localeCompare(b.name)),rows=all.filter(r=>!q||(r.name+" "+r.id).toLowerCase().indexOf(q)>=0);
+ const fd=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",hour:"numeric",minute:"2-digit"})};
+ const dl=r=>`<div class="dl1">${r.letters?`<span class="ctag" style="--c:${codeColor(r.letters)}">Box ${esc(r.letters)}</span> `:""}<span class="note">${esc(fd(r.delivered_at))}</span> ${LNK(r.receipt_url,"Receipt")} ${(r.photo_urls||[]).filter(u=>/^https?:\/\//i.test(u)).map((u,i,a)=>LNK(u,"Photo"+(a.length>1?" "+(i+1):""))).join(" ")}</div>`;
+ return `<div class="card"><h2>Customers · ${esc(coName(c))} · week of ${esc(k)} <span class="note">${all.length} customers billed · ${all.reduce((t,r)=>t+r.dl.length,0)} deliveries${rows.length!=all.length?" · "+rows.length+" shown":""}</span></h2>
+ <div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"></div>
+ <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th></tr>
+ ${rows.slice(0,200).map(r=>{const p=PR[c]||{},amt=r.base=="box"?(p.raw==null?null:r.boxes*p.raw):(p.meals==null?null:21*(r.hh||1)*p.meals);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(r.food||"")}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td></tr>`}).join("")||`<tr><td colspan="7" class="no">None.</td></tr>`}</table></div>
+ ${rows.length>200?`<p class="note">Showing the first 200 of ${rows.length}. Use the search to find the rest.</p>`:""}</div>`}
 const LNK=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`:"";
 function bSheet(c,k,title){
  const B=S.b,d=BILL.det["sheet:"+title],head=`<div class="card"><h2>${esc(coName(c))} · week ${esc(k)} <span class="note">as in the sheet tab "${esc(title)}"</span></h2>`;
@@ -755,7 +794,10 @@ async function afterLogin(){
  S.user={id:p.id,name:p.name||p.email,email:p.email,role:p.role,pages:p.pages||[]};S.err="";
  try{const r=await sb.from("profiles").select("prefs").eq("id",au.id).maybeSingle();if(r&&r.data&&r.data.prefs)S.user.prefs=r.data.prefs}catch(e){}
  const nv=navFor(S.user);S.view=(nv[0]||["customers"])[0];
- await loadDB()}
+ const pg=upages(S.user);
+ if(S.user.role=="owner"||pg.some(x=>["customers","dashboard","changes"].indexOf(x)>=0))await loadDB();else{S.rerr="";render()}
+ if(S.user.role=="owner"||pg.indexOf("menu")>=0||pg.indexOf("customers")>=0)loadMenuDb();
+ if(S.user.role=="owner"||pg.indexOf("billing")>=0)loadBillDb()}
 async function boot(){
  if(!sb){render();return}
  S.boot=true;render();
@@ -1009,7 +1051,7 @@ function vChanges(){
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" ${S.cut&&!own?"disabled":""}>Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
-const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb()};
+const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v=="menu"&&!MENU.real)loadMenuDb();if(v=="billing"&&!BILL.real&&!BILL.loading)loadBillDb()};
 async function loadHistDb(){
  S.h={loading:true};render();
  try{const {data,error}=await sb.from("audit_log").select("at,user_name,table_name,row_id,action,old,new").order("at",{ascending:false}).limit(300);
@@ -1050,7 +1092,7 @@ async function syncNow(){
   while(off!==null){S.syncMsg="Reading deliveries… "+Math.min(off,total||off)+(total?" / "+total:"")+" customers";render();
    let j;for(let t=0;;t++){try{j=await call({mode:"orders",offset:off,loose:!!S.loose});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
    saved+=j.deliveries_saved;vid+=j.via_id||0;vnm+=j.via_name||0;wc+=j.with_code||0;wo+=j.with_online||0;dn+=j.delivered_n||0;cex=cex.concat(j.code_examples||[]).slice(0,6);if(!dsm.length)dsm=j.delivered_sample||[];ck=ck.concat(j.case_keys||[]).slice(0,3);vph+=j.via_phone||0;nom+=j.no_match||0;if(codes.length<3)codes=codes.concat(j.phone_match_codes||[]).slice(0,3);Object.entries(j.id_paths||{}).forEach(([k,v])=>{idp[k]=(idp[k]||0)+v});if(!sp.length)sp=(j.sample_paths||[]).slice(0,60);total=j.total;off=j.next}
-  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+(S.loose?"; matched by name + phone: "+vnm:"")+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");await loadDB();
+  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+(S.loose?"; matched by name + phone: "+vnm:"")+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"");BILL.real=false;await loadDB();
   {const t0=weekStart(),n=cust.filter(c=>(c.pods||[]).some(p=>p.ts&&p.ts>=t0)).length;S.msg+=" Customers with a delivery this week: "+n+". Example IDs in your list: "+cust.slice(0,3).map(c=>c.ref).join(", ")+".";S.msg+=" Orders in the last 28 days: with a customer code "+wc+", with an online order id "+wo+", delivered "+dn+(cex.length?". Examples of codes found on orders: "+cex.join(", "):"")+(dsm.length?". Fields on a delivered order: "+dsm.join("; "):"")+".";S.msg+=(ck.length?" Box letters read from: "+ck.join(", ")+".":" No \"case description\" field was found on the orders.");S.msg+=(Object.keys(idp).length?" Your IDs were found in these order fields: "+Object.entries(idp).map(([k,v])=>k+" ("+v+")").join(", ")+".":"")+(nom&&sp.length?" Fields on an order: "+sp.join("; ")+".":"");S.syncRes=S.msg}
  }catch(e){S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";render()}
