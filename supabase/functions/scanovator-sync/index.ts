@@ -79,7 +79,7 @@ async function search(phones: string[], page: number) {
         body: JSON.stringify({
           store_id: STORE_ID,
           store_code: STORE_CODE,
-          ...(phones.length ? { phone: phones.map((p) => "+1" + p) } : {}), page, limit: 200,
+          phone: phones.map((p) => "+1" + p), page, limit: 200,
         }),
       });
       if (r.status === 429 || r.status >= 500) { lastErr = "Scanovator " + r.status; await wait(3000 * (attempt + 1)); continue; }
@@ -188,10 +188,7 @@ Deno.serve(async (req) => {
     }
     const phones = [...byPhone.keys()].sort();
     const chunk = phones.slice(offset, offset + CHUNK);
-    const sweep = body.sweep === true;   // no phone filter: every order of the store, newest first (finds orders whose phone is not in our list)
-    const since = Date.now() - (sweep ? Math.min(120, Math.max(7, Number(body.days) || 70)) : DAYS_BACK) * 864e5;
-    const startPage = Math.max(1, Number(body.page) || 1);
-    let sweepNext: number | null = null;
+    const since = Date.now() - DAYS_BACK * 864e5;
     let seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;   // owner ticked "also match by name + phone"
     const words = (t: unknown) => String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter(Boolean).sort().join(" ");
@@ -213,9 +210,9 @@ Deno.serve(async (req) => {
       if (typeof v === "object") { if (d >= 3) return; const ent = Array.isArray(v) ? v.slice(0, 3).map((x, i) => [String(i), x]) : Object.entries(v); for (const [k, x] of ent as any[]) flat(x, path ? path + "." + k : String(k), out, d + 1); return; }
       const t = String(v); if (t !== "") out.push([path, t]);
     };
-    if (chunk.length || sweep) {
-      for (let page = sweep ? startPage : 1; page <= (sweep ? startPage + 3 : 6); page++) {
-        const j = await search(sweep ? [] : chunk, page);
+    if (chunk.length) {
+      for (let page = 1; page <= 6; page++) {
+        const j = await search(chunk, page);
         const rows: any[] = [];
         let oldest = Infinity;
         const unmatched: string[] = [];
@@ -277,13 +274,12 @@ Deno.serve(async (req) => {
           if (e2) throw e2;
           saved += rows.length;
         }
-        if (sweep && j.pagination?.has_more && oldest >= since) sweepNext = page + 1;
         if (!j.pagination?.has_more || oldest < since) break;
         await wait(500);
       }
     }
-    const next = sweep ? null : (offset + CHUNK < phones.length ? offset + CHUNK : null);
-    return json({ ok: true, mode, offset, next, sweep_next: sweepNext, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
+    const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
