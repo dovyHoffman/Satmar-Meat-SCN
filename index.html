@@ -1267,19 +1267,21 @@ const pad2=n=>String(n).padStart(2,"0");
 const isoD=d=>d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
 const usD=s=>{const p=String(s||"").split("-");return p.length==3?(+p[1])+"/"+(+p[2])+"/"+p[0]:""};
 const dvTomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return isoD(d)};
-const dvDate=a=>DV.dt[a]||dvTomorrow();
+const DGROUPS=[{id:"main",name:"Lee · Bedford · BP",areas:["Lee","Bedford","BP"]},{id:"mon",name:"Monsey / Monroe",areas:["Monsey/Monroe"]},{id:"mid",name:"Middleton",areas:["Middleton"]}];
+const dvG=a=>DGROUPS.find(g=>g.areas.indexOf(a)>=0)||DGROUPS[0];
+const dvDate=a=>DV.dt[dvG(a).id]||dvTomorrow();
 const dvDay=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{weekday:"long"})};
 function dvFood(c){
  if(c.base=="box")return c.food=="rawnb"?"Box - No Beef":"Box";
  return ({meals:"Meals",supper:"Supper",shabbos:"Shabbos",raw:"Meals - Raw",rawnb:"Meals - Raw No Beef"})[c.food]||"Meals"}
 const dvAllL=c=>String(codesFor(c.food,c.hh,c.area)).trim().split(/\s+/).filter(Boolean);
-const dvTicked=()=>Object.keys(DV.foods).filter(k=>DV.foods[k]);
-const dvLetters=c=>{const a=dvAllL(c),t=dvTicked();return t.length?a.filter(l=>t.indexOf(l)>=0):a};
+const dvTicked=c=>{const m=DV.foods[dvG(c.area).id]||{};return Object.keys(m).filter(k=>m[k])};
+const dvLetters=c=>{const a=dvAllL(c),t=dvTicked(c);return t.length?a.filter(l=>t.indexOf(l)>=0):a};
 function dvRows(){
  const q=DV.q.trim().toLowerCase(),out={rows:[],sent:0,expired:0};
  cust.forEach(c=>{
-  if(!c.active||!DV.areas[c.area])return;
-  if(Object.keys(DV.foods).some(k=>DV.foods[k])&&!dvAllL(c).some(l=>DV.foods[l]))return;
+  if(!c.active||!DV.areas[dvG(c.area).id])return;
+  {const t=dvTicked(c);if(t.length&&!dvAllL(c).some(l=>t.indexOf(l)>=0))return}
   if(Object.keys(DV.cos).some(k=>DV.cos[k])&&!DV.cos[c.agency])return;
   if(q&&(c.name+" "+c.ref+" "+c.addr+" "+c.phone).toLowerCase().indexOf(q)<0)return;
   const d=dvDate(c.area);
@@ -1303,29 +1305,31 @@ try{const r=await sb.rpc("archive_tabs");if(!r.error)DV.arch=(r.data||[])}catch(
  if(S.view=="delivery")render()}
 function dvTog(map,k,v){DV[map][k]=v;DV.pg=0;render()}
 function dvAreaDt(a,v){DV.dt[a]=v||dvTomorrow();DV.pg=0;render()}
-function dvAll(v){DAREAS.forEach(a=>DV.areas[a]=v);DV.pg=0;render()}
+function dvLet(g,l,v){(DV.foods[g]=DV.foods[g]||{})[l]=v;DV.pg=0;render()}
+function dvAll(v){DGROUPS.forEach(g=>DV.areas[g.id]=v);DV.pg=0;render()}
 function dvOff(id,v){if(v)delete DV.off[id];else DV.off[id]=true;render()}
 function dvOffAll(v){dvRows().rows.forEach(r=>{const k=r.c.uuid||r.c.id;if(v)delete DV.off[k];else DV.off[k]=true});render()}
 function vDelivery(){
  if(DV.tab=="prev")return vPrev();
  if(!S.real)return `<div class="card"><h2>Delivery</h2><p class="note">Load the real data first (the green/blue bar at the top of Customers), then come back here.</p></div>`;
  const R=dvRows(),pick=R.rows.filter(r=>!DV.off[r.c.uuid||r.c.id]),foods={},cos={};
- cust.forEach(c=>{if(c.active){dvAllL(c).forEach(l=>foods[l]=1);cos[c.agency]=1}});
- const fl=Object.keys(foods).sort(),cl=Object.keys(cos).sort(),none=!DAREAS.some(a=>DV.areas[a]);
+ const gl={};DGROUPS.forEach(g=>gl[g.id]={});
+ cust.forEach(c=>{if(c.active){dvAllL(c).forEach(l=>gl[dvG(c.area).id][l]=(gl[dvG(c.area).id][l]||0)+1);cos[c.agency]=1}});
+ const cl=Object.keys(cos).sort(),none=!DGROUPS.some(g=>DV.areas[g.id]);
  const pages=Math.max(1,Math.ceil(R.rows.length/50)),pg=Math.min(DV.pg,pages-1),vis=R.rows.slice(pg*50,pg*50+50);
  const dtm=dvTomorrow();
- const areaBox=a=>{const on=!!DV.areas[a],n=cust.filter(c=>c.active&&c.area==a).length;
-  return `<div class="dva${on?" on":""}"><label class="ck"><input type="checkbox" ${on?"checked":""} onchange="dvTog('areas',${JSON.stringify(a).replace(/"/g,"&quot;")},this.checked)"> <b>${esc(a)}</b> <span class="note">${n.toLocaleString()} customers</span></label>
-   <label class="note" style="display:flex;gap:6px;align-items:center;margin-top:4px">Delivery date <input type="date" value="${dvDate(a)}" style="width:150px" onchange="dvAreaDt(${JSON.stringify(a).replace(/"/g,"&quot;")},this.value)"> <span>${dvDay(dvDate(a))}${dvDate(a)==dtm?" (tomorrow)":""}</span></label></div>`};
+ const grpBox=g=>{const on=!!DV.areas[g.id],n=cust.filter(c=>c.active&&g.areas.indexOf(c.area)>=0).length,ls=Object.keys(gl[g.id]).sort(),d=DV.dt[g.id]||dtm,sel=DV.foods[g.id]||{},any=ls.some(l=>sel[l]);
+  return `<div class="dva${on?" on":""}"><label class="ck"><input type="checkbox" ${on?"checked":""} onchange="dvTog('areas','${g.id}',this.checked)"> <b>${esc(g.name)}</b> <span class="note">${n.toLocaleString()} customers</span></label>
+   <label class="note" style="display:flex;gap:6px;align-items:center;margin-top:4px">Delivery date <input type="date" value="${d}" style="width:150px" onchange="dvAreaDt('${g.id}',this.value)"> <span>${dvDay(d)}${d==dtm?" (tomorrow)":""}</span></label>
+   <div class="note" style="margin:6px 0 2px">Box type <span>${any?"(only the ticked)":"(all, tick to choose)"}</span></div><div class="bar" style="flex-wrap:wrap;gap:2px">${ls.map(l=>`<label class="ck"><input type="checkbox" ${sel[l]?"checked":""} onchange="dvLet('${g.id}',${JSON.stringify(l).replace(/"/g,"&quot;")},this.checked)"> ${esc(l)}</label>`).join("")||'<span class="note">no customers</span>'}</div></div>`};
  const chk=(map,k)=>`<label class="ck"><input type="checkbox" ${DV[map][k]?"checked":""} onchange="dvTog('${map}',${JSON.stringify(k).replace(/"/g,"&quot;")},this.checked)"> ${esc(k)}</label>`;
  const head=["Last name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"];
  const body=vis.map(r=>{const o=dvLine(r.c,r.d),k=r.c.uuid||r.c.id;
   return `<tr class="${r.was?"was":""}"><td><input type="checkbox" style="width:auto" ${DV.off[k]?"":"checked"} onchange="dvOff('${k}',this.checked)"></td>${[o["last name"],o["Street Address"],o["AptNum"],o["City"],o["State"],o["Zip"],o["PHONE"],o["Cases"],o["case description"],o["Total Family"],o["Notes "],o["Delivery_at"],o["Notes 2"],o["Application ID"],o["admin_notes"],o["Food Type"],o["Type food"],o["Company"]].map(v=>`<td title="${esc(v)}">${esc(v)}</td>`).join("")}${r.was?`<td><span class="ctag t-ok">already sent</span></td>`:"<td></td>"}</tr>`}).join("");
  return dvTabs()+`<div class="card"><h2>Delivery</h2><p class="note">Choose what goes out, check the list, then confirm. The file has the same columns as the Delivery tab in your Meal Sheet. The delivery date starts as tomorrow.</p>
-  <div class="mgl" style="margin-top:6px">1 · Admin notes (area) and delivery date <button onclick="dvAll(true)">All</button> <button onclick="dvAll(false)">None</button></div>
-  <div class="dvg">${DAREAS.map(areaBox).join("")}</div>
-  <div class="mgl" style="margin-top:12px">2 · Box type (A, B, C …) <span class="note">(none ticked = all; a customer is included if he has any ticked box)</span></div><div class="bar" style="flex-wrap:wrap">${fl.map(k=>chk("foods",k)).join("")}</div>
-  <div class="mgl" style="margin-top:8px">3 · Company <span class="note">(none ticked = all)</span></div><div class="bar" style="flex-wrap:wrap">${cl.map(k=>chk("cos",k)).join("")}</div></div>
+  <div class="mgl" style="margin-top:6px">1 · Admin notes, delivery date and box type <button onclick="dvAll(true)">All</button> <button onclick="dvAll(false)">None</button></div>
+  <div class="dvg">${DGROUPS.map(grpBox).join("")}</div>
+  <div class="mgl" style="margin-top:8px">2 · Company <span class="note">(none ticked = all)</span></div><div class="bar" style="flex-wrap:wrap">${cl.map(k=>chk("cos",k)).join("")}</div></div>
  <div class="card"><div class="bar" style="flex-wrap:wrap;align-items:center"><b>${pick.length.toLocaleString()} deliveries</b><span class="note">of ${R.rows.length.toLocaleString()} listed${R.sent?` · ${R.sent.toLocaleString()} already sent for that date ${DV.showSent?"(shown)":"(hidden)"}`:""}${R.expired?` · ${R.expired.toLocaleString()} left out: authorization ended`:""}</span>
    <input placeholder="Search name, ID, address, phone" value="${esc(DV.q)}" oninput="DV.q=this.value;DV.pg=0;clearTimeout(DV.t);DV.t=setTimeout(render,250)" style="max-width:260px">
    <label class="ck"><input type="checkbox" ${DV.showSent?"checked":""} onchange="DV.showSent=this.checked;DV.pg=0;render()"> Show already sent</label>
