@@ -1074,12 +1074,44 @@ function vSettings(){
 
 /* ================= STAGE 2: editing, next-week changes, history ================= */
 const nwk=()=>S.nextWk||"11/9";
-const ADDRMSG2="Type the address as: street, city, state, zip (for example 109 Hart St, Brooklyn, NY, 11206). Put the apartment in its own box.";
-function setupAC(){}
+const ADDRMSG2="The address needs a street, city, state and zip. Type it like 94 Penn Street New York NY 11249 (commas are added for you). The apartment can go in its own box.";
+const SFX="st street ave avenue rd road blvd boulevard pl place dr drive ct court ln lane pkwy parkway way ter terrace hwy highway sq square cir circle trl trail path plz plaza row walk loop".split(" ");
+function cityBook(){const m={};cust.forEach(c=>{const a=c.a||{};if(a.city&&!m[a.city.toLowerCase()])m[a.city.toLowerCase()]={city:a.city,state:a.state||""}});return m}
+/* accepts the address with or without commas: "94 Penn Street 3rd fl New York NY 11249" */
+function parseAddrSmart(text){
+ let t=String(text||"").replace(/\s+/g," ").replace(/[.;]+$/,"").trim();if(!t)return {street:"",apt:"",city:"",state:"",zip:""};
+ const o={street:"",apt:"",city:"",state:"",zip:""};
+ let m=t.match(/[,\s]+(\d{5})(?:-\d{4})?$/);if(m){o.zip=m[1];t=t.slice(0,m.index).trim()}
+ m=t.match(/[,\s]+([A-Za-z]{2})$/);if(m&&/^[A-Za-z]{2}$/.test(m[1])&&!/^(st|rd|dr|ct|ln|pl|wy)$/i.test(m[1])||(m&&m[1].toUpperCase()=="NY")){o.state=m[1].toUpperCase();t=t.slice(0,m.index).trim()}
+ t=t.replace(/[,\s]+$/,"");
+ const book=cityBook();
+ if(t.indexOf(",")>=0){
+  const p=t.split(",").map(x=>x.trim()).filter(Boolean);
+  if(p.length>=3){o.street=p[0];o.city=p[p.length-1];o.apt=p.slice(1,-1).join(" ")}
+  else if(p.length==2){o.street=p[0];o.city=p[1]}
+  else o.street=p[0]||"";
+  if(p.length<=2&&!o.city)o.city="";
+ }else{
+  const tk=t.split(" "),low=tk.map(x=>x.toLowerCase().replace(/[^a-z0-9]/g,""));
+  let ci=-1;
+  for(let n=Math.min(3,tk.length-1);n>=1&&ci<0;n--){const nm=tk.slice(tk.length-n).join(" ").toLowerCase();if(book[nm])ci=tk.length-n}
+  if(ci<0){ci=tk.length-1;if(ci<1)ci=-1}
+  if(ci>0){o.city=tk.slice(ci).join(" ");const before=tk.slice(0,ci),bl=low.slice(0,ci);
+   let si=-1;for(let i=1;i<bl.length;i++)if(SFX.indexOf(bl[i])>=0){si=i;break}
+   if(si<0)for(let i=1;i<bl.length;i++)if(/^(apt|apartment|unit|fl|floor|ste|suite|rm|room|bldg|building|#.*)$/.test(before[i].toLowerCase())||/^#/.test(before[i])){si=i-1;break}
+   if(si>=0){o.street=before.slice(0,si+1).join(" ");o.apt=before.slice(si+1).join(" ")}else o.street=before.join(" ")}
+  else o.street=t}
+ const b=book[String(o.city).toLowerCase()];if(b){o.city=b.city;if(!o.state)o.state=(b.state||"").toUpperCase()}
+ o.apt=o.apt.replace(/^(apt\.?|apartment|unit)\s+/i,"Apt ");
+ return o}
+function addrFmtLine(a){return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
+function setupAC(){
+ [["f_addr","f_apt"],["nf_addr","nf_apt"]].forEach(([ai,pi])=>{const inp=document.getElementById(ai);if(!inp||inp.disabled)return;
+  inp.addEventListener("blur",()=>{const v=inp.value.trim();if(!v)return;const a=parseAddrSmart(v);if(!a.street)return;inp.value=addrFmtLine(a);const ap=document.getElementById(pi);if(ap&&!ap.disabled&&!ap.value.trim()&&a.apt)ap.value=a.apt})})}
 async function saveNow(id){
  const c=cust.find(x=>x.id==id),ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  if(S.user.role!="owner")return;
- const ad=parseAddr(g("f_addr").value),apt=g("f_apt").value.trim();
+ const ad=parseAddrSmart(g("f_addr").value),apt=g("f_apt").value.trim();
  if(!ad.street||!ad.city||!ad.state||!ad.zip){ce.textContent=ADDRMSG2;return}
  const patch={phone:g("f_phone").value.trim(),street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),...areaDb(g("f_area").value)};
  const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
@@ -1094,7 +1126,7 @@ async function saveNext(id){
  for(const k in v)if(v[k]&&v[k]!==(k=="food"?c.food:c[k]))nx[k]=v[k];
  if(nx.food)nx.base=g("nf_base").value;
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
- if(at||apt){const ad=at?parseAddr(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
+ if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   if(!ad.street||!ad.city||!ad.state||!ad.zip){ce.textContent=ADDRMSG2;return}
   const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
   if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap)}}
