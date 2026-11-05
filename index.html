@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b29">
+<meta name="build" content="b30">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -629,7 +629,7 @@ function vBill(){
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const nav=`<div class="card"><div class="bar"><button class="${B.t=="dash"?"on":""}" onclick="bgo('dash')">Dashboard</button><button class="${B.t=="pay"?"on":""}" onclick="bgo('pay')">Payments &amp; balance</button><span class="note">Companies:</span>${cos.map(c=>`<button class="${B.t=="co"&&B.co==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}</div>
  <div class="bar" style="margin-top:8px"><span class="note">Weeks:</span>${W.map(w=>`<button class="${B.t=="wk"&&B.wk==w.k?"on":""}" onclick="bgo('wk','${w.k}')">${esc(w.k)}</button>`).join("")}</div>
- <p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.err?`<span class="err">${esc(BILL.err)}</span>`:BILL.real?"Counted live from the deliveries in the database (Scanovator). A week runs Saturday to Friday. A Meals customer is billed once a week; a Box customer once per box delivered. Customers not matched to a delivery are not counted."+((BILL.impWeeks||[]).length?" Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""):"Loading…"}</p></div>`;
+ <p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.err?`<span class="err">${esc(BILL.err)}</span>`:BILL.real?"Counted live from the deliveries in the database (Scanovator). A week runs Saturday to Friday. A Meals customer is billed once a week; a Box customer once per box delivered. Customers not matched to a delivery are not counted."+((BILL.impWeeks||[]).length?" Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":"")+(BILL.impErr?" The saved sheet weeks could not be read: "+BILL.impErr:""):"Loading…"}</p></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="pay"?bPay():bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
@@ -797,7 +797,7 @@ async function loadBillDb(){
   const pr=await sb.from("agency_prices").select("agency,box_price,meal_price");if(pr.error)throw pr.error;
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
   const rows=[];for(let a=0;;a+=1000){const r=await sb.rpc("billing_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>rows.push(x));if(!r.data||r.data.length<1000)break}
-  let imp=[];try{for(let a=0;;a+=1000){const r=await sb.rpc("billing_import_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>imp.push(x));if(!r.data||r.data.length<1000)break}}catch(e){imp=[]}   // weeks taken from the sheet (migration 017); none if it has not been run
+  let imp=[];BILL.impErr="";try{for(let a=0;;a+=1000){const r=await sb.rpc("billing_import_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>imp.push(x));if(!r.data||r.data.length<1000)break}}catch(e){imp=[];BILL.impErr=dberr(e)}   // weeks taken from the sheet (migration 017/018)
   const iw=new Set(),ir=[];imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
    const links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));(links.length?links:[""]).forEach(u=>ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:0,letters:"",receipt_url:u,photo_urls:[]}))});
   const rows2=iw.size?rows.filter(x=>!iw.has(wkLab(wkKey(new Date(Date.parse(x.delivered_at)))))).concat(ir):rows;BILL.impWeeks=[...iw];
