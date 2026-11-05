@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b27">
+<meta name="build" content="b28">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -206,6 +206,7 @@ const ICONS={delivery:'<rect x="2" y="7" width="12" height="9" rx="1"/><path d="
 const icon=k=>`<svg viewBox="0 0 24 24">${ICONS[k]||'<circle cx="12" cy="12" r="8"/>'}</svg>`;
 function render(){
  const u=S.user,app=document.getElementById("app");
+ let keep=null;try{const ae=document.activeElement;if(ae&&app.contains(ae)&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.type!="checkbox"&&ae.type!="radio"&&(ae.id||ae.placeholder))keep={id:ae.id,ph:ae.placeholder,v:S.view,s:ae.selectionStart,e:ae.selectionEnd}}catch(e){}
  document.body.classList.toggle("anon",!u);
  document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="nv ${S.view==n[0]||(S.view=="card"&&n[0]=="customers")?"on":""}" onclick="go('${n[0]}')">${icon(n[0])}<span>${n[1]}</span></button>`).join(""):"";
  document.getElementById("who").innerHTML=u?`<div class="me"><div class="av">${esc((u.name||"?").trim().charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(ROLE_NAMES[u.role]||u.role)}</div></div></div><div class="acts"><button onclick="openPw()">Password</button><button onclick="out()">Sign out</button></div>`:"";
@@ -214,6 +215,7 @@ function render(){
  const m=(S.view=="menu"||S.view=="billing"?"":banner())+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
  app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,menu:vMenu,billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
+ if(keep&&keep.v==S.view)try{const el=keep.id?document.getElementById(keep.id):[...app.querySelectorAll("input,textarea")].find(x=>x.placeholder==keep.ph);if(el){el.focus();if(keep.s!=null)el.setSelectionRange(keep.s,keep.e)}}catch(e){}
 }
 function banner(){
  if(S.user&&S.user.role=="demo")return "";
@@ -318,7 +320,7 @@ function vList(db){
  const tile=(k,l,n,col)=>`<div class="kpi click ${f==k?"on":""}" onclick="S.dflt='${k}';S.dpg=0;render()"><span class="note">${l}</span><b${col?` style="color:${col}"`:""}>${nf(n)}</b></div>`;
  const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px">${tile("all","Total customers",cust.length)}${tile("active","Active (on this week's list)",nA,"var(--ok)")}${tile("off","Not active (Not in list)",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
  const sel=cols.map(c=>c.k),menu=S.colMenu?`<div class="colmenu"><div class="note" style="margin-bottom:6px">Tick the columns you want. Saved for you.</div>${COLS.map(c=>`<label class="ck"><input type="checkbox" ${sel.indexOf(c.k)>=0?"checked":""} onchange="toggleCol('${c.k}')"> ${c.l}</label>`).join("")}<div class="bar" style="margin-top:8px"><button onclick="resetCols()">Reset</button><button onclick="S.colMenu=false;render()">Close</button></div></div>`:"";
- return `<div class="card">${head}<div class="bar" style="margin:0 0 12px;align-items:flex-start"><input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render();var i=document.querySelector('#app input');i.focus();i.setSelectionRange(99,99)" style="flex:1"><div style="position:relative"><button onclick="S.colMenu=!S.colMenu;render()">Columns ▾</button>${menu}</div></div>
+ return `<div class="card">${head}<div class="bar" style="margin:0 0 12px;align-items:flex-start"><input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render()" style="flex:1"><div style="position:relative"><button onclick="S.colMenu=!S.colMenu;render()">Columns ▾</button>${menu}</div></div>
  <div class="wrap"><table class="tl"><tr>${cols.map(c=>`<th class="srt" onclick="sortBy('${c.k}')">${c.l}<span class="ar">${pr.sortK==c.k?(pr.sortD=="desc"?"▼":"▲"):""}</span></th>`).join("")}</tr>
  ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})">${cols.map(x=>`<td${x.cls?` class="${x.cls}"`:""} title="${esc(String(x.s(c)==null?"":x.s(c)))}">${x.v(c)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan=${cols.length} class='no'>No customers found.</td></tr>`}</table></div>
  <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
