@@ -1,5 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
+<script>
+// Real page addresses on GitHub Pages: 404.html turns /Satmar-Meat-SCN/billing into /Satmar-Meat-SCN/?/billing, and this puts the nice address back.
+(function(l){if(l.search[1]==='/'){var d=l.search.slice(1).split('&').map(function(s){return s.replace(/~and~/g,'&')});history.replaceState(null,null,l.pathname.slice(0,-1)+d[0]+(d[1]?'?'+d.slice(1).join('&'):'')+l.hash)}}(window.location));
+var BASE=/github\.io$/.test(location.hostname)?"/"+location.pathname.split("/")[1]+"/":"/";
+document.write('<base href="'+BASE+'">');
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Satmar Meats</title>
 <link rel="icon" type="image/png" href="favicon.png">
@@ -120,9 +126,9 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b33">
+<meta name="build" content="b34">
 <script>
-(function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
+(function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const refs=["UJO - 1001","CCS - 82 - 0119","LT00001","4821","Sample 718-555-0104","UJO - 1006","PT - 2207","LH - 3310","UJO - 1009","RY - 4402"];
@@ -910,7 +916,7 @@ function openPw(){
 async function sendCode(){
  const e=(document.getElementById("lg_em").value||"").trim().toLowerCase();if(!e||e.indexOf("@")<1){S.err="Enter your email.";render();return}
  S.lg.email=e;S.lg.busy=true;S.err="";render();
- const {error}=await sb.auth.signInWithOtp({email:e,options:{shouldCreateUser:false,emailRedirectTo:location.href.split("#")[0].split("?")[0]}});
+ const {error}=await sb.auth.signInWithOtp({email:e,options:{shouldCreateUser:false,emailRedirectTo:location.origin+BASE}});
  S.lg.busy=false;if(error){S.err=dberr(error)}else{S.lg.step="code"}render()}
 async function checkCode(){
  const t=(document.getElementById("lg_code").value||"").trim();if(!t){S.err="Enter the code from the email.";render();return}
@@ -1353,12 +1359,12 @@ function vChanges(){
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" ${S.cut&&!own?"disabled":""}>Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
 const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v=="menu"&&!MENU.real)loadMenuDb();if(v=="delivery")loadSends();if(v=="billing"&&!BILL.real&&!BILL.loading)loadBillDb()};
-// The address shows the page (…/#/billing, …/#/delivery, …/#/customer/123) so a refresh, a bookmark or the back button opens the same page.
-function setHash(v,id){try{const h="#/"+(v=="card"?"customer/"+(id||S.sel||""):v);if(location.hash!=h)history.pushState(null,"",location.pathname+location.search+h)}catch(e){}}
-function routeFromHash(){const m=String(location.hash).match(/^#\/([a-z]+)(?:\/(\d+))?/);if(!m||!S.user)return;const nv=navFor(S.user);
+// The address shows the page (…/billing, …/delivery, …/customer/123) so a refresh, a bookmark or the back button opens the same page.
+function setHash(v,id){try{const u=BASE+(v=="card"?"customer/"+(id||S.sel||""):v)+location.search;if(location.pathname+location.search!=u)history.pushState(null,"",u)}catch(e){}}
+function routeFromHash(){let m=String(location.pathname).slice(BASE.length).match(/^([a-z]+)(?:\/(\d+))?/);if(!m)m=String(location.hash).match(/^#\/([a-z]+)(?:\/(\d+))?/);if(!m||!S.user)return;const nv=navFor(S.user);
  if(m[1]=="customer"){if(m[2]&&nv.some(n=>n[0]=="customers"))go("card",+m[2])}else if(nv.some(n=>n[0]==m[1]))go(m[1])}
 const goOld3=go;go=function(v,id){goOld3(v,id);setHash(v,id)};
-window.addEventListener("hashchange",()=>{if(S.user)routeFromHash()});
+window.addEventListener("popstate",()=>{if(S.user)routeFromHash()});
 
 /* ===== Delivery page: choose admin notes (areas), food types, companies and dates; confirm; file for Scanovator ===== */
 const DAREAS=["Lee","Bedford","BP","Monsey/Monroe","Middleton"];

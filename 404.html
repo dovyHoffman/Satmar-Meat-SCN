@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Satmar Meats</title>
+<script>
+// GitHub Pages has no server rules, so a direct visit to /Satmar-Meat-SCN/billing lands here.
+// Send it to the app with the page name kept in the address; the app puts the nice address back.
+var keep = /github\.io$/.test(location.hostname) ? 1 : 0, l = location;
+l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + l.pathname.split('/').slice(0, 1 + keep).join('/') + '/?/' +
+  l.pathname.slice(1).split('/').slice(keep).join('/').replace(/&/g, '~and~') + (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') + l.hash);
+</script></head><body></body></html>
