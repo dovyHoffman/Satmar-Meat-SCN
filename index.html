@@ -1269,7 +1269,7 @@ function dvRows(){
  const q=DV.q.trim().toLowerCase(),out={rows:[],sent:0,expired:0};
  cust.forEach(c=>{
   if(!c.active||!DV.areas[c.area])return;
-  if(Object.keys(DV.foods).some(k=>DV.foods[k])&&!DV.foods[dvFood(c)])return;
+  if(Object.keys(DV.foods).some(k=>DV.foods[k])&&!dvLetters(c).some(l=>DV.foods[l]))return;
   if(Object.keys(DV.cos).some(k=>DV.cos[k])&&!DV.cos[c.agency])return;
   if(q&&(c.name+" "+c.ref+" "+c.addr+" "+c.phone).toLowerCase().indexOf(q)<0)return;
   const d=dvDate(c.area);
@@ -1281,12 +1281,13 @@ function dvRows(){
 function dvLine(c,d){
  const L=dvLetters(c),a=c.a||{},st=String(a.st||"").toUpperCase(),apt=String(c.apt||"").toUpperCase(),city=a.city||"",
   full=[st+(apt?" "+apt:""),(city?city.toUpperCase()+", ":"")+[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
- return {"last name":c.name,"First Name":"","Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":"","Change Summer":""}}
+ const nm=String(c.name||"").trim().replace(/\s+/g," "),sp=nm.indexOf(" ");
+ return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":"","Change Summer":""}}
 function dvPick(){return dvRows().rows.filter(r=>!DV.off[r.c.uuid||r.c.id])}
 async function loadSends(){
  if(!S.real||!sb)return;
- try{const rows=await fetchAll("delivery_sends","customer_id,delivery_date",q=>q.gte("delivery_date",isoD(new Date(Date.now()-14*864e5))));
-  DV.sent={};rows.forEach(r=>DV.sent[r.customer_id+"|"+r.delivery_date]=1);DV.loaded=true;DV.err=""}
+ try{let rows;try{rows=await fetchAll("delivery_sends","customer_id,delivery_date,letters,batch,created_at,line",q=>q.gte("delivery_date",isoD(new Date(Date.now()-90*864e5))))}catch(e0){rows=await fetchAll("delivery_sends","customer_id,delivery_date,letters,batch,created_at",q=>q.gte("delivery_date",isoD(new Date(Date.now()-90*864e5))))}
+  DV.sent={};DV.hist=rows;rows.forEach(r=>DV.sent[r.customer_id+"|"+r.delivery_date]=1);DV.loaded=true;DV.err=""}
  catch(e){DV.err="Could not read what was already sent ("+dberr(e)+"). If this says the table is missing, the database update for this page has not been run yet."}
  if(S.view=="delivery")render()}
 function dvTog(map,k,v){DV[map][k]=v;DV.pg=0;render()}
@@ -1295,9 +1296,10 @@ function dvAll(v){DAREAS.forEach(a=>DV.areas[a]=v);DV.pg=0;render()}
 function dvOff(id,v){if(v)delete DV.off[id];else DV.off[id]=true;render()}
 function dvOffAll(v){dvRows().rows.forEach(r=>{const k=r.c.uuid||r.c.id;if(v)delete DV.off[k];else DV.off[k]=true});render()}
 function vDelivery(){
+ if(DV.tab=="prev")return vPrev();
  if(!S.real)return `<div class="card"><h2>Delivery</h2><p class="note">Load the real data first (the green/blue bar at the top of Customers), then come back here.</p></div>`;
  const R=dvRows(),pick=R.rows.filter(r=>!DV.off[r.c.uuid||r.c.id]),foods={},cos={};
- cust.forEach(c=>{if(c.active){foods[dvFood(c)]=1;cos[c.agency]=1}});
+ cust.forEach(c=>{if(c.active){dvLetters(c).forEach(l=>foods[l]=1);cos[c.agency]=1}});
  const fl=Object.keys(foods).sort(),cl=Object.keys(cos).sort(),none=!DAREAS.some(a=>DV.areas[a]);
  const pages=Math.max(1,Math.ceil(R.rows.length/50)),pg=Math.min(DV.pg,pages-1),vis=R.rows.slice(pg*50,pg*50+50);
  const dtm=dvTomorrow();
@@ -1308,10 +1310,10 @@ function vDelivery(){
  const head=["Last name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"];
  const body=vis.map(r=>{const o=dvLine(r.c,r.d),k=r.c.uuid||r.c.id;
   return `<tr class="${r.was?"was":""}"><td><input type="checkbox" style="width:auto" ${DV.off[k]?"":"checked"} onchange="dvOff('${k}',this.checked)"></td>${[o["last name"],o["Street Address"],o["AptNum"],o["City"],o["State"],o["Zip"],o["PHONE"],o["Cases"],o["case description"],o["Total Family"],o["Notes "],o["Delivery_at"],o["Notes 2"],o["Application ID"],o["admin_notes"],o["Food Type"],o["Type food"],o["Company"]].map(v=>`<td title="${esc(v)}">${esc(v)}</td>`).join("")}${r.was?`<td><span class="ctag t-ok">already sent</span></td>`:"<td></td>"}</tr>`}).join("");
- return `<div class="card"><h2>Delivery</h2><p class="note">Choose what goes out, check the list, then confirm. The file has the same columns as the Delivery tab in your Meal Sheet. The delivery date starts as tomorrow.</p>
+ return dvTabs()+`<div class="card"><h2>Delivery</h2><p class="note">Choose what goes out, check the list, then confirm. The file has the same columns as the Delivery tab in your Meal Sheet. The delivery date starts as tomorrow.</p>
   <div class="mgl" style="margin-top:6px">1 · Admin notes (area) and delivery date <button onclick="dvAll(true)">All</button> <button onclick="dvAll(false)">None</button></div>
   <div class="dvg">${DAREAS.map(areaBox).join("")}</div>
-  <div class="mgl" style="margin-top:12px">2 · Box / food type <span class="note">(none ticked = all)</span></div><div class="bar" style="flex-wrap:wrap">${fl.map(k=>chk("foods",k)).join("")}</div>
+  <div class="mgl" style="margin-top:12px">2 · Box type (A, B, C …) <span class="note">(none ticked = all; a customer is included if he has any ticked box)</span></div><div class="bar" style="flex-wrap:wrap">${fl.map(k=>chk("foods",k)).join("")}</div>
   <div class="mgl" style="margin-top:8px">3 · Company <span class="note">(none ticked = all)</span></div><div class="bar" style="flex-wrap:wrap">${cl.map(k=>chk("cos",k)).join("")}</div></div>
  <div class="card"><div class="bar" style="flex-wrap:wrap;align-items:center"><b>${pick.length.toLocaleString()} deliveries</b><span class="note">of ${R.rows.length.toLocaleString()} listed${R.sent?` · ${R.sent.toLocaleString()} already sent for that date ${DV.showSent?"(shown)":"(hidden)"}`:""}${R.expired?` · ${R.expired.toLocaleString()} left out: authorization ended`:""}</span>
    <input placeholder="Search name, ID, address, phone" value="${esc(DV.q)}" oninput="DV.q=this.value;DV.pg=0;clearTimeout(DV.t);DV.t=setTimeout(render,250)" style="max-width:260px">
@@ -1320,8 +1322,8 @@ function vDelivery(){
   ${none?`<p class="no">Tick at least one admin note (area) above and the list will appear here.</p>`:R.rows.length?`<div style="overflow:auto"><table class="tl"><tr><th></th>${head.map(h=>`<th>${h}</th>`).join("")}<th></th></tr>${body}</table></div>
   <div class="bar"><button onclick="DV.pg=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages}</span><button onclick="DV.pg=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div>`:`<p class="no">Nobody matches these choices.</p>`}
   ${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
-  <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the file"}</button>
-   <button onclick="dvFile('xlsx',false)" ${pick.length?"":"disabled"}>Preview file (Excel, not confirmed)</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
+  <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the Excel file"}</button>
+   <button onclick="dvUpload()" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
   <p class="note">Confirming records who sent these customers and for which date (so nobody goes out twice by mistake) and downloads the file to upload into Scanovator. It never changes the customers.</p></div>`}
 async function dvFile(kind,real,pre){
  const rows=pre||dvPick();if(!rows.length)return;
@@ -1333,15 +1335,33 @@ async function dvFile(kind,real,pre){
   S.msg=(real?"File downloaded: ":"Preview downloaded: ")+name+"."+kind;S.err=""}
  catch(e){S.err="Could not make the file: "+(e.message||e);S.msg=""}
  render()}
+
+const dvTabs=()=>`<div class="bar" style="margin-bottom:8px"><button class="${DV.tab=="prev"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button><button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`;
+async function dvUpload(){
+ DV.err="Upload to Scanovator is not connected yet: I do not have Scanovator's order-upload instructions, so nothing was sent and nothing was recorded. Use the Excel button, upload that file in Scanovator, and send me the Scanovator upload page or API link so I can connect it.";render()}
+function dvTabsList(){
+ const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;String(r.letters||"").split(",").filter(Boolean).forEach(l=>{const p=String(r.delivery_date).split("-"),k=l+"_"+(+p[1])+"_"+(+p[2]);(m[k]=m[k]||{k:k,d:r.delivery_date,l:l,rows:[]}).rows.push(r)})});
+ return Object.values(m).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.l<b.l?-1:1)}
+function vPrev(){
+ const T=dvTabsList(),cur=T.find(t=>t.k==DV.ptab)||T[0];
+ const head=["Last name","First name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"],keys=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Application ID","admin_notes","Food Type","Type food","Company"];
+ return dvTabs()+`<div class="card"><h2>Previous deliveries</h2><p class="note">Every confirmed delivery list, one tab per box type and date (for example A_11_3), exactly as it was sent. A customer with two boxes appears in both tabs. Last 90 days.${DV.err?"":""}</p>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
+  ${T.length?`<div class="bar" style="flex-wrap:wrap">${T.map(t=>`<button class="${cur&&t.k==cur.k?"pri":""}" onclick="DV.ptab='${esc(t.k)}';render()">${esc(t.k)} <span class="note" style="color:inherit">${t.rows.length}</span></button>`).join("")}</div>`:`<p class="no">Nothing confirmed yet. Lists you confirm on "New delivery" appear here.</p>`}</div>
+ ${cur?`<div class="card"><div class="bar" style="align-items:center"><b>${esc(cur.k)}</b><span class="note">${cur.rows.length} deliveries · sent ${esc(fdate(cur.rows[0].created_at))}</span><button onclick="dvPrevCsv('${esc(cur.k)}')">Download CSV</button></div>
+  <div style="overflow:auto"><table class="tl"><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr>${cur.rows.map(r=>`<tr>${keys.map(k=>{const v=r.line[k];return `<td title="${esc(v)}">${esc(v)}</td>`}).join("")}</tr>`).join("")}</table></div></div>`:""}`}
+function dvPrevCsv(k){
+ const t=dvTabsList().find(x=>x.k==k);if(!t)return;
+ const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v},txt=[DCOLS.map(q).join(",")].concat(t.rows.map(r=>DCOLS.map(c=>q(r.line[c])).join(","))).join("\r\n"),
+ a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+txt],{type:"text/csv"}));a.download=k+".csv";document.body.appendChild(a);a.click();a.remove()}
 async function dvConfirm(){
  const rows=dvPick();if(!rows.length||DV.busy)return;
  const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
  if(!confirm("Confirm "+rows.length+" deliveries?\n\n"+Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]).join("\n")+"\n\nThey will be recorded as sent and the file will download."))return;
  DV.busy=true;S.err="";S.msg="";render();
  try{const batch=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const recs=rows.filter(r=>r.c.uuid).map(r=>({batch:batch,customer_id:r.c.uuid,delivery_date:r.d,admin_note:r.c.area,letters:dvLetters(r.c).join(",")}));
+  const recs=rows.filter(r=>r.c.uuid).map(r=>({batch:batch,customer_id:r.c.uuid,delivery_date:r.d,admin_note:r.c.area,letters:dvLetters(r.c).join(","),line:dvLine(r.c,r.d)}));
   for(let i=0;i<recs.length;i+=500){const x=await sb.from("delivery_sends").insert(recs.slice(i,i+500));if(x.error)throw x.error}
-  recs.forEach(r=>DV.sent[r.customer_id+"|"+r.delivery_date]=1);
+  recs.forEach(r=>DV.sent[r.customer_id+"|"+r.delivery_date]=1);(DV.hist=DV.hist||[]).push(...recs.map(r=>Object.assign({created_at:new Date().toISOString()},r)));
   LG("Delivery","Confirmed",""," "+rows.length+" deliveries ("+Object.keys(byD).sort().map(usD).join(", ")+")");
   DV.busy=false;await dvFile("xlsx",true,rows);return}
  catch(e){S.err="Not saved, nothing was marked as sent: "+dberr(e)}
