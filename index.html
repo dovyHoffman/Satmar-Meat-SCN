@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b31">
+<meta name="build" content="b32">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -798,8 +798,10 @@ async function loadBillDb(){
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
   const rows=[];for(let a=0;;a+=1000){const r=await sb.rpc("billing_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>rows.push(x));if(!r.data||r.data.length<1000)break}
   let imp=[];BILL.impErr="";try{for(let a=0;;a+=1000){const r=await sb.rpc("billing_import_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>imp.push(x));if(!r.data||r.data.length<1000)break}}catch(e){imp=[];BILL.impErr=dberr(e)}   // weeks taken from the sheet (migration 017/018)
-  const iw=new Set(),ir=[];imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
-   const links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));(links.length?links:[""]).forEach(u=>ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:0,letters:"",receipt_url:u,photo_urls:[]}))});
+  const iw=new Set(),ir=[],cnt={};BILL.impAll=imp;BILL.impMap=null;imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
+   // every row of the sheet is one billed line (the same family can have a meals row and a box row, or two rows of the same kind)
+   const ck=x.tab_date+"|"+x.company+"|"+x.ref,n=cnt[ck]=(cnt[ck]||0)+1,links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));
+   ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:n>1?x.ref+" ("+n+")":x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:1,letters:"",receipt_url:links[0]||"",photo_urls:links.slice(1)})});
   const rows2=iw.size?rows.filter(x=>!iw.has(wkLab(wkKey(new Date(Date.parse(x.delivered_at)))))).concat(ir):rows;BILL.impWeeks=[...iw];
   BILL.rows=rows2;BILL.weeks=buildWeeks(rows2);BILL.real=true;BILL.det={};await loadPayDb();
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
@@ -1144,7 +1146,7 @@ async function bsFile(f){
     const L=bsLines(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""})),seenK={};
     for(const l of L){const k=l.i+"|"+l.k;seenK[k]=1}
     const ids={};L.forEach(l=>{(ids[l.i]=ids[l.i]||{})[l.k]=1});
-    for(const l of L){if(!l.l.length)co._nl=(co._nl||0)+1;lines.push({d:d,c:p.co,r:l.r,i:(l.i&&Object.keys(ids[l.i]).length>1?l.i+" ("+l.k+")":l.i),n:l.n,k:l.k,f:l.f,h:l.h,l:l.l});co[p.co]=(co[p.co]||0)+1}}
+    for(const l of L){if(!l.l.length)co._nl=(co._nl||0)+1;lines.push({d:d,c:p.co,r:l.r,i:l.i,n:l.n,k:l.k,f:l.f,h:l.h,l:l.l});co[p.co]=(co[p.co]||0)+1}}
    const nl=co._nl||0;delete co._nl;if(Object.keys(co).length){const m=d.split("-"),lab=wkLab(wkKey(new Date(+m[0],+m[1]-1,+m[2],12)));weeks.push({d:d,lab:lab,co:co,nl:nl})}}
   if(!lines.length){S.bs={err:"No customer rows were found in the company tabs."};render();return}
   S.bs={lines:lines,weeks:weeks}
@@ -1453,6 +1455,17 @@ const dvTabs=()=>`<div class="bar" style="margin-bottom:8px"><button class="${DV
 function dvTabsList(){
  const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;String(r.letters||"").split(",").filter(Boolean).forEach(l=>{const p=String(r.delivery_date).split("-"),k=l+"_"+(+p[1])+"_"+(+p[2]);(m[k]=m[k]||{k:k,d:r.delivery_date,l:l,rows:[]}).rows.push(r)})});
  return Object.values(m).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.l<b.l?-1:1)}
+function impMap(){
+ if(BILL.impMap)return BILL.impMap;if(!BILL.impAll)return null;
+ const M={},strip=r=>nk(r).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,"");
+ BILL.impAll.forEach(x=>{const w=isoD(dvWk(x.tab_date)),k=w+"|"+String(x.company).toUpperCase()+"|"+strip(x.ref);(M[k]=M[k]||[]);(x.links||[]).forEach(u=>{if(/^https?:\/\//i.test(u)&&M[k].indexOf(u)<0)M[k].push(u)})});
+ BILL.impMap=M;return M}
+function podFor(r,d){const M=impMap();if(!M)return null;const co=String(r["Company"]||"").toUpperCase(),ref=nk(r["Application ID"]).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,"");
+ return M[isoD(dvWk(d))+"|"+co+"|"+ref]||[]}
+async function loadImpAll(){
+ if(BILL.impAll||BILL.impLoading||!sb)return;BILL.impLoading=true;
+ try{const a=[];for(let i=0;;i+=1000){const r=await sb.rpc("billing_import_rows").range(i,i+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>a.push(x));if(!r.data||r.data.length<1000)break}BILL.impAll=a;BILL.impMap=null}catch(e){BILL.impErr=dberr(e)}
+ BILL.impLoading=false;render()}
 const PHEAD=["Last name","First name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"],PKEYS=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Application ID","admin_notes","Food Type","Type food","Company"];
 function dvAllTabs(){
  const a=dvTabsList().map(t=>({k:t.k,d:t.d,n:t.rows.length,src:"new",rows:t.rows.map(r=>r.line),at:t.rows[0].created_at}));
@@ -1473,8 +1486,9 @@ function vPrev(){
  if(cur){
   const L=dvTabLines(cur);
   if(cur.src=="arch"&&!L&&!DV.archLoading)setTimeout(()=>dvOpenArch(cur.k),0);
+  if(!BILL.impAll&&!BILL.impLoading)setTimeout(loadImpAll,0);
   return dvTabs()+`<div class="card"><div class="bar" style="align-items:center;flex-wrap:wrap"><button onclick="DV.ptab=null;render()">← Back to the weeks</button><h2 style="margin:0">${esc(cur.name||cur.k)}</h2><span class="note">${cur.n.toLocaleString()} deliveries${cur.at?" · sent "+esc(fdate(cur.at)):""}</span><button class="pri" onclick="dvPrevCsv('${esc(cur.k).replace(/'/g,"\\'")}')" ${L?"":"disabled"}>Download CSV</button></div>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
-  ${L?`<div style="overflow:auto;margin-top:10px"><table class="tl"><tr>${PHEAD.map(h=>`<th>${h}</th>`).join("")}</tr>${L.map(r=>`<tr>${PKEYS.map(k=>{const v=r[k];return `<td title="${esc(v)}">${esc(v)}</td>`}).join("")}</tr>`).join("")}</table></div>`:`<p class="note">Opening…</p>`}</div>`}
+  ${L?`<div style="overflow:auto;margin-top:10px"><table class="tl"><tr>${PHEAD.map(h=>`<th>${h}</th>`).join("")}<th>POD links</th></tr>${L.map(r=>{const pl=podFor(r,cur.d);return `<tr>${PKEYS.map(k=>{const v=r[k];return `<td title="${esc(v)}">${esc(v)}</td>`}).join("")}<td style="white-space:nowrap">${pl==null?`<span class="note">${BILL.impErr?"?":"…"}</span>`:pl.length?pl.map((u,i)=>LNK(u,"POD"+(pl.length>1?" "+(i+1):""))).join(" · "):`<span class="note">–</span>`}</td></tr>`}).join("")}</table></div>`:`<p class="note">Opening…</p>`}</div>`}
  const W={};T.forEach(t=>{if(!t.d)return;const w=dvWk(t.d),k=isoD(w);(W[k]=W[k]||{k:k,w:w,tabs:[]}).tabs.push(t)});
  const ws=Object.values(W).sort((a,b)=>a.k<b.k?1:-1);
  return dvTabs()+`<div class="card"><h2>Previous deliveries</h2><p class="note">One row for every week (Saturday to Friday). Click a week to see its tabs, then click a tab to open the full list. Lists you confirm are added automatically; older ones come from your Labels Delivery sheet (Import page).</p>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
@@ -1483,7 +1497,7 @@ function vPrev(){
    ${open?`<div class="chps" style="padding:4px 4px 12px 30px">${tabs.map(t=>`<button class="chp" style="background:#fff" onclick="${t.src=="arch"?`DV.pwk='${x.k}';dvOpenArch('${esc(t.k).replace(/'/g,"\\'")}')`:`dvOpenTab('${esc(t.k)}','${x.k}')`}"><span>${esc(t.name||t.k)}</span><small>${t.n}</small></button>`).join("")}</div>`:""}</div>`}).join(""):`<p class="no">Nothing here yet. Confirm a list on "New delivery", or import the old tabs on the Import page.</p>`}</div>`}
 function dvPrevCsv(k){
  const t=dvAllTabs().find(x=>x.k==k),L=t&&dvTabLines(t);if(!L)return;
- const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v},txt=[DCOLS.map(q).join(",")].concat(L.map(r=>DCOLS.map(c=>q(r[c])).join(","))).join("\r\n"),
+ const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v},pod=r=>{const l=podFor(r,t.d);return l?l.join(" "):""},txt=[DCOLS.concat(["POD links"]).map(q).join(",")].concat(L.map(r=>DCOLS.map(c=>q(r[c])).concat([q(pod(r))]).join(","))).join("\r\n"),
  a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+txt],{type:"text/csv"}));a.download=(t.name||t.k)+".csv";document.body.appendChild(a);a.click();a.remove()}
 async function cinFile(f){
  if(!f)return;S.cn={};render();
