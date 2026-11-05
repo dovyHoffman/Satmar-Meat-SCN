@@ -145,6 +145,26 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "SCANOVATOR_STORE_ID must be a whole number (digits only). Fix it in Supabase > Edge Functions > Secrets." }, 500);
     if (!STORE_CODE) return json({ ok: false, error: "SCANOVATOR_STORE_CODE is empty." }, 500);
 
+    if (body.mode === "create") {
+      // Creates orders in Scanovator through its API (owner only). Used first for one clearly marked test order.
+      const list = (Array.isArray(body.orders) ? body.orders : []).slice(0, 25);
+      const results: unknown[] = [];
+      for (const o of list) {
+        try {
+          const r = await fetch("https://api.scanovator.com/v2/orders/create", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, ...o }),
+          });
+          const t = await r.text();
+          results.push({ order_id: o.order_id, status: r.status, body: t.slice(0, 600) });
+        } catch (e) {
+          results.push({ order_id: o.order_id, error: String((e as Error).message || e) });
+        }
+      }
+      return json({ ok: true, results });
+    }
+
     const mode = body.mode === "photos" ? "photos" : "orders";
 
     if (mode === "photos") {

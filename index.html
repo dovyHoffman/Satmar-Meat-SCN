@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b24">
+<meta name="build" content="b25">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1351,6 +1351,7 @@ function vDelivery(){
    <button onclick="dvConfirm('up')" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
   ${DV.ask?`<div id="dv_ask" class="card" style="border-color:#e07b00;margin-top:10px"><b>Confirm ${DV.ask.n.toLocaleString()} deliveries?</b><div class="note" style="margin:6px 0">${DV.ask.days.map(esc).join("<br>")}</div><p class="note" style="margin:6px 0">They will be recorded as sent and ${DV.ask.mode=="up"?"the CSV file will download and the Scanovator upload page will open":"the Excel file will download"}.</p><button class="pri" onclick="dvRun('${DV.ask.mode}')">Yes, ${DV.ask.mode=="up"?"upload to Scanovator":"confirm and download"}</button> <button onclick="DV.ask=null;render()">Cancel</button></div>`:""}
   ${DV.done?`<div class="card" style="border-color:var(--ok);margin-top:10px"><b style="color:var(--ok)">✓ ${DV.done.n.toLocaleString()} deliveries recorded as sent. The file ${esc(DV.done.file)} was downloaded (check your Downloads folder).</b><p class="note" style="margin:6px 0">Next, in Scanovator: choose that file, click <b>Auto fill fields</b>, then <b>Upload &amp; Create Orders</b>.</p><a class="pri" style="display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none" href="https://dashboard.scanovator.com/orders_csv" target="_blank" rel="noopener">Open Scanovator upload page</a> <button onclick="DV.done=null;render()">Close</button></div>`:""}
+  ${S.user&&S.user.role=="owner"?`<div class="card" style="margin-top:10px"><b>Test for the admin</b> <span class="note">Sends ONE clearly marked test order (name "TEST DO NOT DELIVER") to Scanovator through its API, to check that your custom fields arrive. Cancel it in Scanovator afterwards.</span><div class="bar"><button onclick="dvTestOrder()" ${DV.tbusy?"disabled":""}>${DV.tbusy?"Sending…":"Send one test order"}</button></div>${DV.tres?`<pre style="white-space:pre-wrap;font-size:12px;background:#f6f7f9;padding:8px;border-radius:8px;max-height:260px;overflow:auto">${esc(DV.tres)}</pre>`:""}</div>`:""}
   <p class="note"><b>Upload to Scanovator</b> records the list, downloads the CSV and opens Scanovator's upload page: choose the file, click "Auto fill fields", then "Upload &amp; Create Orders". The Excel button does the same recording but downloads Excel. It never changes the customers.</p></div>`}
 function dvCsvText(rows){const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};return [DCOLS.map(q).join(",")].concat(rows.map(r=>{const o=dvLine(r.c,r.d);return DCOLS.map(k=>q(o[k])).join(",")})).join("\r\n")}
 async function dvHash(txt){try{const cs=new Blob([txt]).stream().pipeThrough(new CompressionStream("gzip")),buf=new Uint8Array(await new Response(cs).arrayBuffer());let b="";for(let i=0;i<buf.length;i+=8192)b+=String.fromCharCode.apply(null,buf.subarray(i,i+8192));const h=btoa(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");return h.length<1500000?"#satmar="+h:""}catch(e){return ""}}
@@ -1449,6 +1450,13 @@ function dvConfirm(mode){
  const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
  DV.ask={mode:mode,n:rows.length,days:Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]+" deliveries")};DV.done=null;S.err="";S.msg="";render();
  setTimeout(()=>{const e=document.getElementById("dv_ask");if(e)e.scrollIntoView({block:"center"})},50)}
+async function dvTestOrder(){
+ if(DV.tbusy)return;DV.tbusy=true;DV.tres="";render();
+ const id="TEST-"+Date.now().toString(36).toUpperCase(),d=dvTomorrow(),cf={"Total Family":"TEST-TF-7","Notes 2":"TEST-NOTES2","Application ID":"TEST-APPID-123","Mothers DOB":"","Food Type":"TEST-FOODTYPE","Type food":"TEST-TYPEFOOD","Company":"TEST-CO","#cin":"TEST-CIN-1","admin_notes":"TEST-ADMIN","case description":"B"};
+ const o=Object.assign({order_id:id,fname:"TEST",lname:"DO NOT DELIVER",street_address:"82 Lee Avenue",city:"Brooklyn",state:"NY",zip:"11211",phone:"7185550100",total_boxes:1,cases:1,case_descriptions:["B"],notes:"TEST ORDER - PLEASE CANCEL",customercode:"TEST-APPID-123",scheduled_for:d+" 12:00:00",custom_fields:cf},cf);
+ try{const {data:ss}=await sb.auth.getSession(),r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((ss.session||{}).access_token||SB_KEY)},body:JSON.stringify({mode:"create",orders:[o]})}),t=await r.text();DV.tres="HTTP "+r.status+"\norder_id: "+id+"\n"+t}
+ catch(e){DV.tres="Could not reach the server: "+((e&&e.message)||e)}
+ DV.tbusy=false;render()}
 async function dvRun(mode){
  const rows=dvPick();if(!rows.length||DV.busy)return;DV.ask=null;
  const up=mode=="up",w=up?window.open("about:blank","_blank"):null;
