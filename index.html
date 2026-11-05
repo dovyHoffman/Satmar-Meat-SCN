@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b35">
+<meta name="build" content="b36">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -807,7 +807,7 @@ async function loadBillDb(){
   const iw=new Set(),ir=[],cnt={};BILL.impAll=imp;BILL.impMap=null;imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
    // every row of the sheet is one billed line (the same family can have a meals row and a box row, or two rows of the same kind)
    const ck=x.tab_date+"|"+x.company+"|"+x.ref,n=cnt[ck]=(cnt[ck]||0)+1,links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));
-   ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:n>1?x.ref+" ("+n+")":x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:1,letters:"",receipt_url:links[0]||"",photo_urls:links.slice(1)})});
+   ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:n>1?x.ref+" ("+n+")":x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:x.base=="box"?x.hh:1,letters:"",receipt_url:links[0]||"",photo_urls:links.slice(1)})});
   const rows2=iw.size?rows.filter(x=>!iw.has(wkLab(wkKey(new Date(Date.parse(x.delivered_at)))))).concat(ir):rows;BILL.impWeeks=[...iw];
   BILL.rows=rows2;BILL.weeks=buildWeeks(rows2);BILL.real=true;BILL.det={};await loadPayDb();
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
@@ -1128,7 +1128,7 @@ function bsLines(rows){
  const norm=h=>String(h==null?"":h).trim().toLowerCase().replace(/\s+/g," ");
  const hd=(rows[0]||[]).map(norm),find=(res)=>{for(const re of res){const i=hd.findIndex(h=>re.test(h));if(i>=0)return i}return -1};
  const ii=find([/^application id$/,/^family id$/,/^family$/,/^order id$/]);
- let ih=find([/^total household/,/^total house hold/,/^total family$/,/^total members$/,/^household total$/,/^household size$/,/^total households$/,/^hh$/,/^total$/,/^\d+(\.0)?$/]);
+ let ih=find([/^total household/,/^total house hold/,/^total family$/,/^total members$/,/^household total$/,/^household size$/,/^total households$/,/^total$/,/^hh$/,/^\d+(\.0)?$/]);
  const it=find([/^food type$/,/^order type$/,/^meal type$/,/^raw\/meals$/,/^box$/]);
  const inm=find([/^mothers, name$/,/^last,? name$/,/^last_name$/,/^clients,?$/,/^name$/,/name/]);
  const out=[];
