@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b36">
+<meta name="build" content="b37">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -611,7 +611,7 @@ const PR={UJO:{raw:125,meals:13},PT:{raw:100,meals:11.5},CCS:{raw:100,meals:13.5
 const BILL={weeks:[],real:false,det:{},mcp:null,gv:null};
 BILL.weeks=[];
 const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
-const dcount=x=>x?x.meals+x.mraw+x.box:0;
+const dcount=x=>x?x.meals+x.mraw+(x.boxn!=null?x.boxn:x.box):0;
 const coName=c=>c=="?"?"No company":c;
 function estA(c,x){if(!x)return 0;const p=PR[c]||{};if(p.meals==null||p.raw==null)return null;return 21*(x.mhh||0)*p.meals+x.box*p.raw}
 function wkEst(w){let t=0,miss=false;Object.keys(w.a).forEach(c=>{const e=estA(c,w.a[c]);if(e==null)miss=true;else t+=e});return {t:t,miss:miss}}
@@ -654,14 +654,14 @@ function bDash(){
  <p><button class="pri" onclick="savePrices()">Save prices</button></p></div>`}
 function bWk(k){
  const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const e=wkEst(w),cos=Object.keys(w.a).sort((a,b)=>dcount(w.a[b])-dcount(w.a[a])),mx=Math.max(1,...cos.map(c=>dcount(w.a[c])));
- return `<div class="card"><h2>Week ${esc(k)} <span class="note">${wkCnt(w).toLocaleString()} deliveries · ${money(e.t)}${e.miss?"+":""}</span></h2><div class="wrap"><table><tr><th>Company</th><th style="text-align:right">Meals</th><th style="text-align:right">Box</th><th style="text-align:right">Deliveries</th><th style="text-align:right">Estimated</th><th style="width:30%"></th></tr>
- ${cos.map(c=>{const x=w.a[c];return `<tr class="row" onclick="bsel2('${c}','${k}')"><td><b>${esc(coName(c))}</b></td><td style="text-align:right">${x.meals+x.mraw}</td><td style="text-align:right">${x.box}</td><td style="text-align:right"><b>${dcount(x)}</b></td><td style="text-align:right">${money(estA(c,x))}</td><td><div class="tr" style="--c:var(--ac)"><i style="width:${Math.round(dcount(x)/mx*100)}%"></i></div></td></tr>`}).join("")}</table></div>
+ return `<div class="card"><h2>Week ${esc(k)} <span class="note">${wkCnt(w).toLocaleString()} deliveries · ${money(e.t)}${e.miss?"+":""}</span></h2><div class="wrap"><table><tr><th>Company</th><th style="text-align:right">Meals</th><th style="text-align:right">Box</th><th style="text-align:right">HH meals</th><th style="text-align:right">HH raw (box)</th><th style="text-align:right">Deliveries</th><th style="text-align:right">Balance</th><th style="width:30%"></th></tr>
+ ${cos.map(c=>{const x=w.a[c];return `<tr class="row" onclick="bsel2('${c}','${k}')"><td><b>${esc(coName(c))}</b></td><td style="text-align:right">${x.meals+x.mraw}</td><td style="text-align:right">${x.boxn!=null?x.boxn:x.box}</td><td style="text-align:right"><b>${x.mhh}</b></td><td style="text-align:right"><b>${x.box}</b></td><td style="text-align:right">${dcount(x)}</td><td style="text-align:right"><b>${money(estA(c,x))}</b></td><td><div class="tr" style="--c:var(--ac)"><i style="width:${Math.round(dcount(x)/mx*100)}%"></i></div></td></tr>`}).join("")}</table></div>
  <div class="bar"><button class="pri" onclick="billXlsx('','${k}')">Download Excel (all companies)</button><span id="bill_msg" class="note"></span></div><p class="note">Click a company to see its customers for this week, with its own Excel and invoice.</p></div>`}
 function bsel2(c,k){S.b.t="co";S.b.co=c;S.b.wk=k;S.b.q="";render();bdet(k)}
 function bCo(c){
  const B=S.b,W=BILL.weeks.filter(w=>w.a[c]);
- let h=`<div class="card"><h2>${esc(coName(c))} · billing by week</h2>${PR[c]&&(PR[c].raw==null||PR[c].meals==null)?`<p class="note">No price set for ${esc(c)} yet, so amounts show —. Add it on the Dashboard.</p>`:""}<div class="wrap"><table><tr><th>Week</th><th style="text-align:right">Meals</th><th style="text-align:right">Box</th><th style="text-align:right">Deliveries</th><th style="text-align:right">Estimated</th></tr>
- ${W.map(w=>{const x=w.a[c];return `<tr class="row" style="${B.wk==w.k?"background:color-mix(in srgb,var(--ac) 10%,transparent)":""}" onclick="bsel('${w.k}')"><td><b>${esc(w.k)}</b></td><td style="text-align:right">${x.meals+x.mraw}</td><td style="text-align:right">${x.box}</td><td style="text-align:right"><b>${dcount(x)}</b></td><td style="text-align:right">${money(estA(c,x))}</td></tr>`}).join("")||`<tr><td colspan="6" class="no">No deliveries.</td></tr>`}</table></div><p class="note">Click a week to see the customers billed that week.</p></div>`;
+ let h=`<div class="card"><h2>${esc(coName(c))} · billing by week</h2>${PR[c]&&(PR[c].raw==null||PR[c].meals==null)?`<p class="note">No price set for ${esc(c)} yet, so amounts show —. Add it on the Dashboard.</p>`:""}<div class="wrap"><table><tr><th>Week</th><th style="text-align:right">Meals</th><th style="text-align:right">Box</th><th style="text-align:right">HH meals</th><th style="text-align:right">HH raw (box)</th><th style="text-align:right">Deliveries</th><th style="text-align:right">Balance</th></tr>
+ ${W.map(w=>{const x=w.a[c];return `<tr class="row" style="${B.wk==w.k?"background:color-mix(in srgb,var(--ac) 10%,transparent)":""}" onclick="bsel('${w.k}')"><td><b>${esc(w.k)}</b></td><td style="text-align:right">${x.meals+x.mraw}</td><td style="text-align:right">${x.boxn!=null?x.boxn:x.box}</td><td style="text-align:right"><b>${x.mhh}</b></td><td style="text-align:right"><b>${x.box}</b></td><td style="text-align:right">${dcount(x)}</td><td style="text-align:right"><b>${money(estA(c,x))}</b></td></tr>`}).join("")||`<tr><td colspan="7" class="no">No deliveries.</td></tr>`}</table></div><p class="note">Click a week to see the customers billed that week.</p></div>`;
  if(B.wk)h+=bDb(c,B.wk);
  return h}
 async function loadBill(mcp){
@@ -820,7 +820,7 @@ function buildWeeks(rows){
   const key=co+"|"+r.agency_ref,cu=w.cust[key]=w.cust[key]||{co:co,id:r.agency_ref,name:r.name,base:r.base,food:r.food,hh:r.hh,dl:[],boxes:0};
   cu.dl.push(r);cu.boxes+=Math.max(1,r.boxes||0)});
  Object.keys(W).forEach(k=>{const w=W[k];Object.keys(w.cust).forEach(key=>{const cu=w.cust[key],x=w.a[cu.co];
-  if(cu.base=="box"){x.box+=cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
+  if(cu.base=="box"){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
  return Object.keys(W).map(k=>W[k]).sort((a,b)=>b.t-a.t).slice(0,12)}
 function bDb(c,k){
  const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const B=S.b,q=(B.q||"").toLowerCase();
