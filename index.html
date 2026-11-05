@@ -116,6 +116,7 @@ label{font-size:12.5px;font-weight:500;color:var(--mut)}
 th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{display:inline-block;width:14px;margin-left:3px;color:var(--ac);font-size:10px}.colmenu{position:absolute;right:0;top:100%;margin-top:6px;z-index:10;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(16,24,40,.18);width:250px;max-height:420px;overflow:auto}.colmenu .ck{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;color:var(--tx);cursor:pointer}.colmenu .ck input{width:auto;margin:0;min-height:0}.podmod{max-width:min(1100px,96vw)!important;width:96vw;max-height:94vh;overflow:auto}.podh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}.podstage{display:flex;justify-content:center;background:color-mix(in srgb,var(--mut) 8%,var(--card));border-radius:12px;padding:8px}.podimg{max-width:100%;max-height:68vh;object-fit:contain;border-radius:8px;display:block;cursor:zoom-in}.podnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}.podth{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.podth button{position:relative;padding:0;width:84px;height:64px;overflow:hidden;border-radius:10px;border:2px solid var(--ln)}.podth button.on{border-color:var(--ac)}.podth img{width:100%;height:100%;object-fit:cover;display:block}.podth span{position:absolute;right:4px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;border-radius:6px;padding:0 5px}
 .dlvrow{display:block!important}.dlvh{display:flex;align-items:center;gap:10px;margin-bottom:4px}.dlv1{display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px dashed color-mix(in srgb,var(--ok) 25%,var(--ln))}.dlv1 .dwho{min-width:240px;white-space:nowrap}.dlv1 .ctag{min-width:70px;text-align:center}.t-part{--c:#e07b00}.ctag.guess{border-style:dashed;background:transparent}.dlvrow.part{background:color-mix(in srgb,#e07b00 9%,var(--card));border-color:color-mix(in srgb,#e07b00 35%,var(--ln))}.dlvl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 0}.dlvl+.dlvl{border-top:1px dashed var(--ln)}.kpi{border-radius:14px}.kpi.click{cursor:pointer;transition:.12s}.kpi.click:hover{box-shadow:0 4px 14px rgba(16,24,40,.08)}.kpi.click.on{background:color-mix(in srgb,var(--ac) 8%,var(--card));box-shadow:0 0 0 2px var(--ac)}.bx{border-radius:14px}
 @media(max-width:820px){#shell{flex-direction:column}#side{width:100%;height:auto;position:static;padding:10px 12px}#side .brand{padding-bottom:10px;margin-bottom:8px}#nav{flex-direction:row;flex-wrap:wrap;flex:none}#nav button.nv{width:auto;padding:8px 11px}#who{display:flex;align-items:center;justify-content:space-between;gap:8px}#who .me{padding:0}#who .acts{flex:none}main{padding:16px}}
+.dva .ck,.bar .ck{display:inline-flex;gap:6px;align-items:center;margin-right:10px}.dva .ck input,.bar .ck input{width:auto;margin:0}.dvg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:6px}.dva{border:1px solid var(--line,#d0d5dd);border-radius:10px;padding:8px 10px}.dva.on{border-color:var(--ok);background:rgba(34,165,89,.06)}tr.was td{opacity:.55}
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -159,10 +160,10 @@ const optName=(base,food)=>(optList(base,"").find(x=>x[0]==food)||[0,F[food]])[1
 const tag=c=>(c.base=="box"?"Box":"Meals")+" "+codesFor(c.food,c.hh,c.area);
 let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:false,loading:false,rerr:"",pg:0,dq:"",dpg:0,dflt:"all",msg:"",err:""},log=[],reqs=[];
 
-const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["menu","Menu"]],billing:[["billing","Billing"]]};
+const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["menu","Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
-const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","menu"],billing:["billing"],demo:[]};
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
+const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
 function navFor(u){const a=upages(u);return PAGES.filter(p=>a.indexOf(p[0])>=0)}
@@ -199,7 +200,7 @@ function vSettings(){
  <p class="note">The role fills in the usual pages (secretary: Customers, Changes, Menu; billing: Billing; demo: Demo). You can then tick or untick any page for that person.</p></div>
  <div class="card"><h2>Demo</h2><p class="note">The <b>Demo</b> page shows Customers and the Dashboard with made-up sample families only, never your real data. Give someone the "Demo only" role to show them the system without exposing any real family. A demo person cannot load or see real data.</p></div>`}
 function go(v,id){S.view=v;S.sel=id||null;S.msg="";S.err="";render()}
-const ICONS={menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8"/><path d="M7 3v6"/><path d="M16 3c-2 1.5-3 4-3 7h3v11"/>',billing:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',customers:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .6 3.2 2.3 3.5 5.2"/>',changes:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',import:'<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'};
+const ICONS={delivery:'<rect x="2" y="7" width="12" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7"/><circle cx="6.5" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8"/><path d="M7 3v6"/><path d="M16 3c-2 1.5-3 4-3 7h3v11"/>',billing:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',customers:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .6 3.2 2.3 3.5 5.2"/>',changes:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',import:'<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'};
 const icon=k=>`<svg viewBox="0 0 24 24">${ICONS[k]||'<circle cx="12" cy="12" r="8"/>'}</svg>`;
 function render(){
  const u=S.user,app=document.getElementById("app");
@@ -209,7 +210,7 @@ function render(){
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=(S.view=="menu"||S.view=="billing"?"":banner())+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
- app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,menu:vMenu,billing:vBill}[S.view])||(()=>""))();
+ app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,menu:vMenu,billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
 }
 function banner(){
@@ -1248,7 +1249,103 @@ function vChanges(){
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" ${S.cut&&!own?"disabled":""}>Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
-const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v=="menu"&&!MENU.real)loadMenuDb();if(v=="billing"&&!BILL.real&&!BILL.loading)loadBillDb()};
+const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v=="menu"&&!MENU.real)loadMenuDb();if(v=="delivery")loadSends();if(v=="billing"&&!BILL.real&&!BILL.loading)loadBillDb()};
+
+/* ===== Delivery page: choose admin notes (areas), food types, companies and dates; confirm; file for Scanovator ===== */
+const DAREAS=["Lee","Bedford","BP","Monsey/Monroe","Middleton"];
+const DV={areas:{},dt:{},foods:{},cos:{},off:{},sent:{},showSent:false,q:"",pg:0,loaded:false,busy:false};
+const DCOLS=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cell1","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Auth End","Application ID","Mothers DOB","admin_notes","Food Type","picture_required","Full Address","NEW","Type food","Company","#cin","Change Summer"];
+const pad2=n=>String(n).padStart(2,"0");
+const isoD=d=>d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+const usD=s=>{const p=String(s||"").split("-");return p.length==3?(+p[1])+"/"+(+p[2])+"/"+p[0]:""};
+const dvTomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return isoD(d)};
+const dvDate=a=>DV.dt[a]||dvTomorrow();
+const dvDay=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{weekday:"long"})};
+function dvFood(c){
+ if(c.base=="box")return c.food=="rawnb"?"Box - No Beef":"Box";
+ return ({meals:"Meals",supper:"Supper",shabbos:"Shabbos",raw:"Meals - Raw",rawnb:"Meals - Raw No Beef"})[c.food]||"Meals"}
+const dvLetters=c=>String(codesFor(c.food,c.hh,c.area)).trim().split(/\s+/).filter(Boolean);
+function dvRows(){
+ const q=DV.q.trim().toLowerCase(),out={rows:[],sent:0,expired:0};
+ cust.forEach(c=>{
+  if(!c.active||!DV.areas[c.area])return;
+  if(Object.keys(DV.foods).some(k=>DV.foods[k])&&!DV.foods[dvFood(c)])return;
+  if(Object.keys(DV.cos).some(k=>DV.cos[k])&&!DV.cos[c.agency])return;
+  if(q&&(c.name+" "+c.ref+" "+c.addr+" "+c.phone).toLowerCase().indexOf(q)<0)return;
+  const d=dvDate(c.area);
+  if(c.auth&&isoD(c.auth)<d){out.expired++;return}
+  const was=!!DV.sent[c.uuid+"|"+d];
+  if(was){out.sent++;if(!DV.showSent)return}
+  out.rows.push({c:c,d:d,was:was})});
+ return out}
+function dvLine(c,d){
+ const L=dvLetters(c),a=c.a||{},st=String(a.st||"").toUpperCase(),apt=String(c.apt||"").toUpperCase(),city=a.city||"",
+  full=[st+(apt?" "+apt:""),(city?city.toUpperCase()+", ":"")+[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+ return {"last name":c.name,"First Name":"","Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":"","Change Summer":""}}
+function dvPick(){return dvRows().rows.filter(r=>!DV.off[r.c.uuid||r.c.id])}
+async function loadSends(){
+ if(!S.real||!sb)return;
+ try{const rows=await fetchAll("delivery_sends","customer_id,delivery_date",q=>q.gte("delivery_date",isoD(new Date(Date.now()-14*864e5))));
+  DV.sent={};rows.forEach(r=>DV.sent[r.customer_id+"|"+r.delivery_date]=1);DV.loaded=true;DV.err=""}
+ catch(e){DV.err="Could not read what was already sent ("+dberr(e)+"). If this says the table is missing, the database update for this page has not been run yet."}
+ if(S.view=="delivery")render()}
+function dvTog(map,k,v){DV[map][k]=v;DV.pg=0;render()}
+function dvAreaDt(a,v){DV.dt[a]=v||dvTomorrow();DV.pg=0;render()}
+function dvAll(v){DAREAS.forEach(a=>DV.areas[a]=v);DV.pg=0;render()}
+function dvOff(id,v){if(v)delete DV.off[id];else DV.off[id]=true;render()}
+function dvOffAll(v){dvRows().rows.forEach(r=>{const k=r.c.uuid||r.c.id;if(v)delete DV.off[k];else DV.off[k]=true});render()}
+function vDelivery(){
+ if(!S.real)return `<div class="card"><h2>Delivery</h2><p class="note">Load the real data first (the green/blue bar at the top of Customers), then come back here.</p></div>`;
+ const R=dvRows(),pick=R.rows.filter(r=>!DV.off[r.c.uuid||r.c.id]),foods={},cos={};
+ cust.forEach(c=>{if(c.active){foods[dvFood(c)]=1;cos[c.agency]=1}});
+ const fl=Object.keys(foods).sort(),cl=Object.keys(cos).sort(),none=!DAREAS.some(a=>DV.areas[a]);
+ const pages=Math.max(1,Math.ceil(R.rows.length/50)),pg=Math.min(DV.pg,pages-1),vis=R.rows.slice(pg*50,pg*50+50);
+ const dtm=dvTomorrow();
+ const areaBox=a=>{const on=!!DV.areas[a],n=cust.filter(c=>c.active&&c.area==a).length;
+  return `<div class="dva${on?" on":""}"><label class="ck"><input type="checkbox" ${on?"checked":""} onchange="dvTog('areas',${JSON.stringify(a).replace(/"/g,"&quot;")},this.checked)"> <b>${esc(a)}</b> <span class="note">${n.toLocaleString()} customers</span></label>
+   <label class="note" style="display:flex;gap:6px;align-items:center;margin-top:4px">Delivery date <input type="date" value="${dvDate(a)}" style="width:150px" onchange="dvAreaDt(${JSON.stringify(a).replace(/"/g,"&quot;")},this.value)"> <span>${dvDay(dvDate(a))}${dvDate(a)==dtm?" (tomorrow)":""}</span></label></div>`};
+ const chk=(map,k)=>`<label class="ck"><input type="checkbox" ${DV[map][k]?"checked":""} onchange="dvTog('${map}',${JSON.stringify(k).replace(/"/g,"&quot;")},this.checked)"> ${esc(k)}</label>`;
+ const head=["Last name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"];
+ const body=vis.map(r=>{const o=dvLine(r.c,r.d),k=r.c.uuid||r.c.id;
+  return `<tr class="${r.was?"was":""}"><td><input type="checkbox" style="width:auto" ${DV.off[k]?"":"checked"} onchange="dvOff('${k}',this.checked)"></td>${[o["last name"],o["Street Address"],o["AptNum"],o["City"],o["State"],o["Zip"],o["PHONE"],o["Cases"],o["case description"],o["Total Family"],o["Notes "],o["Delivery_at"],o["Notes 2"],o["Application ID"],o["admin_notes"],o["Food Type"],o["Type food"],o["Company"]].map(v=>`<td title="${esc(v)}">${esc(v)}</td>`).join("")}${r.was?`<td><span class="ctag t-ok">already sent</span></td>`:"<td></td>"}</tr>`}).join("");
+ return `<div class="card"><h2>Delivery</h2><p class="note">Choose what goes out, check the list, then confirm. The file has the same columns as the Delivery tab in your Meal Sheet. The delivery date starts as tomorrow.</p>
+  <div class="mgl" style="margin-top:6px">1 · Admin notes (area) and delivery date <button onclick="dvAll(true)">All</button> <button onclick="dvAll(false)">None</button></div>
+  <div class="dvg">${DAREAS.map(areaBox).join("")}</div>
+  <div class="mgl" style="margin-top:12px">2 · Box / food type <span class="note">(none ticked = all)</span></div><div class="bar" style="flex-wrap:wrap">${fl.map(k=>chk("foods",k)).join("")}</div>
+  <div class="mgl" style="margin-top:8px">3 · Company <span class="note">(none ticked = all)</span></div><div class="bar" style="flex-wrap:wrap">${cl.map(k=>chk("cos",k)).join("")}</div></div>
+ <div class="card"><div class="bar" style="flex-wrap:wrap;align-items:center"><b>${pick.length.toLocaleString()} deliveries</b><span class="note">of ${R.rows.length.toLocaleString()} listed${R.sent?` · ${R.sent.toLocaleString()} already sent for that date ${DV.showSent?"(shown)":"(hidden)"}`:""}${R.expired?` · ${R.expired.toLocaleString()} left out: authorization ended`:""}</span>
+   <input placeholder="Search name, ID, address, phone" value="${esc(DV.q)}" oninput="DV.q=this.value;DV.pg=0;clearTimeout(DV.t);DV.t=setTimeout(render,250)" style="max-width:260px">
+   <label class="ck"><input type="checkbox" ${DV.showSent?"checked":""} onchange="DV.showSent=this.checked;DV.pg=0;render()"> Show already sent</label>
+   <button onclick="dvOffAll(true)">Tick all</button><button onclick="dvOffAll(false)">Untick all</button></div>
+  ${none?`<p class="no">Tick at least one admin note (area) above and the list will appear here.</p>`:R.rows.length?`<div style="overflow:auto"><table class="tl"><tr><th></th>${head.map(h=>`<th>${h}</th>`).join("")}<th></th></tr>${body}</table></div>
+  <div class="bar"><button onclick="DV.pg=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages}</span><button onclick="DV.pg=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div>`:`<p class="no">Nobody matches these choices.</p>`}
+  ${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
+  <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the file"}</button>
+   <button onclick="dvFile('xlsx',false)" ${pick.length?"":"disabled"}>Preview file (Excel, not confirmed)</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
+  <p class="note">Confirming records who sent these customers and for which date (so nobody goes out twice by mistake) and downloads the file to upload into Scanovator. It never changes the customers.</p></div>`}
+async function dvFile(kind,real,pre){
+ const rows=pre||dvPick();if(!rows.length)return;
+ const data=rows.map(r=>dvLine(r.c,r.d)),ds=[...new Set(rows.map(r=>r.d))].sort().join("_"),name="Delivery_"+ds+(real?"":"_preview");
+ try{
+  if(kind=="csv"){const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+   const t=[DCOLS.map(q).join(",")].concat(data.map(o=>DCOLS.map(k=>q(o[k])).join(","))).join("\r\n"),b=new Blob(["﻿"+t],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name+".csv";document.body.appendChild(a);a.click();a.remove()}
+  else{await loadXlsx();const ws=XLSX.utils.json_to_sheet(data,{header:DCOLS}),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Delivery");XLSX.writeFile(wb,name+".xlsx")}
+  S.msg=(real?"File downloaded: ":"Preview downloaded: ")+name+"."+kind;S.err=""}
+ catch(e){S.err="Could not make the file: "+(e.message||e);S.msg=""}
+ render()}
+async function dvConfirm(){
+ const rows=dvPick();if(!rows.length||DV.busy)return;
+ const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
+ if(!confirm("Confirm "+rows.length+" deliveries?\n\n"+Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]).join("\n")+"\n\nThey will be recorded as sent and the file will download."))return;
+ DV.busy=true;S.err="";S.msg="";render();
+ try{const batch=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const recs=rows.filter(r=>r.c.uuid).map(r=>({batch:batch,customer_id:r.c.uuid,delivery_date:r.d,admin_note:r.c.area,letters:dvLetters(r.c).join(",")}));
+  for(let i=0;i<recs.length;i+=500){const x=await sb.from("delivery_sends").insert(recs.slice(i,i+500));if(x.error)throw x.error}
+  recs.forEach(r=>DV.sent[r.customer_id+"|"+r.delivery_date]=1);
+  LG("Delivery","Confirmed",""," "+rows.length+" deliveries ("+Object.keys(byD).sort().map(usD).join(", ")+")");
+  DV.busy=false;await dvFile("xlsx",true,rows);return}
+ catch(e){S.err="Not saved, nothing was marked as sent: "+dberr(e)}
+ DV.busy=false;render()}
 async function loadHistDb(){
  S.h={loading:true};render();
  try{const {data,error}=await sb.from("audit_log").select("at,user_name,table_name,row_id,action,old,new").order("at",{ascending:false}).limit(300);
