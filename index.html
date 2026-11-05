@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b28">
+<meta name="build" content="b29">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -629,7 +629,7 @@ function vBill(){
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const nav=`<div class="card"><div class="bar"><button class="${B.t=="dash"?"on":""}" onclick="bgo('dash')">Dashboard</button><button class="${B.t=="pay"?"on":""}" onclick="bgo('pay')">Payments &amp; balance</button><span class="note">Companies:</span>${cos.map(c=>`<button class="${B.t=="co"&&B.co==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}</div>
  <div class="bar" style="margin-top:8px"><span class="note">Weeks:</span>${W.map(w=>`<button class="${B.t=="wk"&&B.wk==w.k?"on":""}" onclick="bgo('wk','${w.k}')">${esc(w.k)}</button>`).join("")}</div>
- <p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.err?`<span class="err">${esc(BILL.err)}</span>`:BILL.real?"Counted live from the deliveries in the database (Scanovator). A week runs Saturday to Friday. A Meals customer is billed once a week; a Box customer once per box delivered. Customers not matched to a delivery are not counted.":"Loading…"}</p></div>`;
+ <p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.err?`<span class="err">${esc(BILL.err)}</span>`:BILL.real?"Counted live from the deliveries in the database (Scanovator). A week runs Saturday to Friday. A Meals customer is billed once a week; a Box customer once per box delivered. Customers not matched to a delivery are not counted."+((BILL.impWeeks||[]).length?" Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""):"Loading…"}</p></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="pay"?bPay():bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
@@ -797,7 +797,11 @@ async function loadBillDb(){
   const pr=await sb.from("agency_prices").select("agency,box_price,meal_price");if(pr.error)throw pr.error;
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
   const rows=[];for(let a=0;;a+=1000){const r=await sb.rpc("billing_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>rows.push(x));if(!r.data||r.data.length<1000)break}
-  BILL.rows=rows;BILL.weeks=buildWeeks(rows);BILL.real=true;BILL.det={};await loadPayDb();
+  let imp=[];try{for(let a=0;;a+=1000){const r=await sb.rpc("billing_import_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>imp.push(x));if(!r.data||r.data.length<1000)break}}catch(e){imp=[]}   // weeks taken from the sheet (migration 017); none if it has not been run
+  const iw=new Set(),ir=[];imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
+   const links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));(links.length?links:[""]).forEach(u=>ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:0,letters:"",receipt_url:u,photo_urls:[]}))});
+  const rows2=iw.size?rows.filter(x=>!iw.has(wkLab(wkKey(new Date(Date.parse(x.delivered_at)))))).concat(ir):rows;BILL.impWeeks=[...iw];
+  BILL.rows=rows2;BILL.weeks=buildWeeks(rows2);BILL.real=true;BILL.det={};await loadPayDb();
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
  }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
  BILL.loading=false;render()}
@@ -1086,8 +1090,73 @@ function vImport(){
  ${S.cn&&S.cn.err?`<p class="err">${esc(S.cn.err)}</p>`:""}
  ${S.cn&&S.cn.rows?`<div class="card" style="margin-top:12px"><b>${S.cn.rows.length.toLocaleString()} CIN numbers found</b>
  <div class="bar"><button class="pri" onclick="cinSave()" ${S.cn.busy?"disabled":""}>${S.cn.busy?"Saving… "+S.cn.done+" / "+S.cn.rows.length:"Save them now"}</button></div></div>`:""}
- ${S.cn&&S.cn.ok?`<p class="msg">${esc(S.cn.ok)}</p>`:""}</div>`}
+ ${S.cn&&S.cn.ok?`<p class="msg">${esc(S.cn.ok)}</p>`:""}</div>
+ <div class="card"><h2>Billing weeks (company tabs from the Billing SCN 82 sheet)</h2>
+ <p class="note">Reads the tabs <b>UJO 1027, LH 1027, PT 1027, CCS 1027, LT 1027, RY 1027</b> and so on: for every delivered customer the ID, food type, household and the proof-of-delivery links. Billing for these weeks is then taken straight from your sheet, so it matches it. Weeks you do not upload keep using the Scanovator deliveries. Open <b>Billing SCN 82</b>, click <b>File → Download → Microsoft Excel (.xlsx)</b> and choose it below. Run it again any time: the newest upload of a week is the one used, and nothing is deleted.</p>
+ <div class="bar" style="align-items:center"><label class="note" style="display:flex;gap:8px;align-items:center">How far back <select id="bs_w" style="width:auto;margin:0"><option value="4" selected>Last 4 weeks</option><option value="8">Last 8 weeks (older tabs have another layout, check the totals)</option><option value="0">Everything</option></select></label></div>
+ <input type="file" accept=".xlsx,.xls" onchange="bsFile(this.files[0])">
+ ${S.bs&&S.bs.busyRead?`<p class="note">Reading the file… this can take a minute.</p>`:""}
+ ${S.bs&&S.bs.err?`<p class="err">${esc(S.bs.err)}</p>`:""}
+ ${S.bs&&S.bs.lines?`<div class="card" style="margin-top:12px"><b>${S.bs.lines.length.toLocaleString()} delivered customers in ${S.bs.weeks.length} week${S.bs.weeks.length==1?"":"s"}</b>
+ ${S.bs.weeks.map(w=>`<div class="note" style="margin-top:6px"><b>Tab date ${esc(w.d)}</b> (Billing week of ${esc(w.lab)}): ${Object.keys(w.co).map(c=>esc(c)+" "+w.co[c].toLocaleString()).join(" · ")}</div>`).join("")}
+ <div class="bar"><button class="pri" onclick="bsSave()" ${S.bs.busy?"disabled":""}>${S.bs.busy?"Saving… "+S.bs.done.toLocaleString()+" / "+S.bs.lines.length.toLocaleString():"Save these weeks"}</button></div></div>`:""}
+ ${S.bs&&S.bs.ok?`<p class="msg">${esc(S.bs.ok)}</p>`:""}</div>`}
 function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("The file reader could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
+const BS_CO=/^(UJO|LH|CCS|LT|RY|PT|OR)\s*-?\s*(\d{2,4})$/i;
+function bsPlan(names,weeks,today){
+ // names in workbook order; a company tab belongs to the ORDERS_m_d tab above it when the date in its name is within 3 days of it
+ const out=[],seen=[],now=today||new Date();let anc=null;
+ const near=(digits,a)=>{const ts=a.t;for(const k of [1,2]){if(digits.length<=k)continue;const m=+digits.slice(0,k),d=+digits.slice(k);if(m<1||m>12||d<1||d>31)continue;const t=new Date(a.y,m-1,d).getTime();if(t<=ts+864e5&&t>=ts-3*864e5)return true}return false};
+ for(const n of names){
+  const o=String(n).match(/^orders[_ ](\d{1,2})_(\d{1,2})$/i);
+  if(o){let y=now.getFullYear();if(new Date(y,+o[1]-1,+o[2])>new Date(now.getTime()+10*864e5))y--;anc={m:+o[1],d:+o[2],y:y,t:new Date(y,+o[1]-1,+o[2]).getTime(),tabs:[]};seen.push(anc);continue}
+  const c=String(n).match(BS_CO);if(c&&anc&&near(c[2],anc))anc.tabs.push({name:n,co:c[1].toUpperCase()})}
+ for(const a of seen.filter(a=>a.tabs.length).slice(0,weeks||999)){
+  const iso=a.y+"-"+String(a.m).padStart(2,"0")+"-"+String(a.d).padStart(2,"0");
+  for(const t of a.tabs)out.push({name:t.name,co:t.co,date:iso})}
+ return out}
+function bsLines(rows){
+ const norm=h=>String(h==null?"":h).trim().toLowerCase().replace(/\s+/g," ");
+ const hd=(rows[0]||[]).map(norm),find=(res)=>{for(const re of res){const i=hd.findIndex(h=>re.test(h));if(i>=0)return i}return -1};
+ const ii=find([/^application id$/,/^family id$/,/^family$/,/^order id$/]);
+ let ih=find([/^total household/,/^total house hold/,/^total family$/,/^total members$/,/^household total$/,/^household size$/,/^total households$/,/^hh$/,/^total$/,/^\d+(\.0)?$/]);
+ const it=find([/^food type$/,/^order type$/,/^meal type$/,/^raw\/meals$/,/^box$/]);
+ const inm=find([/^mothers, name$/,/^last,? name$/,/^last_name$/,/^clients,?$/,/^name$/,/name/]);
+ const out=[];
+ for(let r=1;r<rows.length;r++){const x=rows[r]||[];
+  const links=[];for(const c of x){if(typeof c=="string"){const m=c.match(/https?:\/\/[^\s"',]+/g);if(m)m.forEach(u=>links.push(u))}}
+  const id=ii>=0?String(x[ii]==null?"":x[ii]).trim().replace(/\.0+$/,""):"",nm=inm>=0?String(x[inm]==null?"":x[inm]).trim():"";
+  if(!links.length)continue;   // only rows with a proof-of-delivery link were delivered
+  const ty=it>=0?String(x[it]==null?"":x[it]).trim():"",hh=ih>=0?parseFloat(x[ih]):NaN;
+  out.push({r:r,i:id,n:nm,k:/box|grocer/i.test(ty)?"box":"meals",f:ty,h:isNaN(hh)||hh>60?1:Math.max(1,Math.round(hh)),l:[...new Set(links)]})}
+ return out}
+
+
+async function bsFile(f){
+ if(!f)return;const N=+((document.getElementById("bs_w")||{}).value||4);S.bs={busyRead:true};render();
+ try{await loadXlsx();const buf=await f.arrayBuffer();
+  const names=XLSX.read(buf,{type:"array",bookSheets:true}).SheetNames,all=bsPlan(names,0),dates=[...new Set(all.map(p=>p.date))];
+  if(!dates.length){S.bs={err:"No company tabs like UJO 1027 were found next to the ORDERS tabs. Is it the Billing SCN 82 file?"};render();return}
+  const take=N?dates.slice(0,N+2):dates,need=all.filter(p=>take.indexOf(p.date)>=0);
+  const wb=XLSX.read(buf,{type:"array",sheets:need.map(p=>p.name),cellFormula:false,cellHTML:false,cellStyles:false}),lines=[],weeks=[];
+  for(const d of take){if(N&&weeks.length>=N)break;const co={};
+   for(const p of need.filter(x=>x.date==d)){const ws=wb.Sheets[p.name];if(!ws)continue;
+    const L=bsLines(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""})),seenK={};
+    for(const l of L){const k=l.i+"|"+l.k;seenK[k]=1}
+    const ids={};L.forEach(l=>{(ids[l.i]=ids[l.i]||{})[l.k]=1});
+    for(const l of L){lines.push({d:d,c:p.co,r:l.r,i:(l.i&&Object.keys(ids[l.i]).length>1?l.i+" ("+l.k+")":l.i),n:l.n,k:l.k,f:l.f,h:l.h,l:l.l});co[p.co]=(co[p.co]||0)+1}}
+   if(Object.keys(co).length){const m=d.split("-"),lab=wkLab(wkKey(new Date(+m[0],+m[1]-1,+m[2],12)));weeks.push({d:d,lab:lab,co:co})}}
+  if(!lines.length){S.bs={err:"The company tabs have no proof-of-delivery links, so there is nothing to save. (The newest week is only filled in after the deliveries are done.)"};render();return}
+  S.bs={lines:lines,weeks:weeks}
+ }catch(e){S.bs={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+async function bsSave(){
+ const B=S.bs;if(!B||!B.lines||B.busy)return;B.busy=true;B.done=0;B.ok="";B.err="";render();
+ const t=new Date(),pd=n=>String(n).padStart(2,"0"),batch=""+t.getUTCFullYear()+pd(t.getUTCMonth()+1)+pd(t.getUTCDate())+pd(t.getUTCHours())+pd(t.getUTCMinutes())+pd(t.getUTCSeconds());
+ try{for(let i=0;i<B.lines.length;i+=500){const r=await sb.rpc("save_billing_import",{p:B.lines.slice(i,i+500).map(x=>({d:x.d,c:x.c,r:x.r,b:batch,i:x.i,n:x.n,k:x.k,f:x.f,h:x.h,l:x.l}))});if(r.error)throw r.error;B.done=Math.min(i+500,B.lines.length);render()}
+  S.bs={ok:"Saved "+B.lines.length.toLocaleString()+" delivered customers for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open Billing: these weeks now come from your sheet."};BILL.real=false;BILL.loading=false;loadBillDb()
+ }catch(e){B.busy=false;B.err="Not saved: "+dberr(e)+(/save_billing_import|function/i.test(String(e&&e.message))?" (The database update 017 has not been run yet.)":"")}
+ render()}
 async function omFile(f){
  if(!f)return;S.om={busyRead:true};render();
  try{await loadXlsx();
