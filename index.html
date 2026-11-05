@@ -933,10 +933,10 @@ const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocal
 async function loadDB(){
  S.loading=true;S.rerr="";render();
  try{
-  const rows=await fetchAll("customers","id,agency,agency_ref,name,phone,legal_address,cell,email,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name"));
+  const rows=await fetchAll("customers","id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name"));
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
-   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
+   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
@@ -1074,7 +1074,14 @@ function vImport(){
  ${S.pv&&S.pv.err?`<p class="err">${esc(S.pv.err)}</p>`:""}
  ${S.pv&&S.pv.tabs?`<div class="card" style="margin-top:12px"><b>${S.pv.tabs.length} tabs</b> <span class="note">· ${S.pv.total.toLocaleString()} deliveries${S.pv.skipped.length?" · not a delivery tab, skipped: "+esc(S.pv.skipped.slice(0,8).join(", "))+(S.pv.skipped.length>8?" …":""):""}</span>
  <div class="bar"><button class="pri" onclick="pvSave()" ${S.pv.busy?"disabled":""}>${S.pv.busy?"Saving… "+S.pv.done.toLocaleString()+" / "+S.pv.total.toLocaleString():"Save them now"}</button></div></div>`:""}
- ${S.pv&&S.pv.ok?`<p class="msg">${esc(S.pv.ok)}</p>`:""}</div>`}
+ ${S.pv&&S.pv.ok?`<p class="msg">${esc(S.pv.ok)}</p>`:""}</div>
+ <div class="card"><h2>Mother's CIN numbers (for the delivery file)</h2>
+ <p class="note">The delivery file has a <b>#cin</b> column. Choose the same <b>Customer_data</b> .csv file again (File → Download → Comma Separated Values) and the CIN numbers are saved against each customer's ID. They are never shown on the customer list or card, and only empty ones are filled. Birth dates are still never read.</p>
+ <input type="file" accept=".csv,text/csv" onchange="cinFile(this.files[0])">
+ ${S.cn&&S.cn.err?`<p class="err">${esc(S.cn.err)}</p>`:""}
+ ${S.cn&&S.cn.rows?`<div class="card" style="margin-top:12px"><b>${S.cn.rows.length.toLocaleString()} CIN numbers found</b>
+ <div class="bar"><button class="pri" onclick="cinSave()" ${S.cn.busy?"disabled":""}>${S.cn.busy?"Saving… "+S.cn.done+" / "+S.cn.rows.length:"Save them now"}</button></div></div>`:""}
+ ${S.cn&&S.cn.ok?`<p class="msg">${esc(S.cn.ok)}</p>`:""}</div>`}
 function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("The file reader could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
 async function omFile(f){
  if(!f)return;S.om={busyRead:true};render();
@@ -1294,7 +1301,7 @@ function dvLine(c,d){
  const L=dvLetters(c),a=c.a||{},st=String(a.st||"").toUpperCase(),apt=String(c.apt||"").toUpperCase(),city=a.city||"",
   full=[st+(apt?" "+apt:""),(city?city.toUpperCase()+", ":"")+[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
  const nm=String(c.name||"").replace(/,+\s*$/,"").replace(/,/g," ").trim().replace(/\s+/g," "),sp=nm.indexOf(" ");
- return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":"","Change Summer":""}}
+ return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":c.cin||"","Change Summer":""}}
 function dvPick(){return dvRows().rows.filter(r=>!DV.off[r.c.uuid||r.c.id])}
 async function loadSends(){
  if(!S.real||!sb)return;
@@ -1380,6 +1387,22 @@ function dvPrevCsv(k){
  const t=dvAllTabs().find(x=>x.k==k),L=t&&dvTabLines(t);if(!L)return;
  const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v},txt=[DCOLS.map(q).join(",")].concat(L.map(r=>DCOLS.map(c=>q(r[c])).join(","))).join("\r\n"),
  a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["﻿"+txt],{type:"text/csv"}));a.download=(t.name||t.k)+".csv";document.body.appendChild(a);a.click();a.remove()}
+async function cinFile(f){
+ if(!f)return;S.cn={};render();
+ try{const t=await f.text(),a=parseCsv(t),norm=h=>String(h||"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim(),hd=a[0].map(norm),
+  ii=hd.indexOf("application id"),ic=hd.findIndex(h=>/cin$/.test(h)),ig=hd.indexOf("company");
+  if(ii<0||ic<0){S.cn={err:"The columns Application ID and Mother's CIN were not found. Is it the Customer_data tab?"};render();return}
+  const rows=[],seen={};for(let r=1;r<a.length;r++){const ref=String(a[r][ii]||"").trim(),cin=String(a[r][ic]||"").trim();if(!ref||!cin)continue;
+   const ag=(ig>=0&&String(a[r][ig]||"").trim().toUpperCase())||((ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase());const k=ag+"|"+nk(ref);if(seen[k])continue;seen[k]=1;rows.push({agency:ag,ref:ref,cin:cin})}
+  if(!rows.length){S.cn={err:"No CIN numbers were found in that file."};render();return}
+  S.cn={rows:rows,done:0}}catch(e){S.cn={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+async function cinSave(){
+ const C=S.cn;if(!C||!C.rows||C.busy)return;C.busy=true;C.done=0;C.err="";render();let n=0;
+ try{for(let i=0;i<C.rows.length;i+=500){const r=await sb.rpc("fill_cin",{p:C.rows.slice(i,i+500)});if(r.error)throw r.error;n+=Number(r.data)||0;C.done=Math.min(i+500,C.rows.length);render()}
+  LG("Import","CIN numbers saved",""," "+n+" customers");S.cn={ok:"Saved the CIN for "+n.toLocaleString()+" customers. They now appear in the #cin column of the delivery file."};await loadDB()}
+ catch(e){C.busy=false;C.err="Not saved: "+dberr(e)+(/fill_cin|function/i.test(String(e&&e.message))?" (The database update 016 has not been run yet.)":"")}
+ render()}
 async function pvFile(f){
  if(!f)return;S.pv={busyRead:true};render();
  try{await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),tabs=[],skipped=[],now=new Date();
