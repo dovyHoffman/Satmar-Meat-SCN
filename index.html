@@ -1269,7 +1269,7 @@ const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v
 /* ===== Delivery page: choose admin notes (areas), food types, companies and dates; confirm; file for Scanovator ===== */
 const DAREAS=["Lee","Bedford","BP","Monsey/Monroe","Middleton"];
 const DV={areas:{},dt:{},foods:{},cos:{},off:{},sent:{},showSent:false,q:"",pg:0,loaded:false,busy:false};
-const DCOLS=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cell1","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Auth End","Application ID","Mothers DOB","admin_notes","Food Type","picture_required","Full Address","NEW","Type food","Company","#cin","Change Summer"];
+const DCOLS=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cell1","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Auth End","Application ID","Mothers DOB","admin_notes","Food Type","picture_required","Full Address","NEW","Type food","Company","#cin"];
 const pad2=n=>String(n).padStart(2,"0");
 const isoD=d=>d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
 const usD=s=>{const p=String(s||"").split("-");return p.length==3?(+p[1])+"/"+(+p[2])+"/"+p[0]:""};
@@ -1301,7 +1301,7 @@ function dvLine(c,d){
  const L=dvLetters(c),a=c.a||{},st=String(a.st||"").toUpperCase(),apt=String(c.apt||"").toUpperCase(),city=a.city||"",
   full=[st+(apt?" "+apt:""),(city?city.toUpperCase()+", ":"")+[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
  const nm=String(c.name||"").replace(/,+\s*$/,"").replace(/,/g," ").trim().replace(/\s+/g," "),sp=nm.indexOf(" ");
- return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":c.cin||"","Change Summer":""}}
+ return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":c.cin||""}}
 function dvPick(){return dvRows().rows.filter(r=>!DV.off[r.c.uuid||r.c.id])}
 async function loadSends(){
  if(!S.real||!sb)return;
@@ -1345,8 +1345,8 @@ function vDelivery(){
   <div class="bar"><button onclick="DV.pg=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages}</span><button onclick="DV.pg=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div>`:`<p class="no">Nobody matches these choices.</p>`}
   ${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
   <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the Excel file"}</button>
-   <button onclick="dvUpload()" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
-  <p class="note">Confirming records who sent these customers and for which date (so nobody goes out twice by mistake) and downloads the file to upload into Scanovator. It never changes the customers.</p></div>`}
+   <button onclick="dvConfirm('up')" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
+  <p class="note"><b>Upload to Scanovator</b> records the list, downloads the CSV and opens Scanovator's upload page: choose the file, click "Auto fill fields", then "Upload &amp; Create Orders". The Excel button does the same recording but downloads Excel. It never changes the customers.</p></div>`}
 async function dvFile(kind,real,pre){
  const rows=pre||dvPick();if(!rows.length)return;
  const data=rows.map(r=>dvLine(r.c,r.d)),ds=[...new Set(rows.map(r=>r.d))].sort().join("_"),name="Delivery_"+ds+(real?"":"_preview");
@@ -1359,8 +1359,6 @@ async function dvFile(kind,real,pre){
  render()}
 
 const dvTabs=()=>`<div class="bar" style="margin-bottom:8px"><button class="${DV.tab=="prev"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button><button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`;
-async function dvUpload(){
- DV.err="Upload to Scanovator is not connected yet: I do not have Scanovator's order-upload instructions, so nothing was sent and nothing was recorded. Use the Excel button, upload that file in Scanovator, and send me the Scanovator upload page or API link so I can connect it.";render()}
 function dvTabsList(){
  const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;String(r.letters||"").split(",").filter(Boolean).forEach(l=>{const p=String(r.delivery_date).split("-"),k=l+"_"+(+p[1])+"_"+(+p[2]);(m[k]=m[k]||{k:k,d:r.delivery_date,l:l,rows:[]}).rows.push(r)})});
  return Object.values(m).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.l<b.l?-1:1)}
@@ -1427,18 +1425,21 @@ async function pvSave(){
   S.pv={ok:"Saved "+P.tabs.length+" tabs ("+all.length.toLocaleString()+" deliveries). Open Delivery → Previous deliveries."}}
  catch(e){P.busy=false;P.err="Not saved: "+dberr(e)+(/delivery_archive/i.test(String(e&&e.message))?" (The database update 015 has not been run yet.)":"")}
  render()}
-async function dvConfirm(){
+async function dvConfirm(mode){
  const rows=dvPick();if(!rows.length||DV.busy)return;
+ const up=mode=="up",w=up?window.open("about:blank","_blank"):null;
  const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
- if(!confirm("Confirm "+rows.length+" deliveries?\n\n"+Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]).join("\n")+"\n\nThey will be recorded as sent and the file will download."))return;
+ if(!confirm("Confirm "+rows.length+" deliveries?\n\n"+Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]).join("\n")+"\n\nThey will be recorded as sent and the "+(up?"CSV file will download and the Scanovator upload page will open.":"file will download."))){if(w)w.close();return}
  DV.busy=true;S.err="";S.msg="";render();
  try{const batch=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const recs=rows.filter(r=>r.c.uuid).map(r=>({batch:batch,customer_id:r.c.uuid,delivery_date:r.d,admin_note:r.c.area,letters:dvLetters(r.c).join(","),line:dvLine(r.c,r.d)}));
   for(let i=0;i<recs.length;i+=500){const x=await sb.from("delivery_sends").insert(recs.slice(i,i+500));if(x.error)throw x.error}
   recs.forEach(r=>r.letters.split(",").forEach(l=>DV.sent[r.customer_id+"|"+r.delivery_date+"|"+l]=1));(DV.hist=DV.hist||[]).push(...recs.map(r=>Object.assign({created_at:new Date().toISOString()},r)));
   LG("Delivery","Confirmed",""," "+rows.length+" deliveries ("+Object.keys(byD).sort().map(usD).join(", ")+")");
-  DV.busy=false;await dvFile("xlsx",true,rows);return}
- catch(e){S.err="Not saved, nothing was marked as sent: "+dberr(e)}
+  DV.busy=false;await dvFile(up?"csv":"xlsx",true,rows);
+  if(up){S.msg="CSV downloaded. On the Scanovator page: choose the file, click Auto fill fields, then Upload & Create Orders.";if(w)w.location="https://dashboard.scanovator.com/orders_csv";else{S.err="Your browser blocked the Scanovator page. Open https://dashboard.scanovator.com/orders_csv yourself.";}render()}
+  return}
+ catch(e){if(w)w.close();S.err="Not saved, nothing was marked as sent: "+dberr(e)}
  DV.busy=false;render()}
 async function loadHistDb(){
  S.h={loading:true};render();
