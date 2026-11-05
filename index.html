@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b20">
+<meta name="build" content="b21">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1071,10 +1071,11 @@ function vImport(){
  ${S.om&&S.om.ok?`<p class="msg">${esc(S.om.ok)}</p>`:""}</div>
  <div class="card"><h2>Old delivery lists (Labels Delivery sheet)</h2>
  <p class="note">Brings your old tabs (A_11_3, E_11_2, MN_11_4 …) into Delivery → Previous deliveries, one tab each. Open the Google Sheet <b>Labels Delivery</b>, click <b>File → Download → Microsoft Excel (.xlsx)</b>, choose it below, then Save. Run it again any time: the same tab is never added twice.</p>
+ <div class="bar" style="align-items:center"><label class="note" style="display:flex;gap:8px;align-items:center">How far back <select id="pv_w" style="width:auto;margin:0"><option value="4" selected>Last 4 weeks</option><option value="8">Last 8 weeks</option><option value="13">Last 3 months</option><option value="0">Everything (slow)</option></select></label></div>
  <input type="file" accept=".xlsx,.xls" onchange="pvFile(this.files[0])">
  ${S.pv&&S.pv.busyRead?`<p class="note">Reading the file… this can take a minute.</p>`:""}
  ${S.pv&&S.pv.err?`<p class="err">${esc(S.pv.err)}</p>`:""}
- ${S.pv&&S.pv.tabs?`<div class="card" style="margin-top:12px"><b>${S.pv.tabs.length} tabs</b> <span class="note">· ${S.pv.total.toLocaleString()} deliveries${S.pv.skipped.length?" · not a delivery tab, skipped: "+esc(S.pv.skipped.slice(0,8).join(", "))+(S.pv.skipped.length>8?" …":""):""}</span>
+ ${S.pv&&S.pv.tabs?`<div class="card" style="margin-top:12px"><b>${S.pv.tabs.length} tabs</b> <span class="note">· ${S.pv.total.toLocaleString()} deliveries${S.pv.old?" · "+S.pv.old+" older tabs left out":""}${S.pv.skipped.length?" · not a delivery tab, skipped: "+esc(S.pv.skipped.slice(0,8).join(", "))+(S.pv.skipped.length>8?" …":""):""}</span>
  <div class="bar"><button class="pri" onclick="pvSave()" ${S.pv.busy?"disabled":""}>${S.pv.busy?"Saving… "+S.pv.done.toLocaleString()+" / "+S.pv.total.toLocaleString():"Save them now"}</button></div></div>`:""}
  ${S.pv&&S.pv.ok?`<p class="msg">${esc(S.pv.ok)}</p>`:""}</div>
  <div class="card"><h2>Mother's CIN numbers (for the delivery file)</h2>
@@ -1417,7 +1418,7 @@ async function cinSave(){
  render()}
 async function pvFile(f){
  if(!f)return;S.pv={busyRead:true};render();
- try{await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),tabs=[],skipped=[],now=new Date();
+ try{await loadXlsx();const wk=+(document.getElementById("pv_w")||{value:4}).value,wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),tabs=[],skipped=[],now=new Date(),cut=wk?now.getTime()-wk*7*864e5-864e5:0,old=[];
   const norm=h=>String(h||"").trim().toLowerCase();
   for(const name of wb.SheetNames){
    const m=/_(\d{1,2})_(\d{1,2})$/.exec(name);if(!m){skipped.push(name);continue}
@@ -1425,11 +1426,12 @@ async function pvFile(f){
    const idx={};a[0].forEach((h,i)=>{const n=norm(h);const k=DCOLS.find(c=>norm(c)==n);if(k&&idx[k]==null)idx[k]=i});
    if(idx["last name"]==null&&idx["Street Address"]==null){skipped.push(name);continue}
    let y=now.getFullYear();const dt=new Date(y,+m[1]-1,+m[2]);if(dt-now>40*864e5)y--;
+   if(cut&&new Date(y,+m[1]-1,+m[2]).getTime()<cut){old.push(name);continue}
    const date=y+"-"+pad2(+m[1])+"-"+pad2(+m[2]),rows=[];
    for(let r=1;r<a.length;r++){const o={};let any=false;DCOLS.forEach(k=>{const v=idx[k]==null?"":String(a[r][idx[k]]==null?"":a[r][idx[k]]).trim();o[k]=v;if(v&&(k=="last name"||k=="Street Address"))any=true});if(any)rows.push({tab:name,rowno:r,delivery_date:date,line:o})}
    if(rows.length)tabs.push({name:name,rows:rows});else skipped.push(name)}
   if(!tabs.length){S.pv={err:"No tabs named like A_11_3 with delivery rows were found. Is it the Labels Delivery sheet?"};render();return}
-  S.pv={tabs:tabs,skipped:skipped,total:tabs.reduce((n,t)=>n+t.rows.length,0),done:0}}catch(e){S.pv={err:"Could not read the file: "+((e&&e.message)||e)}}
+  S.pv={old:old.length,tabs:tabs,skipped:skipped,total:tabs.reduce((n,t)=>n+t.rows.length,0),done:0}}catch(e){S.pv={err:"Could not read the file: "+((e&&e.message)||e)}}
  render()}
 async function pvSave(){
  const P=S.pv;if(!P||!P.tabs||P.busy)return;P.busy=true;P.done=0;P.err="";render();
