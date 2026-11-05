@@ -622,10 +622,10 @@ function vBill(){
  if(!BILL.real)return `<div class="card"><h2>Billing</h2>${BILL.err?`<p class="err">${esc(BILL.err)}</p>`:`<p class="note">Loading the deliveries…</p>`}</div>`;
  if(!BILL.weeks.length)return `<div class="card"><h2>Billing</h2><p class="note">No delivered orders in the database yet. Press Sync deliveries now on the Customers page.</p></div>`;
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
- const nav=`<div class="card"><div class="bar"><button class="${B.t=="dash"?"on":""}" onclick="bgo('dash')">Dashboard</button><span class="note">Companies:</span>${cos.map(c=>`<button class="${B.t=="co"&&B.co==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}</div>
+ const nav=`<div class="card"><div class="bar"><button class="${B.t=="dash"?"on":""}" onclick="bgo('dash')">Dashboard</button><button class="${B.t=="pay"?"on":""}" onclick="bgo('pay')">Payments &amp; balance</button><span class="note">Companies:</span>${cos.map(c=>`<button class="${B.t=="co"&&B.co==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}</div>
  <div class="bar" style="margin-top:8px"><span class="note">Weeks:</span>${W.map(w=>`<button class="${B.t=="wk"&&B.wk==w.k?"on":""}" onclick="bgo('wk','${w.k}')">${esc(w.k)}</button>`).join("")}</div>
  <p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.err?`<span class="err">${esc(BILL.err)}</span>`:BILL.real?"Counted live from the deliveries in the database (Scanovator). A week runs Saturday to Friday. A Meals customer is billed once a week; a Box customer once per box delivered. Customers not matched to a delivery are not counted.":"Loading…"}</p></div>`;
- return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):bDash())}
+ return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="pay"?bPay():bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
  const kp=(l,v,s)=>`<div class="kpi"><span class="note">${l}</span><b>${v}</b>${s?`<span class="note">${s}</span>`:""}</div>`;
@@ -674,6 +674,74 @@ async function loadBill(mcp){
 const wkKey=t=>{const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d};
 const wkLab=d=>(d.getMonth()+1)+"/"+d.getDate();
 
+
+/* ---- payments and balance (current / 30 / 60 / 90 / 120+) ---- */
+BILL.pays=[];BILL.open={};
+const money2=n=>n==null?"—":(n<0?"-":"")+"$"+Math.abs(Number(n)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const PTYPES=[["check","Check"],["ach","Bank transfer / ACH"],["wire","Wire"],["zelle","Zelle"],["cash","Cash"],["card","Credit card"],["other","Other"]];
+const ptName=k=>(PTYPES.find(x=>x[0]==k)||[0,k])[1];
+const AGEK=[["cur","Current"],["d30","30 days"],["d60","60 days"],["d90","90 days"],["d120","120+ days"]];
+function aging(c){
+ const ob=BILL.open[c],asOf=ob?Date.parse(ob.as_of):0,items=[],now=Date.now();let missing=false,charged=0;
+ if(ob)[["cur",15],["d30",45],["d60",75],["d90",105],["d120",135]].forEach(([k,off])=>{const v=Number(ob[k])||0;if(v)items.push({t:asOf-off*864e5,a:v})});
+ BILL.weeks.forEach(w=>{const x=w.a[c];if(!x)return;const end=w.t+6*864e5;if(ob&&end<=asOf)return;const e=estA(c,x);if(e==null){missing=true;return}items.push({t:end,a:e});charged+=e});
+ items.sort((a,b)=>a.t-b.t);
+ let rem=BILL.pays.filter(p=>p.company==c&&!p.voided&&(!ob||p.paid_on>=ob.as_of)).reduce((t,p)=>t+Number(p.amount),0);const paid=rem;
+ items.forEach(i=>{const tk=Math.min(i.a,Math.max(0,rem));i.a-=tk;rem-=tk});
+ const b={cur:0,d30:0,d60:0,d90:0,d120:0};
+ items.forEach(i=>{if(i.a<=0)return;const d=(now-i.t)/864e5;b[d<30?"cur":d<60?"d30":d<90?"d60":d<120?"d90":"d120"]+=i.a});
+ if(rem>0)b.cur-=rem;
+ return {b:b,total:AGEK.reduce((t,k)=>t+b[k[0]],0),paid:paid,charged:charged+AGEK.reduce((t,k)=>t+(ob?Number(ob[k[0]])||0:0),0),missing:missing,credit:rem>0?rem:0}}
+async function loadPayDb(){
+ try{const a=await sb.from("payments").select("id,company,paid_on,amount,ptype,ref,note,voided,created_at").order("paid_on",{ascending:false}).order("id",{ascending:false});if(a.error)throw a.error;
+  BILL.pays=a.data||[];const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
+  BILL.open={};(o.data||[]).forEach(r=>{BILL.open[r.company]=r});BILL.payErr=""}
+ catch(e){BILL.payErr="Payments could not be read ("+dberr(e)+")"+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?". The database update 012 has not been run yet.":".")}}
+function bPay(){
+ const cos=allCos(),B=S.b,td=new Date(),today=td.getFullYear()+"-"+String(td.getMonth()+1).padStart(2,"0")+"-"+String(td.getDate()).padStart(2,"0");
+ if(BILL.payErr)return `<div class="card"><h2>Payments &amp; balance</h2><p class="err">${esc(BILL.payErr)}</p></div>`;
+ const A={};cos.forEach(c=>A[c]=aging(c));const tot={cur:0,d30:0,d60:0,d90:0,d120:0,total:0};cos.forEach(c=>{AGEK.forEach(k=>tot[k[0]]+=A[c].b[k[0]]);tot.total+=A[c].total});
+ const num=x=>`<td style="text-align:right;white-space:nowrap">${Math.abs(x)<0.005?'<span class="no">–</span>':money2(x)}</td>`;
+ const cosel=`<select id="py_co">${cos.map(c=>`<option value="${c}" ${B.pco==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`;
+ const miss=cos.filter(c=>A[c].missing);
+ return `<div class="card"><h2>Balance by company</h2><p class="note">Charges are the weekly billing from the deliveries. Payments are applied to the oldest charges first. A week is "current" for its first 30 days.${BILL.weeks.length?` Weeks counted: ${BILL.weeks.length}.`:""}${miss.length?` <b>${miss.join(", ")}</b> has no price yet, so its weeks are not charged.`:""}</p>
+ <div class="wrap"><table><tr><th>Company</th>${AGEK.map(k=>`<th style="text-align:right">${k[1]}</th>`).join("")}<th style="text-align:right">Total balance</th><th style="text-align:right">Paid</th></tr>
+ ${cos.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${AGEK.map(k=>num(A[c].b[k[0]])).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(A[c].total)}</b></td>${num(A[c].paid)}</tr>`).join("")}
+ <tr><td><b>Total</b></td>${AGEK.map(k=>`<td style="text-align:right;white-space:nowrap"><b>${money2(tot[k[0]])}</b></td>`).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(tot.total)}</b></td><td></td></tr></table></div></div>
+ <div class="card"><h2>Add a payment</h2>
+ <div class="bar" style="align-items:flex-end;flex-wrap:wrap;gap:10px"><label>Company<br>${cosel}</label><label>Date<br><input id="py_dt" type="date" value="${today}" style="width:160px"></label><label>Amount<br><input id="py_amt" inputmode="decimal" placeholder="0.00" style="width:130px"></label>
+ <label>Type<br><select id="py_ty">${PTYPES.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join("")}</select></label><label>Check no. / reference<br><input id="py_ref" style="width:170px"></label><label>Note<br><input id="py_note" style="width:200px"></label><button class="pri" onclick="payAdd()">Save payment</button></div>
+ <span id="py_msg" class="note"></span></div>
+ <div class="card"><h2>Payments received <span class="note">${BILL.pays.length} saved · nothing is deleted; a wrong one is voided and stays in the list</span></h2>
+ <div class="wrap"><table><tr><th>Date</th><th>Company</th><th>Type</th><th>Reference</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr>
+ ${BILL.pays.slice(0,200).map(p=>`<tr style="${p.voided?"opacity:.5;text-decoration:line-through":""}"><td style="white-space:nowrap">${esc(p.paid_on)}</td><td>${esc(coName(p.company))}</td><td>${esc(ptName(p.ptype))}</td><td>${esc(p.ref)}</td><td>${esc(p.note)}</td><td style="text-align:right;white-space:nowrap">${money2(Number(p.amount))}</td><td>${p.voided?'<span class="note">voided</span>':`<button onclick="payVoid(${p.id})">Void</button>`}</td></tr>`).join("")||`<tr><td colspan="7" class="no">No payments yet.</td></tr>`}</table></div></div>
+ <div class="card"><h2>Starting balances</h2><p class="note">Enter what each company already owed on one date, split by age. From that date on, the weekly billing and the payments above are added. You can change these later; every change is saved in History.</p>
+ <div class="bar" style="margin-bottom:8px"><label>As of date <input id="ob_dt" type="date" value="${esc((Object.values(BILL.open)[0]||{}).as_of||today)}" style="width:160px"></label></div>
+ <div class="wrap"><table><tr><th>Company</th>${AGEK.map(k=>`<th style="text-align:right">${k[1]}</th>`).join("")}<th style="text-align:right">Total</th></tr>
+ ${cos.map(c=>{const o=BILL.open[c]||{};return `<tr><td><b>${esc(coName(c))}</b></td>${AGEK.map(k=>`<td style="text-align:right"><input id="ob_${c}_${k[0]}" inputmode="decimal" value="${o[k[0]]!=null&&Number(o[k[0]])?Number(o[k[0]]):""}" placeholder="0" style="width:110px;text-align:right" oninput="obSum('${c}')"></td>`).join("")}<td style="text-align:right" id="ob_${c}_t">${money2(AGEK.reduce((t,k)=>t+(Number(o[k[0]])||0),0))}</td></tr>`}).join("")}</table></div>
+ <p><button class="pri" onclick="saveOpen()">Save starting balances</button> <span id="ob_msg" class="note"></span></p></div>`}
+function obSum(c){let t=0;AGEK.forEach(k=>{const v=Number(String(document.getElementById("ob_"+c+"_"+k[0]).value).replace(/[$,\s]/g,""));if(v)t+=v});document.getElementById("ob_"+c+"_t").textContent=money2(t)}
+const numIn=id=>{const v=String(document.getElementById(id).value||"").trim().replace(/[$,\s]/g,"");return v===""?0:Number(v)};
+async function payAdd(){
+ const m=document.getElementById("py_msg"),co=document.getElementById("py_co").value,dt=document.getElementById("py_dt").value,amt=numIn("py_amt");
+ const bad=t=>{m.textContent=t;m.style.color="#b42318"};
+ if(!dt)return bad("Choose the date.");if(!(amt>0))return bad("Enter the amount (a number above 0).");
+ m.textContent="Saving…";m.style.color="";
+ try{const r=await sb.from("payments").insert({company:co,paid_on:dt,amount:Math.round(amt*100)/100,ptype:document.getElementById("py_ty").value,ref:document.getElementById("py_ref").value.trim(),note:document.getElementById("py_note").value.trim()});if(r.error)throw r.error;
+  S.b.pco=co;await loadPayDb();S.msg="Payment of "+money2(amt)+" from "+coName(co)+" saved.";S.err="";render()}
+ catch(e){bad("Not saved: "+dberr(e))}}
+async function payVoid(id){
+ const p=BILL.pays.find(x=>x.id==id);if(!p||!confirm("Void this payment of "+money2(Number(p.amount))+" from "+coName(p.company)+" ("+p.paid_on+")? It stays in the list but is no longer counted."))return;
+ try{const r=await sb.from("payments").update({voided:true}).eq("id",id);if(r.error)throw r.error;await loadPayDb();S.msg="Payment voided.";S.err="";render()}catch(e){S.err="Not saved: "+dberr(e);S.msg="";render()}}
+async function saveOpen(){
+ const m=document.getElementById("ob_msg"),dt=document.getElementById("ob_dt").value;
+ if(!dt){m.textContent="Choose the as-of date.";m.style.color="#b42318";return}
+ const rows=[];let bad=false;
+ allCos().forEach(c=>{const r={company:c,as_of:dt,updated_at:new Date().toISOString()};let any=false;AGEK.forEach(k=>{const v=numIn("ob_"+c+"_"+k[0]);if(isNaN(v))bad=true;r[k[0]]=Math.round((v||0)*100)/100;if(v)any=true});if(any||BILL.open[c])rows.push(r)});
+ if(bad){m.textContent="Amounts must be numbers.";m.style.color="#b42318";return}
+ m.textContent="Saving…";m.style.color="";
+ try{const r=await sb.from("opening_balances").upsert(rows,{onConflict:"company"});if(r.error)throw r.error;await loadPayDb();S.msg="Starting balances saved.";S.err="";render()}
+ catch(e){m.textContent="Not saved: "+dberr(e);m.style.color="#b42318"}}
 /* ---- billing downloads: Excel and invoice ---- */
 function billCust(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return [];
  return Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>!c||x.co==c).sort((a,b)=>(a.co+a.name).localeCompare(b.co+b.name))}
@@ -724,7 +792,7 @@ async function loadBillDb(){
   const pr=await sb.from("agency_prices").select("agency,box_price,meal_price");if(pr.error)throw pr.error;
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
   const rows=[];for(let a=0;;a+=1000){const r=await sb.rpc("billing_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>rows.push(x));if(!r.data||r.data.length<1000)break}
-  BILL.rows=rows;BILL.weeks=buildWeeks(rows);BILL.real=true;BILL.det={};
+  BILL.rows=rows;BILL.weeks=buildWeeks(rows);BILL.real=true;BILL.det={};await loadPayDb();
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
  }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
  BILL.loading=false;render()}
