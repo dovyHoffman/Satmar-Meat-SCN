@@ -99,7 +99,7 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font
 #who button{flex:1;background:rgba(255,255,255,.07);border:0;color:var(--sidetx);border-radius:8px;padding:7px 8px;font-size:13px}
 #who button:hover{background:rgba(255,255,255,.14);color:#fff}
 body.anon #side{display:none}
-th,td{padding:7px 8px;font-size:13.5px}td.adr{max-width:260px;overflow:hidden;text-overflow:ellipsis}.wrap td .ctag{font-size:12px;padding:2px 8px}
+th,td{padding:7px 8px;font-size:13.5px}td.adr{max-width:260px;overflow:hidden;text-overflow:ellipsis}.tl td{max-width:240px;overflow:hidden;text-overflow:ellipsis}.wrap td .ctag{font-size:12px;padding:2px 8px}
 main{max-width:1320px;margin:0 auto;padding:26px 28px;min-width:0;flex:1}
 .card{border-radius:16px;border:1px solid var(--ln);box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.04);padding:20px}
 h2{font-size:20px;font-weight:700;letter-spacing:-.015em}
@@ -316,8 +316,8 @@ function vList(db){
  const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px">${tile("all","Total customers",cust.length)}${tile("active","Active (on this week's list)",nA,"var(--ok)")}${tile("off","Not active (Not in list)",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
  const sel=cols.map(c=>c.k),menu=S.colMenu?`<div class="colmenu"><div class="note" style="margin-bottom:6px">Tick the columns you want. Saved for you.</div>${COLS.map(c=>`<label class="ck"><input type="checkbox" ${sel.indexOf(c.k)>=0?"checked":""} onchange="toggleCol('${c.k}')"> ${c.l}</label>`).join("")}<div class="bar" style="margin-top:8px"><button onclick="resetCols()">Reset</button><button onclick="S.colMenu=false;render()">Close</button></div></div>`:"";
  return `<div class="card">${head}<div class="bar" style="margin:0 0 12px;align-items:flex-start"><input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render();var i=document.querySelector('#app input');i.focus();i.setSelectionRange(99,99)" style="flex:1"><div style="position:relative"><button onclick="S.colMenu=!S.colMenu;render()">Columns ▾</button>${menu}</div></div>
- <div class="wrap"><table><tr>${cols.map(c=>`<th class="srt" onclick="sortBy('${c.k}')">${c.l}<span class="ar">${pr.sortK==c.k?(pr.sortD=="desc"?"▼":"▲"):""}</span></th>`).join("")}</tr>
- ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})">${cols.map(x=>`<td${x.cls?` class="${x.cls}" title="${esc(x.s(c))}"`:""}>${x.v(c)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan=${cols.length} class='no'>No customers found.</td></tr>`}</table></div>
+ <div class="wrap"><table class="tl"><tr>${cols.map(c=>`<th class="srt" onclick="sortBy('${c.k}')">${c.l}<span class="ar">${pr.sortK==c.k?(pr.sortD=="desc"?"▼":"▲"):""}</span></th>`).join("")}</tr>
+ ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})">${cols.map(x=>`<td${x.cls?` class="${x.cls}"`:""} title="${esc(String(x.s(c)==null?"":x.s(c)))}">${x.v(c)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan=${cols.length} class='no'>No customers found.</td></tr>`}</table></div>
  <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
 const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn",state:"NY",zip:"11211"})).concat([{st:"250 Sample Ave",city:"Brooklyn",state:"NY",zip:"11211"},{st:"18 Example Rd",city:"Brooklyn",state:"NY",zip:"11206"},{st:"77 Demo Blvd",city:"Brooklyn",state:"NY",zip:"11249"},{st:"5 Sample Rd",city:"Monsey",state:"NY",zip:"10952"}]);
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
