@@ -1074,37 +1074,46 @@ function vSettings(){
 
 /* ================= STAGE 2: editing, next-week changes, history ================= */
 const nwk=()=>S.nextWk||"11/9";
-const ADDRMSG2="The address needs a street, city, state and zip. Type it like 94 Penn Street New York NY 11249 (commas are added for you). The apartment can go in its own box.";
+const ADDRMSG2="Type the street, for example 94 Penn St. The city, state and zip are added for you (Brooklyn, NY and the zip of that street).";
 const SFX="st street ave avenue rd road blvd boulevard pl place dr drive ct court ln lane pkwy parkway way ter terrace hwy highway sq square cir circle trl trail path plz plaza row walk loop".split(" ");
 function cityBook(){const m={};cust.forEach(c=>{const a=c.a||{};if(a.city&&!m[a.city.toLowerCase()])m[a.city.toLowerCase()]={city:a.city,state:a.state||""}});return m}
-/* accepts the address with or without commas: "94 Penn Street 3rd fl New York NY 11249" */
+/* accepts the address with or without commas, and fills what is missing from Brooklyn, NY and the customers already on that street */
+const APTW=/^(apt\.?|apartment|unit|fl\.?|floor|ste\.?|suite|rm|room|bldg|building|basement|bsmt|rear|front|#.*|\d+(st|nd|rd|th)|\d+[a-z]?|[a-z]?\d+[a-z]?|\d+-?[a-z]?)$/i;
+const SFXN={street:"st",avenue:"ave",road:"rd",boulevard:"blvd",place:"pl",drive:"dr",court:"ct",lane:"ln",parkway:"pkwy",terrace:"ter",highway:"hwy",square:"sq",circle:"cir"};
+function streetKey(st){let t=String(st||"").toLowerCase().replace(/[.,#]/g," ").replace(/\s+/g," ").trim().split(" ");if(t.length&&/^\d+[a-z]?$/.test(t[0]))t.shift();
+ return t.map(w=>SFXN[w]||w).join(" ")}
+function zipFor(street,city){
+ const k=streetKey(street),num=parseInt((String(street).match(/^\s*(\d+)/)||[0,"0"])[1],10)||0;let best=null,bd=1e9;
+ cust.forEach(c=>{const a=c.a||{};if(!a.zip||!a.st||String(a.city||"").toLowerCase()!==String(city||"").toLowerCase()||streetKey(a.st)!==k)return;
+  const hn=parseInt((String(a.st).match(/^\s*(\d+)/)||[0,"0"])[1],10)||0,d=Math.abs(hn-num)+(hn%2!==num%2?0.5:0);if(d<bd){bd=d;best=a.zip}});
+ return best||""}
 function parseAddrSmart(text){
  let t=String(text||"").replace(/\s+/g," ").replace(/[.;]+$/,"").trim();if(!t)return {street:"",apt:"",city:"",state:"",zip:""};
  const o={street:"",apt:"",city:"",state:"",zip:""};
  let m=t.match(/[,\s]+(\d{5})(?:-\d{4})?$/);if(m){o.zip=m[1];t=t.slice(0,m.index).trim()}
- m=t.match(/[,\s]+([A-Za-z]{2})$/);if(m&&/^[A-Za-z]{2}$/.test(m[1])&&!/^(st|rd|dr|ct|ln|pl|wy)$/i.test(m[1])||(m&&m[1].toUpperCase()=="NY")){o.state=m[1].toUpperCase();t=t.slice(0,m.index).trim()}
+ m=t.match(/[,\s]+([A-Za-z]{2})$/);if(m&&(m[1].toUpperCase()=="NY"||(!/^(st|rd|dr|ct|ln|pl|wy|av)$/i.test(m[1])&&o.zip))){o.state=m[1].toUpperCase();t=t.slice(0,m.index).trim()}
  t=t.replace(/[,\s]+$/,"");
  const book=cityBook();
  if(t.indexOf(",")>=0){
   const p=t.split(",").map(x=>x.trim()).filter(Boolean);
   if(p.length>=3){o.street=p[0];o.city=p[p.length-1];o.apt=p.slice(1,-1).join(" ")}
-  else if(p.length==2){o.street=p[0];o.city=p[1]}
+  else if(p.length==2){o.street=p[0];if(APTW.test(p[1].split(" ")[0])&&!book[p[1].toLowerCase()])o.apt=p[1];else o.city=p[1]}
   else o.street=p[0]||"";
-  if(p.length<=2&&!o.city)o.city="";
  }else{
   const tk=t.split(" "),low=tk.map(x=>x.toLowerCase().replace(/[^a-z0-9]/g,""));
-  let ci=-1;
-  for(let n=Math.min(3,tk.length-1);n>=1&&ci<0;n--){const nm=tk.slice(tk.length-n).join(" ").toLowerCase();if(book[nm])ci=tk.length-n}
-  if(ci<0){ci=tk.length-1;if(ci<1)ci=-1}
-  if(ci>0){o.city=tk.slice(ci).join(" ");const before=tk.slice(0,ci),bl=low.slice(0,ci);
-   let si=-1;for(let i=1;i<bl.length;i++)if(SFX.indexOf(bl[i])>=0){si=i;break}
-   if(si<0)for(let i=1;i<bl.length;i++)if(/^(apt|apartment|unit|fl|floor|ste|suite|rm|room|bldg|building|#.*)$/.test(before[i].toLowerCase())||/^#/.test(before[i])){si=i-1;break}
-   if(si>=0){o.street=before.slice(0,si+1).join(" ");o.apt=before.slice(si+1).join(" ")}else o.street=before.join(" ")}
-  else o.street=t}
+  let ci=-1;for(let n=Math.min(3,tk.length-1);n>=1&&ci<0;n--){if(book[tk.slice(tk.length-n).join(" ").toLowerCase()])ci=tk.length-n}
+  const before=ci>=0?tk.slice(0,ci):tk,bl=ci>=0?low.slice(0,ci):low;if(ci>=0)o.city=tk.slice(ci).join(" ");
+  let si=-1;for(let i=1;i<bl.length;i++)if(SFX.indexOf(bl[i])>=0){si=i;break}
+  if(si<0)for(let i=1;i<before.length;i++)if(APTW.test(before[i])&&/^(apt|apartment|unit|fl|floor|ste|suite|rm|room|bldg|building|#)/i.test(before[i])){si=i-1;break}
+  if(si>=0){o.street=before.slice(0,si+1).join(" ");const rest=before.slice(si+1);
+   if(rest.length){if(ci>=0||APTW.test(rest[0]))o.apt=rest.join(" ");else o.city=rest.join(" ")}}
+  else if(ci<0&&o.state&&before.length>2){o.city=before[before.length-1];o.street=before.slice(0,-1).join(" ")}
+  else o.street=before.join(" ")}
  const b=book[String(o.city).toLowerCase()];if(b){o.city=b.city;if(!o.state)o.state=(b.state||"").toUpperCase()}
+ if(o.street){if(!o.city)o.city="Brooklyn";if(!o.state)o.state="NY";if(!o.zip)o.zip=zipFor(o.street,o.city)}
  o.apt=o.apt.replace(/^(apt\.?|apartment|unit)\s+/i,"Apt ");
  return o}
-function addrMissing(a){const m=[];if(!a.street)m.push("a street");if(!a.city)m.push("a city");return m.length?"The address is missing "+m.join(" and ")+". Type it like 94 Penn Street New York NY 11249 (commas are added for you). Put the apartment in its own box.":""}
+function addrMissing(a){return a.street?"":"Type the street, for example 94 Penn St. The city, state and zip are added for you (Brooklyn, NY and the zip of that street). Put the apartment in its own box."}
 function addrFmtLine(a){return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
 function setupAC(){
  [["f_addr","f_apt"],["nf_addr","nf_apt"]].forEach(([ai,pi])=>{const inp=document.getElementById(ai);if(!inp||inp.disabled)return;
