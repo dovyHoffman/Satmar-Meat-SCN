@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b30">
+<meta name="build" content="b31">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1092,13 +1092,13 @@ function vImport(){
  <div class="bar"><button class="pri" onclick="cinSave()" ${S.cn.busy?"disabled":""}>${S.cn.busy?"Saving… "+S.cn.done+" / "+S.cn.rows.length:"Save them now"}</button></div></div>`:""}
  ${S.cn&&S.cn.ok?`<p class="msg">${esc(S.cn.ok)}</p>`:""}</div>
  <div class="card"><h2>Billing weeks (company tabs from the Billing SCN 82 sheet)</h2>
- <p class="note">Reads the tabs <b>UJO 1027, LH 1027, PT 1027, CCS 1027, LT 1027, RY 1027</b> and so on: for every delivered customer the ID, food type, household and the proof-of-delivery links. Billing for these weeks is then taken straight from your sheet, so it matches it. Weeks you do not upload keep using the Scanovator deliveries. Open <b>Billing SCN 82</b>, click <b>File → Download → Microsoft Excel (.xlsx)</b> and choose it below. Run it again any time: the newest upload of a week is the one used, and nothing is deleted.</p>
+ <p class="note">Reads the tabs <b>UJO 1027, LH 1027, PT 1027, CCS 1027, LT 1027, RY 1027</b> and so on: for every customer row the ID, food type, household and the proof-of-delivery links. This week's tabs count too, even before every link is filled in. Billing for these weeks is then taken straight from your sheet, so it matches it. Weeks you do not upload keep using the Scanovator deliveries. Open <b>Billing SCN 82</b>, click <b>File → Download → Microsoft Excel (.xlsx)</b> and choose it below. Run it again any time: the newest upload of a week is the one used, and nothing is deleted.</p>
  <div class="bar" style="align-items:center"><label class="note" style="display:flex;gap:8px;align-items:center">How far back <select id="bs_w" style="width:auto;margin:0"><option value="4" selected>Last 4 weeks</option><option value="8">Last 8 weeks (older tabs have another layout, check the totals)</option><option value="0">Everything</option></select></label></div>
  <input type="file" accept=".xlsx,.xls" onchange="bsFile(this.files[0])">
  ${S.bs&&S.bs.busyRead?`<p class="note">Reading the file… this can take a minute.</p>`:""}
  ${S.bs&&S.bs.err?`<p class="err">${esc(S.bs.err)}</p>`:""}
  ${S.bs&&S.bs.lines?`<div class="card" style="margin-top:12px"><b>${S.bs.lines.length.toLocaleString()} delivered customers in ${S.bs.weeks.length} week${S.bs.weeks.length==1?"":"s"}</b>
- ${S.bs.weeks.map(w=>`<div class="note" style="margin-top:6px"><b>Tab date ${esc(w.d)}</b> (Billing week of ${esc(w.lab)}): ${Object.keys(w.co).map(c=>esc(c)+" "+w.co[c].toLocaleString()).join(" · ")}</div>`).join("")}
+ ${S.bs.weeks.map(w=>`<div class="note" style="margin-top:6px"><b>Tab date ${esc(w.d)}</b> (Billing week of ${esc(w.lab)}): ${Object.keys(w.co).map(c=>esc(c)+" "+w.co[c].toLocaleString()).join(" · ")}${w.nl?" · "+w.nl.toLocaleString()+" not delivered yet (no link)":""}</div>`).join("")}
  <div class="bar"><button class="pri" onclick="bsSave()" ${S.bs.busy?"disabled":""}>${S.bs.busy?"Saving… "+S.bs.done.toLocaleString()+" / "+S.bs.lines.length.toLocaleString():"Save these weeks"}</button></div></div>`:""}
  ${S.bs&&S.bs.ok?`<p class="msg">${esc(S.bs.ok)}</p>`:""}</div>`}
 function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("The file reader could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
@@ -1126,7 +1126,7 @@ function bsLines(rows){
  for(let r=1;r<rows.length;r++){const x=rows[r]||[];
   const links=[];for(const c of x){if(typeof c=="string"){const m=c.match(/https?:\/\/[^\s"',]+/g);if(m)m.forEach(u=>links.push(u))}}
   const id=ii>=0?String(x[ii]==null?"":x[ii]).trim().replace(/\.0+$/,""):"",nm=inm>=0?String(x[inm]==null?"":x[inm]).trim():"";
-  if(!links.length)continue;   // only rows with a proof-of-delivery link were delivered
+  if(!id)continue;   // every row with an ID is a billed order; the link fills in when it is delivered
   const ty=it>=0?String(x[it]==null?"":x[it]).trim():"",hh=ih>=0?parseFloat(x[ih]):NaN;
   out.push({r:r,i:id,n:nm,k:/box|grocer/i.test(ty)?"box":"meals",f:ty,h:isNaN(hh)||hh>60?1:Math.max(1,Math.round(hh)),l:[...new Set(links)]})}
  return out}
@@ -1144,9 +1144,9 @@ async function bsFile(f){
     const L=bsLines(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""})),seenK={};
     for(const l of L){const k=l.i+"|"+l.k;seenK[k]=1}
     const ids={};L.forEach(l=>{(ids[l.i]=ids[l.i]||{})[l.k]=1});
-    for(const l of L){lines.push({d:d,c:p.co,r:l.r,i:(l.i&&Object.keys(ids[l.i]).length>1?l.i+" ("+l.k+")":l.i),n:l.n,k:l.k,f:l.f,h:l.h,l:l.l});co[p.co]=(co[p.co]||0)+1}}
-   if(Object.keys(co).length){const m=d.split("-"),lab=wkLab(wkKey(new Date(+m[0],+m[1]-1,+m[2],12)));weeks.push({d:d,lab:lab,co:co})}}
-  if(!lines.length){S.bs={err:"The company tabs have no proof-of-delivery links, so there is nothing to save. (The newest week is only filled in after the deliveries are done.)"};render();return}
+    for(const l of L){if(!l.l.length)co._nl=(co._nl||0)+1;lines.push({d:d,c:p.co,r:l.r,i:(l.i&&Object.keys(ids[l.i]).length>1?l.i+" ("+l.k+")":l.i),n:l.n,k:l.k,f:l.f,h:l.h,l:l.l});co[p.co]=(co[p.co]||0)+1}}
+   const nl=co._nl||0;delete co._nl;if(Object.keys(co).length){const m=d.split("-"),lab=wkLab(wkKey(new Date(+m[0],+m[1]-1,+m[2],12)));weeks.push({d:d,lab:lab,co:co,nl:nl})}}
+  if(!lines.length){S.bs={err:"No customer rows were found in the company tabs."};render();return}
   S.bs={lines:lines,weeks:weeks}
  }catch(e){S.bs={err:"Could not read the file: "+((e&&e.message)||e)}}
  render()}
