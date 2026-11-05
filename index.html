@@ -1346,14 +1346,17 @@ function vDelivery(){
   ${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
   <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the Excel file"}</button>
    <button onclick="dvConfirm('up')" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
+  ${DV.done?`<div class="card" style="border-color:var(--ok);margin-top:10px"><b style="color:var(--ok)">✓ ${DV.done.n.toLocaleString()} deliveries recorded as sent. The file ${esc(DV.done.file)} was downloaded (check your Downloads folder).</b><p class="note" style="margin:6px 0">Next, in Scanovator: choose that file, click <b>Auto fill fields</b>, then <b>Upload &amp; Create Orders</b>.</p><a class="pri" style="display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none" href="https://dashboard.scanovator.com/orders_csv" target="_blank" rel="noopener">Open Scanovator upload page</a> <button onclick="DV.done=null;render()">Close</button></div>`:""}
   <p class="note"><b>Upload to Scanovator</b> records the list, downloads the CSV and opens Scanovator's upload page: choose the file, click "Auto fill fields", then "Upload &amp; Create Orders". The Excel button does the same recording but downloads Excel. It never changes the customers.</p></div>`}
 async function dvFile(kind,real,pre){
+ DV.lastFile="";
  const rows=pre||dvPick();if(!rows.length)return;
  const data=rows.map(r=>dvLine(r.c,r.d)),ds=[...new Set(rows.map(r=>r.d))].sort().join("_"),name="Delivery_"+ds+(real?"":"_preview");
  try{
   if(kind=="csv"){const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
    const t=[DCOLS.map(q).join(",")].concat(data.map(o=>DCOLS.map(k=>q(o[k])).join(","))).join("\r\n"),b=new Blob(["﻿"+t],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name+".csv";document.body.appendChild(a);a.click();a.remove()}
   else{await loadXlsx();const ws=XLSX.utils.json_to_sheet(data,{header:DCOLS}),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Delivery");XLSX.writeFile(wb,name+".xlsx")}
+  DV.lastFile=name+"."+kind;
   S.msg=(real?"File downloaded: ":"Preview downloaded: ")+name+"."+kind;S.err=""}
  catch(e){S.err="Could not make the file: "+(e.message||e);S.msg=""}
  render()}
@@ -1437,6 +1440,7 @@ async function dvConfirm(mode){
   recs.forEach(r=>r.letters.split(",").forEach(l=>DV.sent[r.customer_id+"|"+r.delivery_date+"|"+l]=1));(DV.hist=DV.hist||[]).push(...recs.map(r=>Object.assign({created_at:new Date().toISOString()},r)));
   LG("Delivery","Confirmed",""," "+rows.length+" deliveries ("+Object.keys(byD).sort().map(usD).join(", ")+")");
   DV.busy=false;await dvFile(up?"csv":"xlsx",true,rows);
+  DV.done={n:rows.length,file:DV.lastFile||(up?"CSV":"Excel")};render();window.scrollTo(0,document.body.scrollHeight);
   if(up){S.msg="CSV downloaded. On the Scanovator page: choose the file, click Auto fill fields, then Upload & Create Orders.";if(w)w.location="https://dashboard.scanovator.com/orders_csv";else{S.err="Your browser blocked the Scanovator page. Open https://dashboard.scanovator.com/orders_csv yourself.";}render()}
   return}
  catch(e){if(w)w.close();S.err="Not saved, nothing was marked as sent: "+dberr(e)}
