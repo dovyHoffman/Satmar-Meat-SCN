@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b22">
+<meta name="build" content="b23">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1349,6 +1349,7 @@ function vDelivery(){
   ${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
   <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the Excel file"}</button>
    <button onclick="dvConfirm('up')" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
+  ${DV.ask?`<div id="dv_ask" class="card" style="border-color:#e07b00;margin-top:10px"><b>Confirm ${DV.ask.n.toLocaleString()} deliveries?</b><div class="note" style="margin:6px 0">${DV.ask.days.map(esc).join("<br>")}</div><p class="note" style="margin:6px 0">They will be recorded as sent and ${DV.ask.mode=="up"?"the CSV file will download and the Scanovator upload page will open":"the Excel file will download"}.</p><button class="pri" onclick="dvRun('${DV.ask.mode}')">Yes, ${DV.ask.mode=="up"?"upload to Scanovator":"confirm and download"}</button> <button onclick="DV.ask=null;render()">Cancel</button></div>`:""}
   ${DV.done?`<div class="card" style="border-color:var(--ok);margin-top:10px"><b style="color:var(--ok)">✓ ${DV.done.n.toLocaleString()} deliveries recorded as sent. The file ${esc(DV.done.file)} was downloaded (check your Downloads folder).</b><p class="note" style="margin:6px 0">Next, in Scanovator: choose that file, click <b>Auto fill fields</b>, then <b>Upload &amp; Create Orders</b>.</p><a class="pri" style="display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none" href="https://dashboard.scanovator.com/orders_csv" target="_blank" rel="noopener">Open Scanovator upload page</a> <button onclick="DV.done=null;render()">Close</button></div>`:""}
   <p class="note"><b>Upload to Scanovator</b> records the list, downloads the CSV and opens Scanovator's upload page: choose the file, click "Auto fill fields", then "Upload &amp; Create Orders". The Excel button does the same recording but downloads Excel. It never changes the customers.</p></div>`}
 async function dvFile(kind,real,pre){
@@ -1441,11 +1442,15 @@ async function pvSave(){
   S.pv={ok:"Saved "+P.tabs.length+" tabs ("+all.length.toLocaleString()+" deliveries). Open Delivery → Previous deliveries."}}
  catch(e){P.busy=false;P.err="Not saved: "+dberr(e)+(/delivery_archive/i.test(String(e&&e.message))?" (The database update 015 has not been run yet.)":"")}
  render()}
-async function dvConfirm(mode){
+function dvConfirm(mode){
  const rows=dvPick();if(!rows.length||DV.busy)return;
+ const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
+ DV.ask={mode:mode,n:rows.length,days:Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]+" deliveries")};DV.done=null;S.err="";S.msg="";render();
+ setTimeout(()=>{const e=document.getElementById("dv_ask");if(e)e.scrollIntoView({block:"center"})},50)}
+async function dvRun(mode){
+ const rows=dvPick();if(!rows.length||DV.busy)return;DV.ask=null;
  const up=mode=="up",w=up?window.open("about:blank","_blank"):null;
  const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
- if(!confirm("Confirm "+rows.length+" deliveries?\n\n"+Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]).join("\n")+"\n\nThey will be recorded as sent and the "+(up?"CSV file will download and the Scanovator upload page will open.":"file will download."))){if(w)w.close();return}
  DV.busy=true;S.err="";S.msg="";render();
  try{const batch=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const recs=rows.filter(r=>r.c.uuid).map(r=>({batch:batch,customer_id:r.c.uuid,delivery_date:r.d,admin_note:r.c.area,letters:dvLetters(r.c).join(","),line:dvLine(r.c,r.d)}));
@@ -1453,9 +1458,9 @@ async function dvConfirm(mode){
   recs.forEach(r=>r.letters.split(",").forEach(l=>DV.sent[r.customer_id+"|"+r.delivery_date+"|"+l]=1));(DV.hist=DV.hist||[]).push(...recs.map(r=>Object.assign({created_at:new Date().toISOString()},r)));
   LG("Delivery","Confirmed",""," "+rows.length+" deliveries ("+Object.keys(byD).sort().map(usD).join(", ")+")");
   DV.busy=false;await dvFile(up?"csv":"xlsx",true,rows);
-  DV.done={n:rows.length,file:DV.lastFile||(up?"CSV":"Excel")};render();window.scrollTo(0,document.body.scrollHeight);
-  if(up){S.msg="CSV downloaded. On the Scanovator page: choose the file, click Auto fill fields, then Upload & Create Orders.";if(w)w.location="https://dashboard.scanovator.com/orders_csv";else{S.err="Your browser blocked the Scanovator page. Open https://dashboard.scanovator.com/orders_csv yourself.";}render()}
-  return}
+  DV.done={n:rows.length,file:DV.lastFile||(up?"CSV":"Excel")};render();
+  if(up){S.msg="CSV downloaded. On the Scanovator page: choose the file, click Auto fill fields, then Upload & Create Orders.";if(w)w.location="https://dashboard.scanovator.com/orders_csv";else{S.err="Your browser blocked the Scanovator page. Use the Open Scanovator upload page button below."}render()}
+  setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),50);return}
  catch(e){if(w)w.close();S.err="Not saved, nothing was marked as sent: "+dberr(e)}
  DV.busy=false;render()}
 async function loadHistDb(){
