@@ -120,7 +120,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b26">
+<meta name="build" content="b27">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1156,7 +1156,18 @@ function vSettings(){
  ${pg.map(p=>`<td style="text-align:center"><input type="checkbox" style="width:auto" ${u.role=="owner"||(u.pages||[]).indexOf(p[0])>=0?"checked":""} ${u.role=="owner"?"disabled":""} onchange="upage(${i},'${p[0]}',this.checked)"></td>`).join("")}
  <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} ${u.id==S.user.id?"disabled":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td></tr>`).join("")||`<tr><td colspan="${pg.length+4}" class="no">Loading…</td></tr>`}</table></div>
  <h3 class="gh">Invite a new person</h3>
- <p class="note">In Supabase: <b>Authentication → Users → Invite user</b>, type their email. They click the link in the email once. After that they sign in here with a code. Then come back to this page and choose their role and pages.</p></div>`}
+
+ <p class="note">Type their email and choose a role. They get an email with a link; they click it once, and then they sign in here (they can also make their own password). You can change their pages in the table above afterwards.</p>
+ <div class="bar" style="align-items:flex-end;flex-wrap:wrap"><label>Email<br><input id="iv_em" type="email" placeholder="name@email.com" style="width:240px"></label><label>Name (optional)<br><input id="iv_nm" style="width:170px"></label><label>Role<br><select id="iv_ro"><option value="secretary">Office secretary</option><option value="billing">Billing</option><option value="demo">Demo only</option><option value="owner">Owner (admin)</option></select></label><button class="pri" onclick="inviteUser()" ${S.inviting?"disabled":""}>${S.inviting?"Sending…":"Send invitation"}</button></div></div>`}
+async function inviteUser(){
+ const em=document.getElementById("iv_em").value.trim(),nm=document.getElementById("iv_nm").value.trim(),ro=document.getElementById("iv_ro").value;
+ if(!em){S.err="Type the email first.";S.msg="";render();return}
+ if(ro=="owner"&&!confirm("Make "+em+" an Owner? An owner can see and change everything."))return;
+ S.inviting=true;S.err="";S.msg="";render();
+ try{const {data:ss}=await sb.auth.getSession(),r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((ss.session||{}).access_token||SB_KEY)},body:JSON.stringify({mode:"invite",email:em,name:nm,role:ro,redirect:location.origin+location.pathname})}),j=await r.json().catch(()=>({}));
+  if(j.ok){S.msg="Invitation sent to "+em+"."+(j.warning?" "+j.warning:"");LG("Access · "+em,"Invited","",ro);await loadUsers()}else S.err="Not sent: "+(j.error||("server answered "+r.status))}
+ catch(e){S.err="Not sent: "+((e&&e.message)||e)}
+ S.inviting=false;render()}
 
 
 /* ================= STAGE 2: editing, next-week changes, history ================= */

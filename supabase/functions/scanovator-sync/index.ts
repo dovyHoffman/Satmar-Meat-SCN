@@ -139,6 +139,24 @@ Deno.serve(async (req) => {
       return json({ ok: true, path: p || "", info: p ? "" : photoInfo });
     }
     if (!me.owner) return json({ error: "not allowed" }, 403);
+    if (body.mode === "invite") {
+      const email = String(body.email || "").trim().toLowerCase();
+      const name = String(body.name || "").trim();
+      const role = ["owner", "secretary", "billing", "demo"].includes(body.role) ? body.role : "secretary";
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ ok: false, error: "That email does not look right." });
+      const pages = role === "secretary" ? ["customers", "changes", "delivery", "menu"] : role === "billing" ? ["billing"] : [];
+      const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
+        data: { name: name || email.split("@")[0] },
+        redirectTo: String(body.redirect || "https://dovyhoffman.github.io/Satmar-Meat-SCN/"),
+      });
+      if (error) return json({ ok: false, error: error.message });
+      const id = data?.user?.id;
+      if (id) {
+        const { error: pe } = await sb.from("profiles").upsert({ id, email, name: name || email.split("@")[0], role, pages, active: true }, { onConflict: "id" });
+        if (pe) return json({ ok: true, warning: "Invitation sent, but the access settings were not saved (" + pe.message + "). Set them in the table above." });
+      }
+      return json({ ok: true });
+    }
     for (const k of ["SCANOVATOR_TOKEN", "SCANOVATOR_STORE_ID", "SCANOVATOR_STORE_CODE"])
       if (!Deno.env.get(k)) return json({ ok: false, error: `Secret ${k} is not set in Supabase.` }, 500);
     if (!Number.isInteger(STORE_ID))
