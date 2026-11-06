@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b44">
+<meta name="build" content="b45">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -777,8 +777,8 @@ function bPay(){
  const cosel=`<select id="py_co">${cos.map(c=>`<option value="${c}" ${B.pco==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`;
  const miss=cos.filter(c=>A[c].missing);
  return `<div class="card"><h2>Balance by company</h2><p class="note">Charges are the weekly billing from the deliveries. Payments are applied to the oldest charges first. A week is "current" for its first 30 days.${BILL.weeks.length?` Weeks counted: ${BILL.weeks.length}.`:""}${miss.length?` <b>${miss.join(", ")}</b> has no price yet, so its weeks are not charged.`:""}</p>
- <div class="wrap"><table><tr><th>Company</th>${AGEK.map(k=>`<th style="text-align:right">${k[1]}</th>`).join("")}<th style="text-align:right">Total balance</th><th style="text-align:right">Paid</th><th></th></tr>
- ${cos.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${AGEK.map(k=>num(A[c].b[k[0]])).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(A[c].total)}</b></td>${num(A[c].paid)}<td><button onclick="billStatement('${c}')">Statement</button></td></tr>`).join("")}
+ <div class="wrap"><table><tr><th>Company</th>${AGEK.map(k=>`<th style="text-align:right">${k[1]}</th>`).join("")}<th style="text-align:right">Total balance</th><th style="text-align:right">Paid</th><th></th><th></th></tr>
+ ${cos.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${AGEK.map(k=>num(A[c].b[k[0]])).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(A[c].total)}</b></td>${num(A[c].paid)}${(()=>{const ob=BILL.open[c],e=ob?BILL.pays.filter(q=>q.company==c&&!q.voided&&q.paid_on<ob.as_of).reduce((t,q)=>t+Number(q.amount),0):0;return e?`<td class="note" style="white-space:nowrap">+ ${money2(e)} paid before ${esc(ob.as_of)}<br>(already taken off the starting balance)</td>`:"<td></td>"})()}<td><button onclick="billStatement('${c}')">Statement</button></td></tr>`).join("")}
  <tr><td><b>Total</b></td>${AGEK.map(k=>`<td style="text-align:right;white-space:nowrap"><b>${money2(tot[k[0]])}</b></td>`).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(tot.total)}</b></td><td></td></tr></table></div></div>
  <div class="card"><h2>Add a payment</h2>
  <div class="bar" style="align-items:flex-end;flex-wrap:wrap;gap:10px"><label>Company<br>${cosel}</label><label>Date<br><input id="py_dt" type="date" value="${today}" style="width:160px"></label><label>Amount<br><input id="py_amt" inputmode="decimal" placeholder="0.00" style="width:130px"></label>
