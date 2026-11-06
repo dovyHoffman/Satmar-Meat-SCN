@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b42">
+<meta name="build" content="b43">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -731,6 +731,7 @@ async function loadPayDb(){
   BILL.pays=a.data||[];try{const iv=await sb.from("invoices").select("id,company,inv_date,inv_no,amount,note,voided").order("inv_date",{ascending:true});BILL.inv=iv.error?[]:(iv.data||[])}catch(e){BILL.inv=[]};const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
   BILL.open={};(o.data||[]).forEach(r=>{BILL.open[r.company]=r});BILL.payErr=""}
  catch(e){BILL.payErr="Payments could not be read ("+dberr(e)+")"+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?". The database update 012 has not been run yet.":".")}}
+const LOGO=new URL("logo.png",document.baseURI).href;
 async function invSave(id,c){
  const g=n=>document.getElementById("iv_"+n+"_"+id),no=g("no").value.trim(),dt=g("dt").value,t=String(g("amt").value).trim().replace(/[$,]/g,""),amt=Number(t),note=g("nt").value.trim();
  if(!dt||t===""||!(amt>=0)){S.err="Enter the date and a valid amount.";S.msg="";render();return}
@@ -757,7 +758,7 @@ function billStatement(c){
  table{width:100%;border-collapse:collapse;margin:14px 0}th,td{padding:7px 10px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#555;background:#f6f6f6}td.n,th.n{text-align:right;white-space:nowrap}
  .tot td{font-weight:700;border-top:2px solid #111;font-size:15px}.mut{color:#666;font-size:12px}button{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid #888;background:#fff;cursor:pointer}@media print{.bar{display:none}body{margin:0;max-width:none}}</style></head><body>
  <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
- <div class="top"><div><h1>Account statement</h1><div class="mut">${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
+ <div class="top"><div style="display:flex;gap:14px;align-items:center"><img src="${LOGO}" alt="Satmar Meats" style="height:78px;width:auto"><div><h1>Account statement</h1><div class="mut">${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
  <div style="margin-bottom:8px"><div class="mut">Account</div><b style="font-size:18px">${H(coName(c))}</b></div>
  <table><tr><th>Date</th><th>Description</th><th class="n">Billed</th><th class="n">Paid</th><th class="n">Balance</th></tr>${rows||'<tr><td colspan="5">Nothing yet.</td></tr>'}
  <tr class="tot"><td colspan="2">Total</td><td class="n">${m(tc)}</td><td class="n">${m(tp)}</td><td class="n">${m(bal)}</td></tr></table>
@@ -840,7 +841,7 @@ function billInvoice(c,k,brief){
  .tot td{font-weight:700;border-top:2px solid #111;font-size:16px}.mut{color:#666;font-size:12px}.bar{margin:0 0 18px}button{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid #888;background:#fff;cursor:pointer}
  h2{font-size:16px;margin:28px 0 0}@media print{.bar{display:none}body{margin:0;max-width:none}}</style></head><body>
  <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
- <div class="top"><div><h1>Invoice</h1><div class="mut">No. ${H(no)}</div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
+ <div class="top"><div style="display:flex;gap:14px;align-items:center"><img src="${LOGO}" alt="Satmar Meats" style="height:78px;width:auto"><div><h1>Invoice</h1><div class="mut">No. ${H(no)}</div></div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
  <div class="top"><div><div class="mut">Bill to</div><b style="font-size:18px">${H(coName(c))}</b></div><div class="r"><div class="mut">Delivery week</div><b>${H(weekRange(k))}</b><div class="mut">Date: ${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div></div>
  <table><tr><th>Description</th><th class="n">Quantity</th><th class="n">Price</th><th class="n">Amount</th></tr>
  ${mealsN?`<tr><td>${brief?`Meals: ${mealsN} deliver${mealsN==1?"y":"ies"} · household total ${x.mhh} × 21 meals`:`Meals customers (${mealsN} customer${mealsN==1?"":"s"}, household total ${x.mhh}) × 21 meals each`}</td><td class="n">${mm.toLocaleString()} meals</td><td class="n">${m(p.meals)}</td><td class="n">${m(mAmt)}</td></tr>`:""}
