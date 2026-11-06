@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b56">
+<meta name="build" content="b57">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -321,7 +321,12 @@ function resetCols(){savePrefs({cols:COLS.filter(c=>c.on).map(c=>c.k)});render()
 function sortBy(k){const p=myPrefs(),d=p.sortK==k?(p.sortD=="asc"?"desc":"asc"):"asc";savePrefs({sortK:k,sortD:d});S.pg=0;S.dpg=0;render()}
 function vList(db){
  const q=(db?S.dq:S.q).toLowerCase(),f=db?S.dflt:"active",pk=db?"dpg":"pg",nA=cust.filter(c=>c.active).length,nI=cust.length-nA;
- const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency+(c.email||"")+(c.legal||"")).toLowerCase().includes(q));
+ const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency+(c.email||"")+(c.legal||"")).toLowerCase().includes(q)).filter(c=>{
+  if(S.fBase&&c.base!=S.fBase)return false;
+  if(S.fCode&&codesFor(c.food,c.hh,c.area).split(/\s+/).indexOf(S.fCode)<0)return false;
+  if(S.fDel){const st=S.real?weekDel(c).state:(c.delivered?"full":"none");if(S.fDel=="done"?st!="full":S.fDel=="part"?st!="part":st!="none")return false}
+  return true});
+ const letters=[...new Set(cust.filter(c=>c.active).flatMap(c=>codesFor(c.food,c.hh,c.area).split(/\s+/)).filter(x=>/^[A-Za-z]$/.test(x)))].sort();
  const cols=activeCols(),pr=myPrefs(),sc=COLS.find(c=>c.k==pr.sortK);
  if(sc){const dir=pr.sortD=="desc"?-1:1;rows.sort((x,y)=>{const a=sc.s(x),b=sc.s(y);const r=sc.num?(a-b):String(a||"").localeCompare(String(b||""),undefined,{numeric:true,sensitivity:"base"});return r*dir||x.name.localeCompare(y.name)})}
  const pages=Math.max(1,Math.ceil(rows.length/50)),pg=Math.min(S[pk],pages-1),vis=rows.slice(pg*50,pg*50+50),nf=n=>n.toLocaleString();
@@ -329,6 +334,10 @@ function vList(db){
  const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px">${tile("all","Total customers",cust.length)}${tile("active","Active (on this week's list)",nA,"var(--ok)")}${tile("off","Not active (Not in list)",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
  const sel=cols.map(c=>c.k),menu=S.colMenu?`<div class="colmenu"><div class="note" style="margin-bottom:6px">Tick the columns you want. Saved for you.</div>${COLS.map(c=>`<label class="ck"><input type="checkbox" ${sel.indexOf(c.k)>=0?"checked":""} onchange="toggleCol('${c.k}')"> ${c.l}</label>`).join("")}<div class="bar" style="margin-top:8px"><button onclick="resetCols()">Reset</button><button onclick="S.colMenu=false;render()">Close</button></div></div>`:"";
  return `<div class="card">${head}<div class="bar" style="margin:0 0 12px;align-items:flex-start"><input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render()" style="flex:1"><div style="position:relative"><button onclick="S.colMenu=!S.colMenu;render()">Columns ▾</button>${menu}</div></div>
+ <div class="bar" style="margin:0 0 12px;align-items:center;gap:10px"><label class="note" style="display:flex;gap:6px;align-items:center">Delivery <select style="width:auto;margin:0" onchange="S.fDel=this.value;S.${pk}=0;render()"><option value="">All</option><option value="done" ${S.fDel=="done"?"selected":""}>Delivered</option><option value="part" ${S.fDel=="part"?"selected":""}>Part delivered</option><option value="none" ${S.fDel=="none"?"selected":""}>Not delivered yet</option></select></label>
+ <label class="note" style="display:flex;gap:6px;align-items:center">Type <select style="width:auto;margin:0" onchange="S.fBase=this.value;S.${pk}=0;render()"><option value="">All</option><option value="box" ${S.fBase=="box"?"selected":""}>Box</option><option value="meals" ${S.fBase=="meals"?"selected":""}>Meals</option></select></label>
+ <label class="note" style="display:flex;gap:6px;align-items:center">Box code <select style="width:auto;margin:0" onchange="S.fCode=this.value;S.${pk}=0;render()"><option value="">All</option>${letters.map(l=>`<option value="${l}" ${S.fCode==l?"selected":""}>${l}</option>`).join("")}</select></label>
+ ${S.fDel||S.fBase||S.fCode?`<button onclick="S.fDel=S.fBase=S.fCode='';S.${pk}=0;render()">Clear filters</button>`:""}</div>
  <div class="wrap"><table class="tl"><tr>${cols.map(c=>`<th class="srt" onclick="sortBy('${c.k}')">${c.l}<span class="ar">${pr.sortK==c.k?(pr.sortD=="desc"?"▼":"▲"):""}</span></th>`).join("")}</tr>
  ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})">${cols.map(x=>`<td${x.cls?` class="${x.cls}"`:""} title="${esc(String(x.s(c)==null?"":x.s(c)))}">${x.v(c)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan=${cols.length} class='no'>No customers found.</td></tr>`}</table></div>
  <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
@@ -1039,7 +1048,7 @@ async function loadDB(){
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-35*864e5).toISOString();
-   const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.order("delivered_at",{ascending:false,nullsFirst:false});let ds;try{ds=await fetchAll("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAll("deliveries",dcols,dord)}
+   const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.order("delivered_at",{ascending:false,nullsFirst:false}).order("order_id",{ascending:true});let ds;try{ds=await fetchAll("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAll("deliveries",dcols,dord)}
    ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
