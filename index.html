@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b39">
+<meta name="build" content="b40">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -207,9 +207,9 @@ function vSettings(){
  <div class="bar"><input id="nu_name" placeholder="Name" style="max-width:180px"><input id="nu_email" type="email" placeholder="Email" style="max-width:240px"><select id="nu_role">${Object.keys(ROLE_NAMES).map(r=>`<option value="${r}">${ROLE_NAMES[r]}</option>`).join("")}</select><button class="pri" onclick="uadd()">Add person</button></div>
  <p class="note">The role fills in the usual pages (secretary: Customers, Changes, Menu; billing: Billing; demo: Demo). You can then tick or untick any page for that person.</p></div>
 
- <div class="card"><h2>Raw box price by household size</h2><p class="note">For each company, the price of one raw box by household size (1 to 10). A box customer is billed the price for his own household size. Leave a box empty to use the company's flat box price × household. Meals are not affected: they stay price per meal × 21 × household. Every change is saved in History.</p>
- <div class="wrap"><table><tr><th>Company</th>${[1,2,3,4,5,6,7,8,9,10].map(h=>`<th style="text-align:right">HH ${h}</th>`).join("")}</tr>
- ${COS.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${[1,2,3,4,5,6,7,8,9,10].map(h=>`<td><input id="hp_${c}_${h}" inputmode="decimal" value="${(HHP[c]||{})[h]!=null?HHP[c][h]:""}" placeholder="–" style="width:78px;text-align:right" ${S.user.role=="secretary"?"disabled":""}></td>`).join("")}</tr>`).join("")}</table></div>
+ <div class="card"><h2>Raw box price by household size</h2><p class="note">For each company, the price of one raw box by household size (1 to 10). A box customer is billed the price for his regular household size (Total household minus Enhanced), and each Enhanced person at the Enhanced price. Leave a box empty to use the company's flat box price × household. Meals are not affected: they stay price per meal × 21 × household. Every change is saved in History.</p>
+ <div class="wrap"><table><tr><th>Company</th>${[1,2,3,4,5,6,7,8,9,10].map(h=>`<th style="text-align:right">HH ${h}</th>`).join("")}<th style="text-align:right">Enhanced (each)</th></tr>
+ ${COS.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${[1,2,3,4,5,6,7,8,9,10,0].map(h=>`<td><input id="hp_${c}_${h}" inputmode="decimal" value="${(HHP[c]||{})[h]!=null?HHP[c][h]:""}" placeholder="–" style="width:78px;text-align:right" ${S.user.role=="secretary"?"disabled":""}></td>`).join("")}</tr>`).join("")}</table></div>
  <p><button class="pri" onclick="saveHhPrices()">Save household prices</button></p></div>
  <div class="card"><h2>Demo</h2><p class="note">The <b>Demo</b> page shows Customers and the Dashboard with made-up sample families only, never your real data. Give someone the "Demo only" role to show them the system without exposing any real family. A demo person cannot load or see real data.</p></div>`}
 function go(v,id){S.view=v;S.sel=id||null;S.msg="";S.err="";render()}
@@ -618,7 +618,8 @@ BILL.weeks=[];
 const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
 const HHP={};
 function hhPrice(c,h){h=Math.max(1,Math.round(h||1));const t=HHP[c]||{},p=(PR[c]||{}).raw;if(h<=10&&t[h]!=null)return t[h];if(h>10&&t[10]!=null)return t[10]*h/10;return p==null?null:p*h}
-function boxAmt(c,x){if(!x)return 0;const raw=(PR[c]||{}).raw;let t=0;if(x.boxflat){if(raw==null)return null;t+=x.boxflat*raw}if(!x.boxh)return t;for(const h of Object.keys(x.boxh)){const a=hhPrice(c,+h);if(a==null)return null;t+=a*x.boxh[h]}return t}
+function enhPrice(c){const t=HHP[c]||{};return t[0]!=null?t[0]:hhPrice(c,1)}
+function boxAmt(c,x){if(!x)return 0;const raw=(PR[c]||{}).raw;let t=0;if(x.boxflat){if(raw==null)return null;t+=x.boxflat*raw}if(x.enhn){const ep=enhPrice(c);if(ep==null)return null;t+=x.enhn*ep}if(!x.boxh)return t;for(const h of Object.keys(x.boxh)){const a=hhPrice(c,+h);if(a==null)return null;t+=a*x.boxh[h]}return t}
 const dcount=x=>x?x.meals+x.mraw+(x.boxn!=null?x.boxn:x.box):0;
 const coName=c=>c=="?"?"No company":c;
 function estA(c,x){if(!x)return 0;const p=PR[c]||{};if(p.meals==null)return null;const b=boxAmt(c,x);if(b==null)return null;return 21*(x.mhh||0)*p.meals+b}
@@ -640,7 +641,7 @@ async function savePrices(){
 async function saveHhPrices(){
  if(!S.user||(S.user.role!="owner"&&S.user.role!="billing")){S.err="Only the admin or billing can change prices.";render();return}
  const up=[];let bad=false;
- COS.forEach(c=>{for(let h=1;h<=10;h++){const el=document.getElementById("hp_"+c+"_"+h);if(!el)continue;const t=String(el.value).trim().replace(/[$,]/g,""),v=t===""?null:Number(t);if(v!==null&&!(v>=0))bad=true;const old=(HHP[c]||{})[h]!=null?HHP[c][h]:null;if(v!==old)up.push({agency:c,hh:h,price:v,updated_at:new Date().toISOString()})}});
+ COS.forEach(c=>{for(let h=0;h<=10;h++){const el=document.getElementById("hp_"+c+"_"+h);if(!el)continue;const t=String(el.value).trim().replace(/[$,]/g,""),v=t===""?null:Number(t);if(v!==null&&!(v>=0))bad=true;const old=(HHP[c]||{})[h]!=null?HHP[c][h]:null;if(v!==old)up.push({agency:c,hh:h,price:v,updated_at:new Date().toISOString()})}});
  if(bad){S.err="Prices must be numbers.";S.msg="";render();return}
  if(!up.length){S.msg="Nothing changed.";S.err="";render();return}
  try{const r=await sb.from("agency_hh_prices").upsert(up,{onConflict:"agency,hh"});if(r.error)throw r.error;
@@ -795,7 +796,7 @@ async function saveOpen(){
 /* ---- billing downloads: Excel and invoice ---- */
 function billCust(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return [];
  return Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>!c||x.co==c).sort((a,b)=>(a.co+a.name).localeCompare(b.co+b.name))}
-function billAmt(r){const p=PR[r.co]||{};return r.base=="box"?(r.boxh?boxAmt(r.co,{boxh:r.boxh}):(p.raw==null?null:r.boxes*p.raw)):(p.meals==null?null:21*(r.hh||1)*p.meals)}
+function billAmt(r){const p=PR[r.co]||{};return r.base=="box"?(r.boxh?boxAmt(r.co,{boxh:r.boxh,enhn:r.enhn}):(p.raw==null?null:r.boxes*p.raw)):(p.meals==null?null:21*(r.hh||1)*p.meals)}
 const fdt=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
 function weekRange(k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const a=new Date(w.t),b=new Date(w.t+6*864e5),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
 function bmsg(t,bad){const el=document.getElementById("bill_msg");if(el){el.textContent=t;el.style.color=bad?"#b42318":"var(--ok)"}}
@@ -847,7 +848,7 @@ async function loadBillDb(){
   const iw=new Set(),ir=[],cnt={};BILL.impAll=imp;BILL.impMap=null;imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
    // every row of the sheet is one billed line (the same family can have a meals row and a box row, or two rows of the same kind)
    const ck=x.tab_date+"|"+x.company+"|"+x.ref,n=cnt[ck]=(cnt[ck]||0)+1,links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));
-   ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:n>1?x.ref+" ("+n+")":x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,boxes:x.base=="box"?x.hh:1,letters:"",receipt_url:links[0]||"",photo_urls:links.slice(1)})});
+   ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:n>1?x.ref+" ("+n+")":x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,enh:x.enh||0,boxes:x.base=="box"?x.hh:1,letters:"",receipt_url:links[0]||"",photo_urls:links.slice(1)})});
   const rows2=iw.size?rows.filter(x=>!iw.has(wkLab(wkKey(new Date(Date.parse(x.delivered_at)))))).concat(ir):rows;BILL.impWeeks=[...iw];
   BILL.rows=rows2;BILL.weeks=buildWeeks(rows2);BILL.real=true;BILL.det={};await loadPayDb();
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
@@ -857,10 +858,10 @@ function buildWeeks(rows){
  const W={};
  rows.forEach(r=>{
   const d=wkKey(Date.parse(r.delivered_at)),k=wkLab(d),w=W[k]=W[k]||{k:k,t:d.getTime(),a:{},cust:{}},co=r.agency||"?",x=w.a[co]=w.a[co]||{meals:0,mraw:0,box:0,mhh:0};
-  const key=co+"|"+r.agency_ref,cu=w.cust[key]=w.cust[key]||{co:co,id:r.agency_ref,name:r.name,base:r.base,food:r.food,hh:r.hh,dl:[],boxes:0};
+  const key=co+"|"+r.agency_ref,cu=w.cust[key]=w.cust[key]||{co:co,id:r.agency_ref,name:r.name,base:r.base,food:r.food,hh:r.hh,enh:r.enh||0,dl:[],boxes:0};
   cu.dl.push(r);cu.boxes+=Math.max(1,r.boxes||0)});
  Object.keys(W).forEach(k=>{const w=W[k];Object.keys(w.cust).forEach(key=>{const cu=w.cust[key],x=w.a[cu.co];
-  if(cu.base=="box"){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1;if(cu.dl[0]&&cu.dl[0].order_id=="sheet"){const h=Math.max(1,cu.hh||1);x.boxh=x.boxh||{};x.boxh[h]=(x.boxh[h]||0)+cu.dl.length;cu.boxh={};cu.boxh[h]=cu.dl.length}else x.boxflat=(x.boxflat||0)+cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
+  if(cu.base=="box"){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1;if(cu.dl[0]&&cu.dl[0].order_id=="sheet"){const en=Math.min(cu.enh||0,cu.hh||1),rg=Math.max(0,(cu.hh||1)-en);cu.boxh={};if(rg>0){x.boxh=x.boxh||{};x.boxh[rg]=(x.boxh[rg]||0)+cu.dl.length;cu.boxh[rg]=cu.dl.length}x.enhn=(x.enhn||0)+en*cu.dl.length;cu.enhn=en*cu.dl.length}else x.boxflat=(x.boxflat||0)+cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
  return Object.keys(W).map(k=>W[k]).sort((a,b)=>b.t-a.t).slice(0,12)}
 function bDb(c,k){
  const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const B=S.b,q=(B.q||"").toLowerCase();
@@ -1169,6 +1170,7 @@ function bsLines(rows){
  const hd=(rows[0]||[]).map(norm),find=(res)=>{for(const re of res){const i=hd.findIndex(h=>re.test(h));if(i>=0)return i}return -1};
  const ii=find([/^application id$/,/^family id$/,/^family$/,/^order id$/]);
  let ih=find([/^total household/,/^total house hold/,/^total family$/,/^total members$/,/^household total$/,/^household size$/,/^total households$/,/^total$/,/^hh$/,/^\d+(\.0)?$/]);
+ const ie=find([/^enhanced$/]);
  const it=find([/^food type$/,/^order type$/,/^meal type$/,/^raw\/meals$/,/^box$/]);
  const inm=find([/^mothers, name$/,/^last,? name$/,/^last_name$/,/^clients,?$/,/^name$/,/name/]);
  const out=[];
@@ -1177,7 +1179,7 @@ function bsLines(rows){
   const id=ii>=0?String(x[ii]==null?"":x[ii]).trim().replace(/\.0+$/,""):"",nm=inm>=0?String(x[inm]==null?"":x[inm]).trim():"";
   if(!id)continue;   // every row with an ID is a billed order; the link fills in when it is delivered
   const ty=it>=0?String(x[it]==null?"":x[it]).trim():"",hh=ih>=0?parseFloat(x[ih]):NaN;
-  out.push({r:r,i:id,n:nm,k:/box|grocer/i.test(ty)?"box":"meals",f:ty,h:isNaN(hh)||hh>60?1:Math.max(1,Math.round(hh)),l:[...new Set(links)]})}
+  out.push({r:r,i:id,n:nm,k:/box|grocer/i.test(ty)?"box":"meals",f:ty,h:isNaN(hh)||hh>60?1:Math.max(1,Math.round(hh)),e:(()=>{if(ie<0)return 0;const v=parseFloat(x[ie]);return isNaN(v)||v<0||v>60?0:Math.round(v)})(),l:[...new Set(links)]})}
  return out}
 
 
@@ -1202,7 +1204,7 @@ async function bsFile(f){
 async function bsSave(){
  const B=S.bs;if(!B||!B.lines||B.busy)return;B.busy=true;B.done=0;B.ok="";B.err="";render();
  const t=new Date(),pd=n=>String(n).padStart(2,"0"),batch=""+t.getUTCFullYear()+pd(t.getUTCMonth()+1)+pd(t.getUTCDate())+pd(t.getUTCHours())+pd(t.getUTCMinutes())+pd(t.getUTCSeconds());
- try{for(let i=0;i<B.lines.length;i+=500){const r=await sb.rpc("save_billing_import",{p:B.lines.slice(i,i+500).map(x=>({d:x.d,c:x.c,r:x.r,b:batch,i:x.i,n:x.n,k:x.k,f:x.f,h:x.h,l:x.l}))});if(r.error)throw r.error;B.done=Math.min(i+500,B.lines.length);render()}
+ try{for(let i=0;i<B.lines.length;i+=500){const r=await sb.rpc("save_billing_import",{p:B.lines.slice(i,i+500).map(x=>({d:x.d,c:x.c,r:x.r,b:batch,i:x.i,n:x.n,k:x.k,f:x.f,h:x.h,e:x.e||0,l:x.l}))});if(r.error)throw r.error;B.done=Math.min(i+500,B.lines.length);render()}
   S.bs={ok:"Saved "+B.lines.length.toLocaleString()+" delivered customers for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open Billing: these weeks now come from your sheet."};BILL.real=false;BILL.loading=false;loadBillDb()
  }catch(e){B.busy=false;B.err="Not saved: "+dberr(e)+(/save_billing_import|function/i.test(String(e&&e.message))?" (The database update 017 has not been run yet.)":"")}
  render()}
