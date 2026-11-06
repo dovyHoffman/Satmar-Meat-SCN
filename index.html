@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b45">
+<meta name="build" content="b46">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -751,7 +751,7 @@ function billStatement(c){
  const ws=BILL.weeks.filter(w=>w.a[c]&&!(ob&&w.t+6*864e5<=Date.parse(asOf))).sort((a,b)=>a.t-b.t);
  const ps=BILL.pays.filter(q=>q.company==c&&!q.voided&&(!ob||q.paid_on>=asOf)).sort((a,b)=>String(a.paid_on).localeCompare(String(b.paid_on)));
  const ev=[],ivs=(BILL.inv||[]).filter(i=>i.company==c&&!i.voided),used=new Set();let open0=0;
- if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);let lis=0;ivs.filter(i=>i.inv_date<=asOf).forEach(i=>{lis+=Number(i.amount);used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0})});const rest=open0-lis;if(Math.abs(rest)>=0.005)ev.push({t:Date.parse(asOf)-1,h:"Starting balance as of "+asOf+(lis?" (other open items)":""),ch:rest,py:0})}
+ if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);let lis=0;ivs.filter(i=>i.inv_date<=asOf).forEach(i=>{lis+=Number(i.amount);used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0})});const rest=open0-lis;if(rest<=-0.005)ev.push({t:Date.parse(asOf)-1,h:"Payments already applied to these invoices (before "+asOf+")",ch:0,py:-rest});else if(rest>=0.005)ev.push({t:Date.parse(asOf)-1,h:"Starting balance as of "+asOf+(lis?" (other open items)":""),ch:rest,py:0})}
  ws.forEach(w=>{const x=w.a[c],iv=invFor(c,w).filter(i=>!used.has(i.id));if(iv.length){iv.forEach(i=>{used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:Number(i.amount),py:0})});return}const e=estA(c,x);ev.push({t:w.t+6*864e5,h:"Invoice · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:e==null?0:e,py:0,nop:e==null})});
  ivs.filter(i=>!used.has(i.id)&&(!ob||i.inv_date>asOf)).forEach(i=>ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0}));
  ps.forEach(q=>ev.push({t:Date.parse(q.paid_on)+1,h:"Payment · "+ptName(q.ptype)+(q.ref?" · "+q.ref:""),ch:0,py:Number(q.amount)}));
