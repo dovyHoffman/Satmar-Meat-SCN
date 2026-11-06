@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b54">
+<meta name="build" content="b55">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -365,9 +365,9 @@ function vCard(){
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
  ${lock?`<p class="err">The cut-off has passed. Only the admin can add changes now.</p>`:""}
  <div class="grid">${nf("nf_phone","New phone",n.phone,"Current: "+c.phone)}
- <label class="s2" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="Type the new address, e.g. 123 Main St, Brooklyn, NY 11211" ${dis} style="font-size:15px;padding:11px 12px"><span id="nf_hint" class="note" style="display:block;margin-top:4px;min-height:18px"></span></label>
+ <label class="ac" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}><span id="nf_hint" class="note" style="display:block;margin-top:3px"></span></label>
  ${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}
- ${nf("nf_notes","New notes / door lock",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New notes 2",n.note2,"Current: "+(c.note2||"none"))}
+ ${nf("nf_notes","New notes / door lock",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New notes 2",stripCS(n.note2,c.note2,n.food),"Current: "+(c.note2||"none"))}
  <label>Food type<select id="nf_base" ${own&&!lock?"":"disabled"} onchange="fillOpt()"><option value="">No change</option><option value="box" ${n.base=="box"?"selected":""}>Box</option><option value="meals" ${n.base=="meals"?"selected":""}>Meals</option></select></label>
  <label>Option<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
  <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
@@ -534,9 +534,10 @@ function detectArea(a){
  if(/^(11219|11204|11218|11230|11210|11232)$/.test(zip))return "BP";
  if(/bedford/.test(st)||/^(11205|11206|11249)$/.test(zip))return "Bedford";
  return "Lee"}
+function stripCS(t,orig,food){t=String(t||"");if(food!="mid")return t;const re=/\s*CS \d{1,2}\/\d{1,2}\s*$/,o=String(orig||"");return re.test(t)&&!(re.test(o)&&o.trim()==t.trim())?t.replace(re,"").trim():t}
 function nfHint(){
  const i=document.getElementById("nf_addr"),h=document.getElementById("nf_hint");if(!i||!h)return;const v=i.value.trim();
- if(!v){h.textContent="Leave empty to keep the current address. The area is recognized automatically from the new address.";h.className="note";return}
+ if(!v){h.textContent="";h.className="note";return}
  const a=parseAddrSmart(v),miss=a.street?addrMissing(a):"Enter a street.";
  if(miss){h.textContent=miss;h.className="note err";return}
  const ar=detectArea({st:a.street,city:a.city,zip:a.zip});h.className="note";h.innerHTML=`✓ <b>${esc(addrFmtLine(a))}</b> · area will be <b>${esc(ar)}</b>`}
@@ -1434,9 +1435,20 @@ function parseAddrSmart(text){
  return o}
 function addrMissing(a){return a.street?"":"Type the street, for example 94 Penn St. The city, state and zip are added for you (Brooklyn, NY and the zip of that street). Put the apartment in its own box."}
 function addrFmtLine(a){return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
+function addrSuggest(inp){
+ const box=document.createElement("div");box.className="dd";inp.parentNode.appendChild(box);let t=null,seq=0;
+ const hide=()=>{box.style.display="none"};
+ inp.addEventListener("input",()=>{clearTimeout(t);const q=inp.value.trim();if(q.length<4||!/\d/.test(q)){hide();return}
+  t=setTimeout(async()=>{const my=++seq;
+   try{const r=await fetch("https://photon.komoot.io/api/?limit=8&lang=en&lat=40.65&lon=-73.95&bbox=-79.8,40.4,-71.8,45.1&q="+encodeURIComponent(q));const j=await r.json();if(my!=seq)return;
+    const out=[],seen=new Set();(j.features||[]).forEach(f=>{const p=f.properties||{};if(p.state&&p.state!="New York"||!p.street&&!p.name||!p.housenumber)return;
+     const city=p.city||p.district||p.locality||p.county||"",line=[p.housenumber+" "+(p.street||p.name),city,"NY",p.postcode].filter(Boolean).join(", ");if(!seen.has(line)){seen.add(line);out.push(line)}});
+    box.innerHTML=out.slice(0,6).map(l=>`<div data-v="${esc(l)}">${esc(l)}</div>`).join("");box.style.display=out.length?"block":"none"}catch(e){hide()}},300)});
+ box.addEventListener("mousedown",e=>{const d=e.target.closest("[data-v]");if(!d)return;e.preventDefault();inp.value=d.dataset.v;hide();inp.dispatchEvent(new Event("input"));hide();inp.blur()});
+ inp.addEventListener("blur",()=>setTimeout(hide,150))}
 function setupAC(){
  [["f_addr","f_apt"],["nf_addr","nf_apt"]].forEach(([ai,pi])=>{const inp=document.getElementById(ai);if(!inp||inp.disabled)return;
-  inp.addEventListener("blur",()=>{const v=inp.value.trim();if(!v)return;const a=parseAddrSmart(v);if(!a.street)return;inp.value=addrFmtLine(a);const ap=document.getElementById(pi);if(ap&&!ap.disabled&&!ap.value.trim()&&a.apt)ap.value=a.apt;nfHint()});if(ai=="nf_addr"){inp.addEventListener("input",nfHint);nfHint()}})}
+  inp.addEventListener("blur",()=>{const v=inp.value.trim();if(!v)return;const a=parseAddrSmart(v);if(!a.street)return;inp.value=addrFmtLine(a);const ap=document.getElementById(pi);if(ap&&!ap.disabled&&!ap.value.trim()&&a.apt)ap.value=a.apt;nfHint()});if(ai=="nf_addr"){inp.addEventListener("input",nfHint);nfHint()}if(!inp.dataset.sg){inp.dataset.sg="1";addrSuggest(inp)}})}
 async function saveNow(id){
  const c=cust.find(x=>x.id==id),ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  if(S.user.role!="owner")return;
@@ -1451,9 +1463,9 @@ async function saveNow(id){
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  if(S.cut&&!own){ce.textContent="The cut-off has passed. Only the admin can add changes now.";return}
- const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?g("nf_notes2").value.trim():"",food:g("nf_opt").value},nx={};
+ const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?stripCS(g("nf_notes2").value.trim(),c.note2,"mid"):"",food:g("nf_opt").value},nx={};
  for(const k in v)if(v[k]&&v[k]!==(k=="food"?c.food:c[k]))nx[k]=v[k];
- if(g("nf_base").value&&!v.food){ce.textContent="Choose the option for the new food type, or set Food type back to No change.";return}
+ if(g("nf_base").value&&g("nf_base").value!==c.base&&!v.food){ce.textContent="Choose the option for the new food type, or set Food type back to No change.";return}
  if(nx.food)nx.base=g("nf_base").value||c.base;
  if(nx.food=="mid"){const tag="CS "+nwk(),b2=(nx.note2||c.note2||"").trim();if(b2.indexOf(tag)<0)nx.note2=(b2?b2+" ":"")+tag}
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
