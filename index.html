@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b49">
+<meta name="build" content="b48">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1076,17 +1076,13 @@ function boxAt(c,p){const sn=p.snap;let food=c.food,hh=c.hh,area=c.area,now=true
  if(sn&&sn.food){food=sn.food;hh=sn.hh||hh;area=sn.mid?"Middleton":(AREAL[sn.area]||"Lee");now=false}
  const code=codesFor(food,hh,area),base=sn&&sn.base||c.base;
  return `<span class="ctag" style="--c:${codeColor(code)};${now?"opacity:.6;":""}" title="${now?"The customer's choice today (the choice at that delivery was not saved)":"What the customer had when this was delivered"}">${esc(optName(base,food))} · ${esc(code)}</span>`}
-function impFor(c){if(!BILL.impAll)return [];const st=x=>nk(String(x==null?"":x).replace(/\.0+$/,"")).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,""),me=st(c.ref),co=String(c.agency||"").toUpperCase();return BILL.impAll.filter(x=>st(x.ref)==me&&(!x.company||!co||String(x.company).toUpperCase()==co))}
 function pastReal(c){
- if(!BILL.impAll&&!BILL.impLoading)setTimeout(loadImpAll,0);
- const wk=new Map();(c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;const ws=wkStartOf(t),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[],sheet:[]});wk.get(k).list.push(p)});
- impFor(c).forEach(x=>{const m=String(x.tab_date).split("-"),ws=wkStartOf(new Date(+m[0],+m[1]-1,+m[2],12)),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[],sheet:[]});wk.get(k).sheet.push(x)});
+ const wk=new Map();(c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;const ws=wkStartOf(t),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[]});wk.get(k).list.push(p)});
  const rows=[...wk.values()].sort((a,b)=>b.ws-a.ws),fm=d=>(d.getMonth()+1)+"/"+d.getDate();
  const line=p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");const done=!!p.ts;
   return `<div class="dlvl">${boxAt(c,p).replace(/ · [^<]*<\/span>$/,"</span>")}${letterChip(c,p)}<span>${done?esc([p.drv,p.at].filter(Boolean).join(" · ")):`<span class="note">${esc(p.k||"")} · not delivered yet</span>`}</span>${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}${p.snap&&p.snap.boxes>0?`<span class="note">${p.snap.boxes} box${p.snap.boxes>1?"es":""}</span>`:""}${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:(done?'<span class="note">no photo yet</span>':"")}</div>`};
- const sl=x=>`<div class="dlvl"><span class="note">From the billing sheet · ${esc(x.base=="box"?"Box":"Meals")}${x.food&&!/^(box|meals)$/i.test(x.food)?" · "+esc(x.food):""} · ${esc(x.hh||"")} in household · ${esc(x.tab_date)}</span>${(x.links||[]).filter(u=>/^https?:\/\//i.test(u)).map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">POD ${i+1}</a>`).join(" ")||'<span class="note">no POD link</span>'}</div>`;
  return `<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>Deliveries</th></tr>
- ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b>${r.list.length>1?`<div class="note">${r.list.length} deliveries</div>`:""}</td><td style="white-space:normal">${r.list.map(line).join("")}${r.list.length?"":r.sheet.map(sl).join("")}</td></tr>`}).join("")||"<tr><td colspan=2 class='no'>No past deliveries found.</td></tr>"}</table></div></div>`}
+ ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b>${r.list.length>1?`<div class="note">${r.list.length} deliveries</div>`:""}</td><td style="white-space:normal">${r.list.map(line).join("")}</td></tr>`}).join("")||"<tr><td colspan=2 class='no'>No past deliveries found.</td></tr>"}</table></div></div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
