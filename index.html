@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b51">
+<meta name="build" content="b52">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1091,13 +1091,51 @@ function boxAt(c,p){const sn=p.snap;let food=c.food,hh=c.hh,area=c.area,now=true
  if(sn&&sn.food){food=sn.food;hh=sn.hh||hh;area=sn.mid?"Middleton":(AREAL[sn.area]||"Lee");now=false}
  const code=codesFor(food,hh,area),base=sn&&sn.base||c.base;
  return `<span class="ctag" style="--c:${codeColor(code)};${now?"opacity:.6;":""}" title="${now?"The customer's choice today (the choice at that delivery was not saved)":"What the customer had when this was delivered"}">${esc(optName(base,food))} · ${esc(code)}</span>`}
+function whParse(a,tab,start){
+ const norm=h=>String(h||"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+ let hr=-1,H=[];for(let i=0;i<Math.min(a.length,6);i++){const n=a[i].map(norm);if(n.indexOf("application id")>=0){hr=i;H=n;break}}
+ if(hr<0)return null;
+ const ix=f=>H.findIndex(f),cI=ix(h=>h=="application id"),cN=ix(h=>h=="not in list"),cB=ix(h=>/^type box/.test(h)),cF=ix(h=>h=="food type"),cL=ix(h=>/^loc[a-z]*tion$/.test(h)),cC=ix(h=>h=="company"),cQ=ix(h=>/^customer request/.test(h)),cG=ix(h=>h=="change"),cT=ix(h=>/^change address/.test(h));
+ const g=(r,i)=>i<0?"":String(r[i]==null?"":r[i]).trim(),out=[];
+ for(let i=hr+1;i<a.length;i++){const r=a[i],id=g(r,cI);if(!id||!/\d/.test(id))continue;
+  out.push({w:start,r:i,i:id,l:!/not in list/i.test(g(r,cN)),x:g(r,cB),f:g(r,cF),a:g(r,cL),c:g(r,cC),q:g(r,cQ),g:g(r,cG),n:g(r,cT)})}
+ return out}
+async function whFile(f){
+ if(!f)return;const N=+((document.getElementById("wh_w")||{}).value||0);S.wh0={busyRead:true};render();
+ try{await loadXlsx();const buf=await f.arrayBuffer();
+  const names=XLSX.read(buf,{type:"array",bookSheets:true}).SheetNames,wk=[];
+  const now=new Date();
+  names.forEach(nm=>{const m=nm.match(/^week[\s_]*(\d{1,2})[\/_.](\d{1,2})\s*-\s*(\d{1,2})[\/_.](\d{1,2})/i);if(!m)return;let y=now.getFullYear();if(+m[1]>now.getMonth()+2)y--;wk.push({tab:nm,start:y+"-"+String(+m[1]).padStart(2,"0")+"-"+String(+m[2]).padStart(2,"0")})});
+  if(!wk.length){S.wh0={err:"No tabs named like Week 10/31-11/7 were found. Is it the SCN Sheet file?"};render();return}
+  wk.sort((a,b)=>b.start.localeCompare(a.start));const take=N?wk.slice(0,N):wk;
+  const wb=XLSX.read(buf,{type:"array",sheets:take.map(x=>x.tab),sheetRows:8000,cellFormula:false,cellHTML:false,cellStyles:false}),rows=[],weeks=[];
+  for(const w of take){const ws=wb.Sheets[w.tab];if(!ws)continue;const L=whParse(XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""}),w.tab,w.start);
+   if(!L){weeks.push({tab:w.tab,start:w.start,n:0,nl:0});continue}
+   L.forEach(x=>rows.push(x));weeks.push({tab:w.tab,start:w.start,n:L.length,nl:L.filter(x=>!x.l).length})}
+  if(!rows.length){S.wh0={err:"No customer rows were found in the week tabs."};render();return}
+  S.wh0={rows:rows,weeks:weeks}
+ }catch(e){S.wh0={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+async function whSave(){
+ const B=S.wh0;if(!B||!B.rows||B.busy)return;B.busy=true;B.done=0;B.err="";render();
+ const t=new Date(),pd=n=>String(n).padStart(2,"0"),batch=""+t.getUTCFullYear()+pd(t.getUTCMonth()+1)+pd(t.getUTCDate())+pd(t.getUTCHours())+pd(t.getUTCMinutes())+pd(t.getUTCSeconds());
+ try{for(let i=0;i<B.rows.length;i+=500){const r=await sb.rpc("save_week_history",{p:B.rows.slice(i,i+500).map(x=>Object.assign({b:batch},x))});if(r.error)throw r.error;B.done=Math.min(i+500,B.rows.length);render()}
+  S.wh0={ok:"Saved "+B.rows.length.toLocaleString()+" customer lines for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open any customer card: the weeks show under Past weeks."};S.wh={};
+ }catch(e){B.busy=false;B.err="Not saved: "+dberr(e)+(/save_week_history|function/i.test(String(e&&e.message))?" (The database update 027 has not been run yet.)":"")}
+ render()}
+function whLoad(c){
+ S.wh=S.wh||{};if(S.wh[c.ref]!==undefined||!sb)return;S.wh[c.ref]=null;
+ sb.rpc("week_history_for",{p:c.ref}).then(r=>{S.wh[c.ref]=r.error?{err:dberr(r.error)}:(r.data||[]);if(S.view=="card"&&S.sel==c.id)render()},e=>{S.wh[c.ref]={err:dberr(e)};if(S.view=="card"&&S.sel==c.id)render()})}
 function pastReal(c){
- const wk=new Map();(c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;const ws=wkStartOf(t),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[]});wk.get(k).list.push(p)});
+ whLoad(c);const WH=(S.wh||{})[c.ref],whOk=Array.isArray(WH);
+ const wk=new Map();(c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;const ws=wkStartOf(t),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[],h:null});wk.get(k).list.push(p)});
+ if(whOk)WH.forEach(h=>{const m=String(h.week_start).split("-"),ws=wkStartOf(new Date(+m[0],+m[1]-1,+m[2],12)),k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[],h:null});wk.get(k).h=h});
+ const hcell=r=>{const h=r.h;if(!h)return whOk?'<span class="note">not on that week\'s sheet</span>':"";const bits=[h.in_list?"On the list":"<b>Not in List</b>",h.box_codes?"box "+esc(h.box_codes):"",h.food_type?esc(h.food_type):"",h.location?esc(h.location):""].filter(Boolean).join(" · "),req=h.request&&h.request!="-"?"Request: "+esc(h.request):"",chg=[h.change&&h.change!="-"?"Change: "+esc(h.change):"",h.change_note&&h.change_note!="-"?esc(h.change_note):""].filter(Boolean).join(" · ");return `<div>${bits}</div>${req?`<div class="note">${req}</div>`:""}${chg?`<div class="note">${chg}</div>`:""}`};
  const rows=[...wk.values()].sort((a,b)=>b.ws-a.ws),fm=d=>(d.getMonth()+1)+"/"+d.getDate();
  const line=p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");const done=!!p.ts;
   return `<div class="dlvl">${boxAt(c,p).replace(/ · [^<]*<\/span>$/,"</span>")}${letterChip(c,p)}<span>${done?esc([p.drv,p.at].filter(Boolean).join(" · ")):`<span class="note">${esc(p.k||"")} · not delivered yet</span>`}</span>${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}${p.snap&&p.snap.boxes>0?`<span class="note">${p.snap.boxes} box${p.snap.boxes>1?"es":""}</span>`:""}${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:(done?'<span class="note">no photo yet</span>':"")}</div>`};
- return `<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>Deliveries</th></tr>
- ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b>${r.list.length>1?`<div class="note">${r.list.length} deliveries</div>`:""}</td><td style="white-space:normal">${r.list.map(line).join("")}</td></tr>`}).join("")||"<tr><td colspan=2 class='no'>No past deliveries found.</td></tr>"}</table></div></div>`}
+ return `<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>From the list (SCN Sheet)</th><th>Deliveries</th></tr>
+ ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b>${r.list.length>1?`<div class="note">${r.list.length} deliveries</div>`:""}</td><td style="white-space:normal;vertical-align:top">${hcell(r)}</td><td style="white-space:normal">${r.list.map(line).join("")}</td></tr>`}).join("")||"<tr><td colspan=3 class='no'>No past weeks found.</td></tr>"}</table></div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length?'<p class="note">No weekly history saved for this customer yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
@@ -1190,7 +1228,17 @@ function vImport(){
  ${S.bs&&S.bs.lines?`<div class="card" style="margin-top:12px"><b>${S.bs.lines.length.toLocaleString()} delivered customers in ${S.bs.weeks.length} week${S.bs.weeks.length==1?"":"s"}</b>
  ${S.bs.weeks.map(w=>`<div class="note" style="margin-top:6px"><b>Tab date ${esc(w.d)}</b> (Billing week of ${esc(w.lab)}): ${Object.keys(w.co).map(c=>esc(c)+" "+w.co[c].toLocaleString()).join(" · ")}${w.nl?" · "+w.nl.toLocaleString()+" not delivered yet (no link)":""}</div>`).join("")}
  <div class="bar"><button class="pri" onclick="bsSave()" ${S.bs.busy?"disabled":""}>${S.bs.busy?"Saving… "+S.bs.done.toLocaleString()+" / "+S.bs.lines.length.toLocaleString():"Save these weeks"}</button></div></div>`:""}
- ${S.bs&&S.bs.ok?`<p class="msg">${esc(S.bs.ok)}</p>`:""}</div>`}
+ ${S.bs&&S.bs.ok?`<p class="msg">${esc(S.bs.ok)}</p>`:""}</div>
+ <div class="card"><h2>Weekly history (week tabs of the SCN Sheet)</h2>
+ <p class="note">Reads the tabs <b>Week 10/31-11/7, Week 10/24-10/31</b> and so on from the SCN Sheet file (Google Sheet: File, Download, Excel). For every customer it keeps: on the list or not, box codes, food type, location, customer request and change. It shows on each customer card under Past weeks. No names, phones or addresses are stored. Uploading the same weeks again is safe.</p>
+ <div class="bar" style="align-items:center"><label class="note" style="display:flex;gap:8px;align-items:center">How many weeks <select id="wh_w" style="width:auto;margin:0"><option value="5" selected>Last 5 weeks</option><option value="0">All week tabs</option></select></label>
+ <input type="file" accept=".xlsx,.xls" onchange="whFile(this.files[0])"></div>
+ ${S.wh0&&S.wh0.busyRead?`<p class="note">Reading the file… this can take a minute.</p>`:""}
+ ${S.wh0&&S.wh0.err?`<p class="err">${esc(S.wh0.err)}</p>`:""}
+ ${S.wh0&&S.wh0.rows?`<div class="card" style="margin-top:12px"><b>${S.wh0.rows.length.toLocaleString()} customer lines in ${S.wh0.weeks.length} week${S.wh0.weeks.length==1?"":"s"}</b>
+ ${S.wh0.weeks.map(w=>`<div class="note" style="margin-top:6px"><b>${esc(w.tab)}</b> → week of ${esc(w.start)}: ${w.n.toLocaleString()} customers${w.nl?" · "+w.nl.toLocaleString()+" marked Not in List":""}</div>`).join("")}
+ <div class="bar"><button class="pri" onclick="whSave()" ${S.wh0.busy?"disabled":""}>${S.wh0.busy?"Saving… "+S.wh0.done.toLocaleString()+" / "+S.wh0.rows.length.toLocaleString():"Save these weeks"}</button></div></div>`:""}
+ ${S.wh0&&S.wh0.ok?`<p class="msg">${esc(S.wh0.ok)}</p>`:""}</div>`}
 function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("The file reader could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
 const BS_CO=/^(UJO|LH|CCS|LT|RY|PT|OR)\s*-?\s*(\d{2,4})$/i;
 function bsPlan(names,weeks,today){
