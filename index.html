@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b41">
+<meta name="build" content="b42">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -708,7 +708,9 @@ const wkLab=d=>(d.getMonth()+1)+"/"+d.getDate();
 
 
 /* ---- payments and balance (current / 30 / 60 / 90 / 120+) ---- */
-BILL.pays=[];BILL.open={};
+BILL.pays=[];BILL.open={};BILL.inv=[];
+const dT=d=>{const m=String(d).split("-");return new Date(+m[0],+m[1]-1,+m[2],12).getTime()};
+function invFor(c,w){return (BILL.inv||[]).filter(i=>i.company==c&&!i.voided&&dT(i.inv_date)>=w.t&&dT(i.inv_date)<w.t+7*864e5)}
 const money2=n=>n==null?"—":(n<0?"-":"")+"$"+Math.abs(Number(n)).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const PTYPES=[["check","Check"],["ach","Bank transfer / ACH"],["wire","Wire"],["zelle","Zelle"],["cash","Cash"],["card","Credit card"],["other","Other"]];
 const ptName=k=>(PTYPES.find(x=>x[0]==k)||[0,k])[1];
@@ -716,7 +718,7 @@ const AGEK=[["cur","Current"],["d30","30 days"],["d60","60 days"],["d90","90 day
 function aging(c){
  const ob=BILL.open[c],asOf=ob?Date.parse(ob.as_of):0,items=[],now=Date.now();let missing=false,charged=0;
  if(ob)[["cur",15],["d30",45],["d60",75],["d90",105],["d120",135]].forEach(([k,off])=>{const v=Number(ob[k])||0;if(v)items.push({t:asOf-off*864e5,a:v})});
- BILL.weeks.forEach(w=>{const x=w.a[c];if(!x)return;const end=w.t+6*864e5;if(ob&&end<=asOf)return;const e=estA(c,x);if(e==null){missing=true;return}items.push({t:end,a:e});charged+=e});
+ BILL.weeks.forEach(w=>{const x=w.a[c];if(!x)return;const end=w.t+6*864e5;if(ob&&end<=asOf)return;const iv=invFor(c,w),e=iv.length?iv.reduce((t,i)=>t+Number(i.amount),0):estA(c,x);if(e==null){missing=true;return}items.push({t:end,a:e});charged+=e});
  items.sort((a,b)=>a.t-b.t);
  let rem=BILL.pays.filter(p=>p.company==c&&!p.voided&&(!ob||p.paid_on>=ob.as_of)).reduce((t,p)=>t+Number(p.amount),0);const paid=rem;
  items.forEach(i=>{const tk=Math.min(i.a,Math.max(0,rem));i.a-=tk;rem-=tk});
@@ -726,15 +728,27 @@ function aging(c){
  return {b:b,total:AGEK.reduce((t,k)=>t+b[k[0]],0),paid:paid,charged:charged+AGEK.reduce((t,k)=>t+(ob?Number(ob[k[0]])||0:0),0),missing:missing,credit:rem>0?rem:0}}
 async function loadPayDb(){
  try{const a=await sb.from("payments").select("id,company,paid_on,amount,ptype,ref,note,voided,created_at").order("paid_on",{ascending:false}).order("id",{ascending:false});if(a.error)throw a.error;
-  BILL.pays=a.data||[];const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
+  BILL.pays=a.data||[];try{const iv=await sb.from("invoices").select("id,company,inv_date,inv_no,amount,note,voided").order("inv_date",{ascending:true});BILL.inv=iv.error?[]:(iv.data||[])}catch(e){BILL.inv=[]};const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
   BILL.open={};(o.data||[]).forEach(r=>{BILL.open[r.company]=r});BILL.payErr=""}
  catch(e){BILL.payErr="Payments could not be read ("+dberr(e)+")"+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?". The database update 012 has not been run yet.":".")}}
+async function invSave(id,c){
+ const g=n=>document.getElementById("iv_"+n+"_"+id),no=g("no").value.trim(),dt=g("dt").value,t=String(g("amt").value).trim().replace(/[$,]/g,""),amt=Number(t),note=g("nt").value.trim();
+ if(!dt||t===""||!(amt>=0)){S.err="Enter the date and a valid amount.";S.msg="";render();return}
+ try{const row={company:c,inv_date:dt,inv_no:no,amount:Math.round(amt*100)/100,note:note,updated_at:new Date().toISOString()};
+  const r=id=="new"?await sb.from("invoices").insert(row):await sb.from("invoices").update(row).eq("id",id);if(r.error)throw r.error;
+  await loadPayDb();S.msg="Invoice saved.";S.err=""}catch(e){S.err="Not saved: "+dberr(e)+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?" The database update 023 has not been run yet.":"");S.msg=""}
+ render()}
+async function invVoid(id){
+ try{const r=await sb.from("invoices").update({voided:true,updated_at:new Date().toISOString()}).eq("id",id);if(r.error)throw r.error;await loadPayDb();S.msg="Invoice voided (kept in History).";S.err=""}catch(e){S.err="Not saved: "+dberr(e);S.msg=""}
+ render()}
 function billStatement(c){
  const H=esc,m=money2,ob=BILL.open[c],asOf=ob?ob.as_of:"",p=PR[c]||{};
  const ws=BILL.weeks.filter(w=>w.a[c]&&!(ob&&w.t+6*864e5<=Date.parse(asOf))).sort((a,b)=>a.t-b.t);
  const ps=BILL.pays.filter(q=>q.company==c&&!q.voided&&(!ob||q.paid_on>=asOf)).sort((a,b)=>String(a.paid_on).localeCompare(String(b.paid_on)));
- const ev=[];let open0=0;if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);ev.push({t:Date.parse(asOf),h:"Starting balance as of "+asOf,ch:open0,py:0})}
- ws.forEach(w=>{const x=w.a[c],e=estA(c,x);ev.push({t:w.t+6*864e5,h:"Invoice · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:e==null?0:e,py:0,nop:e==null})});
+ const ev=[],ivs=(BILL.inv||[]).filter(i=>i.company==c&&!i.voided),used=new Set();let open0=0;
+ if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);let lis=0;ivs.filter(i=>i.inv_date<=asOf).forEach(i=>{lis+=Number(i.amount);used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0})});const rest=open0-lis;if(Math.abs(rest)>=0.005)ev.push({t:Date.parse(asOf)-1,h:"Starting balance as of "+asOf+(lis?" (other open items)":""),ch:rest,py:0})}
+ ws.forEach(w=>{const x=w.a[c],iv=invFor(c,w).filter(i=>!used.has(i.id));if(iv.length){iv.forEach(i=>{used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:Number(i.amount),py:0})});return}const e=estA(c,x);ev.push({t:w.t+6*864e5,h:"Invoice · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:e==null?0:e,py:0,nop:e==null})});
+ ivs.filter(i=>!used.has(i.id)&&(!ob||i.inv_date>asOf)).forEach(i=>ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0}));
  ps.forEach(q=>ev.push({t:Date.parse(q.paid_on)+1,h:"Payment · "+ptName(q.ptype)+(q.ref?" · "+q.ref:""),ch:0,py:Number(q.amount)}));
  ev.sort((a,b)=>a.t-b.t);let bal=0,tc=0,tp=0;
  const rows=ev.map(e=>{bal+=e.ch-e.py;tc+=e.ch;tp+=e.py;return `<tr><td>${H(new Date(e.t).toLocaleDateString("en-US",{month:"numeric",day:"numeric",year:"numeric"}))}</td><td>${H(e.h)}${e.nop?' <i class="mut">(no price set)</i>':""}</td><td class="n">${e.ch?m(e.ch):""}</td><td class="n">${e.py?m(e.py):""}</td><td class="n">${m(bal)}</td></tr>`}).join("");
@@ -870,7 +884,10 @@ function bDb(c,k){
  const all=Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>x.co==c).sort((a,b)=>a.name.localeCompare(b.name)),rows=all.filter(r=>!q||(r.name+" "+r.id).toLowerCase().indexOf(q)>=0);
  const fd=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",hour:"numeric",minute:"2-digit"})};
  const dl=r=>`<div class="dl1">${r.letters?`<span class="ctag" style="--c:${codeColor(r.letters)}">Box ${esc(r.letters)}</span> `:""}<span class="note">${esc(fd(r.delivered_at))}</span> ${LNK(r.receipt_url,"Receipt")} ${(r.photo_urls||[]).filter(u=>/^https?:\/\//i.test(u)).map((u,i,a)=>LNK(u,"Photo"+(a.length>1?" "+(i+1):""))).join(" ")}</div>`;
- return `<div class="card"><h2>Customers · ${esc(coName(c))} · week of ${esc(k)} <span class="note">${all.length} customers billed · ${all.reduce((t,r)=>t+r.dl.length,0)} deliveries${rows.length!=all.length?" · "+rows.length+" shown":""}</span></h2>
+ const ivs=invFor(c,w),est=estA(c,w.a[c]),td3=new Date(w.t+3*864e5),ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+ const ivRow=(i)=>{const id=i?i.id:"new";return `<tr><td><input id="iv_no_${id}" value="${i?esc(i.inv_no):""}" placeholder="Invoice no." style="width:130px"></td><td><input id="iv_dt_${id}" type="date" value="${i?esc(i.inv_date):ymd(td3)}" style="width:150px"></td><td><input id="iv_amt_${id}" inputmode="decimal" value="${i?Number(i.amount):(est==null?"":Math.round(est*100)/100)}" style="width:120px;text-align:right"></td><td><input id="iv_nt_${id}" value="${i?esc(i.note):""}" placeholder="Note" style="width:160px"></td><td><button class="pri" onclick="invSave('${id}','${c}')">${i?"Save":"Add invoice"}</button>${i?` <button onclick="invVoid(${i.id})">Void</button>`:""}</td></tr>`};
+ const ivCard=`<div class="card"><h2>Invoice · ${esc(coName(c))} · week of ${esc(k)} <span class="note">calculated from households: ${est==null?"—":money2(est)}</span></h2><div class="wrap"><table><tr><th>Invoice no.</th><th>Date</th><th style="text-align:right">Amount</th><th>Note</th><th></th></tr>${ivs.map(ivRow).join("")}${ivs.length?"":ivRow(null)}</table></div><p class="note">The saved invoice amount is what the balance and the statement use for this week. Change a number and press Save; every change is kept in History.${ivs.length?` To add another invoice for this week, ask me.`:""}</p></div>`;
+ return ivCard+`<div class="card"><h2>Customers · ${esc(coName(c))} · week of ${esc(k)} <span class="note">${all.length} customers billed · ${all.reduce((t,r)=>t+r.dl.length,0)} deliveries${rows.length!=all.length?" · "+rows.length+" shown":""}</span></h2>
  <div class="bar"><input placeholder="Search name or ID" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"><button class="pri" onclick="billXlsx('${c}','${k}')">Download Excel</button><button onclick="billInvoice('${c}','${k}',true)">Invoice · totals only</button><button onclick="billInvoice('${c}','${k}')">Invoice · with customers</button><span id="bill_msg" class="note"></span></div>
  <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th></tr>
  ${rows.slice(0,200).map(r=>{const amt=billAmt(r);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(r.food||"")}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td></tr>`}).join("")||`<tr><td colspan="7" class="no">None.</td></tr>`}</table></div>
