@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b37">
+<meta name="build" content="b38">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -708,6 +708,27 @@ async function loadPayDb(){
   BILL.pays=a.data||[];const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
   BILL.open={};(o.data||[]).forEach(r=>{BILL.open[r.company]=r});BILL.payErr=""}
  catch(e){BILL.payErr="Payments could not be read ("+dberr(e)+")"+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?". The database update 012 has not been run yet.":".")}}
+function billStatement(c){
+ const H=esc,m=money2,ob=BILL.open[c],asOf=ob?ob.as_of:"",p=PR[c]||{};
+ const ws=BILL.weeks.filter(w=>w.a[c]&&!(ob&&w.t+6*864e5<=Date.parse(asOf))).sort((a,b)=>a.t-b.t);
+ const ps=BILL.pays.filter(q=>q.company==c&&!q.voided&&(!ob||q.paid_on>=asOf)).sort((a,b)=>String(a.paid_on).localeCompare(String(b.paid_on)));
+ const ev=[];let open0=0;if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);ev.push({t:Date.parse(asOf),h:"Starting balance as of "+asOf,ch:open0,py:0})}
+ ws.forEach(w=>{const x=w.a[c],e=estA(c,x);ev.push({t:w.t+6*864e5,h:"Invoice · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:e==null?0:e,py:0,nop:e==null})});
+ ps.forEach(q=>ev.push({t:Date.parse(q.paid_on)+1,h:"Payment · "+ptName(q.ptype)+(q.ref?" · "+q.ref:""),ch:0,py:Number(q.amount)}));
+ ev.sort((a,b)=>a.t-b.t);let bal=0,tc=0,tp=0;
+ const rows=ev.map(e=>{bal+=e.ch-e.py;tc+=e.ch;tp+=e.py;return `<tr><td>${H(new Date(e.t).toLocaleDateString("en-US",{month:"numeric",day:"numeric",year:"numeric"}))}</td><td>${H(e.h)}${e.nop?' <i class="mut">(no price set)</i>':""}</td><td class="n">${e.ch?m(e.ch):""}</td><td class="n">${e.py?m(e.py):""}</td><td class="n">${m(bal)}</td></tr>`}).join("");
+ const html=`<!doctype html><html><head><meta charset="utf-8"><title>Statement ${H(c)}</title><style>
+ body{font:14px/1.45 Inter,Arial,sans-serif;color:#111;margin:32px auto;max-width:900px;padding:0 24px}h1{font-size:26px;margin:0}.top{display:flex;justify-content:space-between;gap:20px;margin-bottom:22px}.r{text-align:right}
+ table{width:100%;border-collapse:collapse;margin:14px 0}th,td{padding:7px 10px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#555;background:#f6f6f6}td.n,th.n{text-align:right;white-space:nowrap}
+ .tot td{font-weight:700;border-top:2px solid #111;font-size:15px}.mut{color:#666;font-size:12px}button{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid #888;background:#fff;cursor:pointer}@media print{.bar{display:none}body{margin:0;max-width:none}}</style></head><body>
+ <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
+ <div class="top"><div><h1>Account statement</h1><div class="mut">${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
+ <div style="margin-bottom:8px"><div class="mut">Account</div><b style="font-size:18px">${H(coName(c))}</b></div>
+ <table><tr><th>Date</th><th>Description</th><th class="n">Billed</th><th class="n">Paid</th><th class="n">Balance</th></tr>${rows||'<tr><td colspan="5">Nothing yet.</td></tr>'}
+ <tr class="tot"><td colspan="2">Total</td><td class="n">${m(tc)}</td><td class="n">${m(tp)}</td><td class="n">${m(bal)}</td></tr></table>
+ <p class="mut">Weekly invoices: meals = HH meals × 21 × ${p.meals==null?"—":m(p.meals)}; boxes = HH raw × ${p.raw==null?"—":m(p.raw)}. Balance due: <b>${m(bal)}</b>.</p></body></html>`;
+ const url=URL.createObjectURL(new Blob([html],{type:"text/html"})),win=window.open(url,"_blank");
+ if(!win){S.err="The statement was blocked by the browser. Allow pop-ups for this site and try again.";S.msg="";render()}}
 function bPay(){
  const cos=allCos(),B=S.b,td=new Date(),today=td.getFullYear()+"-"+String(td.getMonth()+1).padStart(2,"0")+"-"+String(td.getDate()).padStart(2,"0");
  if(BILL.payErr)return `<div class="card"><h2>Payments &amp; balance</h2><p class="err">${esc(BILL.payErr)}</p></div>`;
@@ -716,8 +737,8 @@ function bPay(){
  const cosel=`<select id="py_co">${cos.map(c=>`<option value="${c}" ${B.pco==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`;
  const miss=cos.filter(c=>A[c].missing);
  return `<div class="card"><h2>Balance by company</h2><p class="note">Charges are the weekly billing from the deliveries. Payments are applied to the oldest charges first. A week is "current" for its first 30 days.${BILL.weeks.length?` Weeks counted: ${BILL.weeks.length}.`:""}${miss.length?` <b>${miss.join(", ")}</b> has no price yet, so its weeks are not charged.`:""}</p>
- <div class="wrap"><table><tr><th>Company</th>${AGEK.map(k=>`<th style="text-align:right">${k[1]}</th>`).join("")}<th style="text-align:right">Total balance</th><th style="text-align:right">Paid</th></tr>
- ${cos.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${AGEK.map(k=>num(A[c].b[k[0]])).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(A[c].total)}</b></td>${num(A[c].paid)}</tr>`).join("")}
+ <div class="wrap"><table><tr><th>Company</th>${AGEK.map(k=>`<th style="text-align:right">${k[1]}</th>`).join("")}<th style="text-align:right">Total balance</th><th style="text-align:right">Paid</th><th></th></tr>
+ ${cos.map(c=>`<tr><td><b>${esc(coName(c))}</b></td>${AGEK.map(k=>num(A[c].b[k[0]])).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(A[c].total)}</b></td>${num(A[c].paid)}<td><button onclick="billStatement('${c}')">Statement</button></td></tr>`).join("")}
  <tr><td><b>Total</b></td>${AGEK.map(k=>`<td style="text-align:right;white-space:nowrap"><b>${money2(tot[k[0]])}</b></td>`).join("")}<td style="text-align:right;white-space:nowrap"><b>${money2(tot.total)}</b></td><td></td></tr></table></div></div>
  <div class="card"><h2>Add a payment</h2>
  <div class="bar" style="align-items:flex-end;flex-wrap:wrap;gap:10px"><label>Company<br>${cosel}</label><label>Date<br><input id="py_dt" type="date" value="${today}" style="width:160px"></label><label>Amount<br><input id="py_amt" inputmode="decimal" placeholder="0.00" style="width:130px"></label>
