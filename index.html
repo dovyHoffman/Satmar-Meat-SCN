@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b46">
+<meta name="build" content="b48">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -749,12 +749,13 @@ async function invVoid(id){
 function billStatement(c){
  const H=esc,m=money2,ob=BILL.open[c],asOf=ob?ob.as_of:"",p=PR[c]||{};
  const ws=BILL.weeks.filter(w=>w.a[c]&&!(ob&&w.t+6*864e5<=Date.parse(asOf))).sort((a,b)=>a.t-b.t);
- const ps=BILL.pays.filter(q=>q.company==c&&!q.voided&&(!ob||q.paid_on>=asOf)).sort((a,b)=>String(a.paid_on).localeCompare(String(b.paid_on)));
- const ev=[],ivs=(BILL.inv||[]).filter(i=>i.company==c&&!i.voided),used=new Set();let open0=0;
- if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);let lis=0;ivs.filter(i=>i.inv_date<=asOf).forEach(i=>{lis+=Number(i.amount);used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0})});const rest=open0-lis;if(rest<=-0.005)ev.push({t:Date.parse(asOf)-1,h:"Payments already applied to these invoices (before "+asOf+")",ch:0,py:-rest});else if(rest>=0.005)ev.push({t:Date.parse(asOf)-1,h:"Starting balance as of "+asOf+(lis?" (other open items)":""),ch:rest,py:0})}
+ const ps=BILL.pays.filter(q=>q.company==c&&!q.voided).sort((a,b)=>String(a.paid_on).localeCompare(String(b.paid_on)));
+ const ev=[],ivs=(BILL.inv||[]).filter(i=>i.company==c&&!i.voided),used=new Set();let open0=0,bfAmt=0;
+ if(ob){open0=AGEK.reduce((t,k)=>t+(Number(ob[k[0]])||0),0);let lis=0;ivs.filter(i=>i.inv_date<=asOf).forEach(i=>{lis+=Number(i.amount);used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0})});const pb=ps.filter(q=>q.paid_on<asOf).reduce((t,q)=>t+Number(q.amount),0);bfAmt=open0-lis+pb}
  ws.forEach(w=>{const x=w.a[c],iv=invFor(c,w).filter(i=>!used.has(i.id));if(iv.length){iv.forEach(i=>{used.add(i.id);ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:Number(i.amount),py:0})});return}const e=estA(c,x);ev.push({t:w.t+6*864e5,h:"Invoice · week "+weekRange(w.k)+" · HH meals "+x.mhh+" · HH raw (box) "+x.box,ch:e==null?0:e,py:0,nop:e==null})});
  ivs.filter(i=>!used.has(i.id)&&(!ob||i.inv_date>asOf)).forEach(i=>ev.push({t:dT(i.inv_date),h:"Invoice "+(i.inv_no?"#"+i.inv_no:"")+" · "+i.inv_date,ch:Number(i.amount),py:0}));
- ps.forEach(q=>ev.push({t:Date.parse(q.paid_on)+1,h:"Payment · "+ptName(q.ptype)+(q.ref?" · "+q.ref:""),ch:0,py:Number(q.amount)}));
+ ps.forEach(q=>ev.push({t:dT(q.paid_on)+1,h:"Payment · "+ptName(q.ptype)+(q.ref?" · "+q.ref:""),ch:0,py:Number(q.amount)}));
+ if(ob&&Math.abs(bfAmt)>=0.005&&ev.length)ev.push({t:Math.min(...ev.map(e=>e.t))-864e5,h:"Balance brought forward (earlier invoices not listed here)",ch:bfAmt>0?bfAmt:0,py:bfAmt<0?-bfAmt:0});
  ev.sort((a,b)=>a.t-b.t);let bal=0,tc=0,tp=0;
  const rows=ev.map(e=>{bal+=e.ch-e.py;tc+=e.ch;tp+=e.py;return `<tr><td>${H(new Date(e.t).toLocaleDateString("en-US",{month:"numeric",day:"numeric",year:"numeric"}))}</td><td>${H(e.h)}${e.nop?' <i class="mut">(no price set)</i>':""}</td><td class="n">${e.ch?m(e.ch):""}</td><td class="n">${e.py?m(e.py):""}</td><td class="n">${m(bal)}</td></tr>`}).join("");
  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Statement ${H(c)}</title><style>
@@ -766,7 +767,7 @@ function billStatement(c){
  <div style="margin-bottom:8px"><div class="mut">Account</div><b style="font-size:18px">${H(coName(c))}</b></div>
  <table><tr><th>Date</th><th>Description</th><th class="n">Billed</th><th class="n">Paid</th><th class="n">Balance</th></tr>${rows||'<tr><td colspan="5">Nothing yet.</td></tr>'}
  <tr class="tot"><td colspan="2">Total</td><td class="n">${m(tc)}</td><td class="n">${m(tp)}</td><td class="n">${m(bal)}</td></tr></table>
- <p class="mut">Weekly invoices: meals = HH meals × 21 × ${p.meals==null?"—":m(p.meals)}; boxes = ${HHP[c]?"price by household size (see Settings)":"HH raw × "+(p.raw==null?"—":m(p.raw))}. Balance due: <b>${m(bal)}</b>.</p></body></html>`;
+ <p class="mut">Balance due: <b>${m(bal)}</b>.</p></body></html>`;
  const url=URL.createObjectURL(new Blob([html],{type:"text/html"})),win=window.open(url,"_blank");
  if(!win){S.err="The statement was blocked by the browser. Allow pop-ups for this site and try again.";S.msg="";render()}}
 function bPay(){
