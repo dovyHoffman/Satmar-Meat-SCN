@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b55">
+<meta name="build" content="b56">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1092,6 +1092,15 @@ function boxAt(c,p){const sn=p.snap;let food=c.food,hh=c.hh,area=c.area,now=true
  if(sn&&sn.food){food=sn.food;hh=sn.hh||hh;area=sn.mid?"Middleton":(AREAL[sn.area]||"Lee");now=false}
  const code=codesFor(food,hh,area),base=sn&&sn.base||c.base;
  return `<span class="ctag" style="--c:${codeColor(code)};${now?"opacity:.6;":""}" title="${now?"The customer's choice today (the choice at that delivery was not saved)":"What the customer had when this was delivered"}">${esc(optName(base,food))} · ${esc(code)}</span>`}
+function whTabStart(a,b,now){
+ const cand=t=>{const out=[],str=String(t).replace(/[^0-9\/_.]/g,""),sp=str.split(/[\/_.]/).filter(Boolean);
+  if(sp.length==2){out.push([+sp[0],+sp[1]])}else{const d=sp.join("");for(let k=1;k<=2&&k<d.length;k++){const mo=d.slice(0,k),dy=d.slice(k);if(dy.length>2||(dy.length==2&&dy[0]=="0")||(mo.length==2&&mo[0]=="0"))continue;out.push([+mo,+dy])}}
+  return out.filter(x=>x[0]>=1&&x[0]<=12&&x[1]>=1&&x[1]<=31)};
+ let best=null;
+ for(const y of [now.getFullYear()-1,now.getFullYear()])for(const s of cand(a))for(const e of cand(b))for(const ye of [y,y+1]){
+  const ds=new Date(y,s[0]-1,s[1],12),de=new Date(ye,e[0]-1,e[1],12),n=Math.round((de-ds)/864e5);
+  if(n<5||n>8)continue;const age=(now-ds)/864e5;if(age<-14||age>400)continue;if(!best||Math.abs(age-60)<Math.abs(best.age-60)&&age<best.age||age<best.age)best={age:age,d:ds}}
+ return best?best.d.getFullYear()+"-"+String(best.d.getMonth()+1).padStart(2,"0")+"-"+String(best.d.getDate()).padStart(2,"0"):null}
 function whParse(a,tab,start){
  const norm=h=>String(h||"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
  let hr=-1,H=[];for(let i=0;i<Math.min(a.length,6);i++){const n=a[i].map(norm);if(n.indexOf("application id")>=0){hr=i;H=n;break}}
@@ -1106,7 +1115,7 @@ async function whFile(f){
  try{await loadXlsx();const buf=await f.arrayBuffer();
   const names=XLSX.read(buf,{type:"array",bookSheets:true}).SheetNames,wk=[];
   const now=new Date();
-  names.forEach(nm=>{const m=nm.match(/^week[\s_]*(\d{1,2})[\/_.](\d{1,2})\s*-\s*(\d{1,2})[\/_.](\d{1,2})/i);if(!m)return;let y=now.getFullYear();if(+m[1]>now.getMonth()+2)y--;wk.push({tab:nm,start:y+"-"+String(+m[1]).padStart(2,"0")+"-"+String(+m[2]).padStart(2,"0")})});
+  names.forEach(nm=>{const m=nm.match(/^week[\s_]*([\d\/_.]+)\s*-\s*([\d\/_.]+)/i);if(!m)return;const st=whTabStart(m[1],m[2],now);if(st)wk.push({tab:nm,start:st})});
   if(!wk.length){S.wh0={err:"No tabs named like Week 10/31-11/7 were found. Is it the SCN Sheet file?"};render();return}
   wk.sort((a,b)=>b.start.localeCompare(a.start));const take=N?wk.slice(0,N):wk;
   const wb=XLSX.read(buf,{type:"array",sheets:take.map(x=>x.tab),sheetRows:8000,cellFormula:false,cellHTML:false,cellStyles:false}),rows=[],weeks=[];
