@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b68">
+<meta name="build" content="b69">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -366,7 +366,7 @@ function vCard(){
  return `<div class="card"><div class="chd"><h2>${esc(c.name)}</h2><span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}
  <div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
-  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${ro("Total household (HH)",c.hh)}${ro("Type",c.base=="box"?"Box":"Meals")}${ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
+  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
  </div>
  <div class="pnl"><h4>Delivery</h4><div class="grid g4" style="--n:4">${fAddr}${fApt}${fArea}</div></div>
  <div class="pnl"><h4>Notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
@@ -1503,16 +1503,19 @@ function addrSuggest(inp){
 function setupAC(){
  [["f_addr","f_apt"],["nf_addr","nf_apt"]].forEach(([ai,pi])=>{const inp=document.getElementById(ai);if(!inp||inp.disabled)return;
   inp.addEventListener("blur",()=>{const v=inp.value.trim();if(!v)return;const a=parseAddrSmart(v);if(!a.street)return;inp.value=addrFmtLine(a);const ap=document.getElementById(pi);if(ap&&!ap.disabled&&!ap.value.trim()&&a.apt)ap.value=a.apt;nfHint()});if(ai=="nf_addr"){inp.addEventListener("input",nfHint);nfHint()}if(!inp.dataset.sg){inp.dataset.sg="1";addrSuggest(inp)}})}
+function fillFood(){const c=cust.find(x=>x.id==S.sel),b=document.getElementById("f_base").value,f=document.getElementById("f_food"),cur=f.value,l=optList(b,c.agency);f.innerHTML=l.map(o=>`<option value="${o[0]}" ${o[0]==cur?"selected":""}>${o[1]}</option>`).join("")}
 async function saveNow(id){
  const c=cust.find(x=>x.id==id),ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  if(S.user.role!="owner")return;
  const raw=g("f_addr").value.trim(),same=raw===fmtA(c.a),ad=same?{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""}:parseAddrSmart(raw),apt=g("f_apt").value.trim();
  if(!same){const miss=addrMissing(ad);if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY"}
  const patch={phone:g("f_phone").value.trim(),street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),...areaDb(g("f_area").value)};
+ const hh=Math.round(+g("f_hh").value);if(!(hh>=1&&hh<=30)){ce.textContent="Household size must be a number from 1 to 30.";return}
+ patch.hh=hh;patch.base=g("f_base").value;patch.food=g("f_food").value;
  const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
  if(error){ce.textContent="Not saved: "+dberr(error);return}
  const ac=addrStr({st:patch.street,city:patch.city,state:patch.state,zip:patch.zip},patch.apt)!==c.addr;
- c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;
+ c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;c.hh=patch.hh;c.base=patch.base;c.food=patch.food;
  S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
