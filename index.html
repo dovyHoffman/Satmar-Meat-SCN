@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b62">
+<meta name="build" content="b63">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -928,7 +928,7 @@ const LNK=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" onclick="return li
 function linkPop(u,t){
  if(LIVEMAP[u]&&LIVEMAP[u].p.oid&&(LIVEMAP[u].p.links||[]).indexOf(u)>=0){showPodP(LIVEMAP[u].c,LIVEMAP[u].p,LIVEMAP[u].p.links.indexOf(u));return false}
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
- d.innerHTML=`<div class="mod" style="max-width:520px;width:100%"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>${esc(t||"Link")}</b><button data-x="1" title="Close" style="font-size:18px;line-height:1;padding:4px 10px">✕</button></div><input readonly value="${esc(u)}" style="width:100%;margin:12px 0" onfocus="this.select()"><div class="bar" style="gap:8px;flex-wrap:wrap"><button class="pri" data-cp="1">Copy link</button>${navigator.share?`<button data-sh="1">Share</button>`:""}<a href="${esc(u)}" target="_blank" rel="noopener noreferrer"><button>Open in new tab</button></a></div><div class="note" data-st="1" style="margin-top:8px"></div></div>`;
+ d.innerHTML=`<div class="mod" style="max-width:${/\/orders\/receipt\//.test(u)?"760":"520"}px;width:100%;max-height:92vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>${esc(t||"Link")}</b><button data-x="1" title="Close" style="font-size:18px;line-height:1;padding:4px 10px">✕</button></div>${/\/orders\/receipt\//.test(u)?`<iframe src="${esc(u)}" style="width:100%;height:60vh;border:1px solid var(--bd,#ddd);border-radius:8px;margin-top:12px;background:#fff"></iframe><div class="note" style="margin-top:4px">If the receipt above is blank, it needs your Scanovator sign-in: use Open in new tab.</div>`:""}<input readonly value="${esc(u)}" style="width:100%;margin:12px 0" onfocus="this.select()"><div class="bar" style="gap:8px;flex-wrap:wrap"><button class="pri" data-cp="1">Copy link</button>${navigator.share?`<button data-sh="1">Share</button>`:""}<a href="${esc(u)}" target="_blank" rel="noopener noreferrer"><button>Open in new tab</button></a></div><div class="note" data-st="1" style="margin-top:8px"></div></div>`;
  document.body.appendChild(d);
  const st=d.querySelector("[data-st]");
  d.querySelector("[data-cp]").onclick=async()=>{try{await navigator.clipboard.writeText(u);st.textContent="Link copied."}catch(e){const i=d.querySelector("input");i.select();try{document.execCommand("copy");st.textContent="Link copied."}catch(e2){st.textContent="Press Ctrl+C to copy."}}};
@@ -1200,7 +1200,11 @@ function podShow(i){
   :`<div class="note" style="padding:30px 0">The picture could not be copied${it.info?" ("+esc(it.info)+")":""}. ${it.link?`<a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">Open it in Scanovator</a>`:""}</div>`;
  const thumbs=n>1?`<div class="podth">${P.items.map((t,k)=>`<button class="${k==i?"on":""}" onclick="podShow(${k})">${t.url?`<img src="${esc(t.url)}" alt="">`:"?"}<span>${k+1}</span></button>`).join("")}</div>`:"";
  const nav=n>1?`<div class="podnav"><button onclick="podShow(${(i+n-1)%n})">‹ Previous</button><span class="note">Picture ${i+1} of ${n} · click it to open full size</span><button onclick="podShow(${(i+1)%n})">Next ›</button></div>`:(it.url?`<div class="note" style="text-align:center">Click the picture to open it full size</div>`:"");
- bd.innerHTML=`<div class="podstage">${main}</div>${nav}${thumbs}`}
+ const lk=it.link||"";
+ const acts=lk?`<div class="bar" style="justify-content:center;gap:8px;margin-top:10px"><button class="pri" onclick="podCopy(${i})">Copy link</button>${navigator.share?`<button onclick="podShare(${i})">Share</button>`:""}<a href="${esc(lk)}" target="_blank" rel="noopener noreferrer"><button>Open in Scanovator</button></a></div><div class="note" id="pod_st" style="text-align:center;margin-top:6px"></div>`:"";
+ bd.innerHTML=`<div class="podstage">${main}</div>${nav}${thumbs}${acts}`}
+async function podCopy(i){const u=window.__pod.items[i].link,st=document.getElementById("pod_st");try{await navigator.clipboard.writeText(u);if(st)st.textContent="Link copied."}catch(e){if(st)st.textContent=u}}
+function podShare(i){const u=window.__pod.items[i].link;navigator.share({title:"Proof of delivery",url:u}).catch(()=>{})}
 /* ---- import (owner): reads a CSV of the Customer_data tab ---- */
 function parseCsv(t){const r=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];
  if(q){if(ch=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=ch}
