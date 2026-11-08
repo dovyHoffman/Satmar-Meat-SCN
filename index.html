@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b59">
+<meta name="build" content="b60">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -498,7 +498,7 @@ function podFor(c,lab){
  const m=String(lab).match(/(\d+)\/(\d+)\D+(\d+)\/(\d+)/);if(!m)return null;
  const a=+m[1]*100+ +m[2],z=+m[3]*100+ +m[4];
  return c.pods.find(p=>{const d=String(p.k).split("/"),v=+d[0]*100+ +d[1];return a<=z?(v>=a&&v<=z):(v>=a||v<=z)})||null}
-function podRec(c,w){const p=podFor(c,w.w);if(!p)return "";const r=p.rec;return /^https?:\/\//i.test(r)?`<a href="${esc(r)}" target="_blank" rel="noopener noreferrer">Receipt</a> <span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`:`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
+function podRec(c,w){const p=podFor(c,w.w);if(!p)return "";const r=p.rec;return /^https?:\/\//i.test(r)?`<a href="${esc(r)}" onclick="return linkPop(this.href,'Receipt')">Receipt</a> <span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`:`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
 function showRealPod(id,lab){
  const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(!p)return;
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
@@ -923,7 +923,15 @@ function bDb(c,k){
  <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th></tr>
  ${rows.slice(0,200).map(r=>{const amt=billAmt(r);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(r.food||"")}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td></tr>`}).join("")||`<tr><td colspan="7" class="no">None.</td></tr>`}</table></div>
  ${rows.length>200?`<p class="note">Showing the first 200 of ${rows.length}. Use the search to find the rest.</p>`:""}</div>`}
-const LNK=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t}</a>`:"";
+const LNK=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" onclick="return linkPop(this.href,this.textContent)">${t}</a>`:"";
+function linkPop(u,t){
+ const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ d.innerHTML=`<div class="mod" style="max-width:520px;width:100%"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>${esc(t||"Link")}</b><button data-x="1" title="Close" style="font-size:18px;line-height:1;padding:4px 10px">✕</button></div><input readonly value="${esc(u)}" style="width:100%;margin:12px 0" onfocus="this.select()"><div class="bar" style="gap:8px;flex-wrap:wrap"><button class="pri" data-cp="1">Copy link</button>${navigator.share?`<button data-sh="1">Share</button>`:""}<a href="${esc(u)}" target="_blank" rel="noopener noreferrer"><button>Open in new tab</button></a></div><div class="note" data-st="1" style="margin-top:8px"></div></div>`;
+ document.body.appendChild(d);
+ const st=d.querySelector("[data-st]");
+ d.querySelector("[data-cp]").onclick=async()=>{try{await navigator.clipboard.writeText(u);st.textContent="Link copied."}catch(e){const i=d.querySelector("input");i.select();try{document.execCommand("copy");st.textContent="Link copied."}catch(e2){st.textContent="Press Ctrl+C to copy."}}};
+ const sh=d.querySelector("[data-sh]");if(sh)sh.onclick=()=>{navigator.share({title:t||"Link",url:u}).catch(()=>{})};
+ return false}
 function bSheet(c,k,title){
  const B=S.b,d=BILL.det["sheet:"+title],head=`<div class="card"><h2>${esc(coName(c))} · week ${esc(k)} <span class="note">as in the sheet tab "${esc(title)}"</span></h2>`;
  if(!d||d=="loading")return head+`<p class="note">Loading…</p></div>`;
@@ -1816,7 +1824,7 @@ function dlv(c){
  const head=w.state=="part"?`<span class="ctag t-part">${w.got} of ${w.need} boxes delivered</span>`:`<span class="ctag t-ok">${w.need>1?"All "+w.need+" boxes delivered":"Delivered"}</span>`;
  return `<div class="dlvrow ${w.state=="part"?"part":""}"><div class="dlvh"><b>Delivery this week${ps.length>1?" ("+ps.length+")":""}</b>${head}</div>`+ps.map(p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");
   return `<div class="dlv1">${letterChip(c,p)||'<span class="ctag t-ok">Delivered</span>'}<span class="dwho">${esc([p.drv,shortAt(p.at)].filter(Boolean).join(" · "))}</span>${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</div>`}).join("")+`</div>`}
-function podRec(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";const r=p.rec;return (/^https?:\/\//i.test(r)?`<a href="${esc(r)}" target="_blank" rel="noopener noreferrer">Receipt</a> `:"")+`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
+function podRec(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";const r=p.rec;return (/^https?:\/\//i.test(r)?`<a href="${esc(r)}" onclick="return linkPop(this.href,'Receipt')">Receipt</a> `:"")+`<span class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</span>`}
 function podPics(c,w){const p=w._p||podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showPodO(id,oid){const c=cust.find(x=>x.id==id),p=(c.pods||[]).find(x=>x.oid==oid);if(p)showPodP(c,p)}
 
