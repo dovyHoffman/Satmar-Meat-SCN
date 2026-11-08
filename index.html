@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b65">
+<meta name="build" content="b66">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -152,7 +152,7 @@ cust.forEach(c=>c.active=true);
    auth:new Date(2026,10,4+(id*13)%400),hh:hh,food:food,base:base,codes:[],area:AR2[id%AR2.length],lock:"",notes:"",delivered:active&&id%3!=0,active:active,
    weeks:["10/26","10/19","10/12"].map((w,k)=>({w:w,on:k>0||active,got:(k>0||active)?"Sample":"",pod:(k>0||active)&&id%3!=0}))});
  }})();
-const SET={1:["H","B","H","B"],2:["E C","A S","E C","3 B"],3:["E B","A M","E B","A 3"],4:["E A","A M","E A","A 3"],5:["E A","A D L","E A","A 3"],6:["E A B","D A L","E A B","A 3 3"]};for(let n=7;n<=10;n++)SET[n]=SET[6].slice();
+const SET={1:["H","B","H","B"],2:["E C","A S","E C","3 B"],3:["E","A M","E","A 3"],4:["E","A M","E","A 3"],5:["E","A L","E","A 3"],6:["E","A L","E","A 3 3"]};const SET0=JSON.stringify(SET);for(let n=7;n<=10;n++)SET[n]=SET[6].slice();
 function codesFor(food,hh,area){
  if(area=="Middleton")return "MN"+(hh>=3?"3+":Math.max(hh,1));
  const r=SET[Math.min(Math.max(hh,1),10)],i={meals:0,raw:1,rawnb:1,supper:2,shabbos:3}[food];let t=r[i];
@@ -581,6 +581,7 @@ function saveBoxSettings(){
   nw[n].push(v)}}
  if(bad){S.err=bad;S.msg="";render();return}
  let ch=0;for(let n=1;n<=10;n++)for(let ci=0;ci<4;ci++)if(SET[n][ci]!=nw[n][ci]){log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:"Box settings",field:"Household "+n+" · "+FCOL[ci][1],o:SET[n][ci],n:nw[n][ci]});SET[n][ci]=nw[n][ci];ch++}
+ if(ch&&sb){const o={};for(let n=1;n<=10;n++)o[n]=SET[n].slice();sb.from("app_settings").upsert({key:"box_settings",value:o,updated_at:new Date().toISOString()}).then(r=>{if(r.error){S.err="Box settings were changed here but NOT saved on the server: "+dberr(r.error);S.msg="";render()}})}
  S.msg=ch?"Box settings saved ("+ch+" changed). The totals are updated.":"Nothing changed.";S.err="";render()}
 function bgDef(){return BG.map(g=>({t:g[0],l:g[1].slice(),s:g[2]?1:0}))}
 function bgLay(){try{const l=JSON.parse(localStorage.getItem("sm_box_layout")||"null");if(Array.isArray(l)&&l.length){const all=new Set(LET),seen=new Set(),out=l.map(g=>({t:String(g.t),s:g.s?1:0,l:(g.l||[]).filter(x=>all.has(x)&&!seen.has(x)&&seen.add(x))}));
@@ -1067,7 +1068,7 @@ async function loadDB(){
   try{const since=new Date(Date.now()-35*864e5).toISOString();
    const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.order("delivered_at",{ascending:false,nullsFirst:false}).order("order_id",{ascending:true});let ds;try{ds=await fetchAll("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAll("deliveries",dcols,dord)}
    ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
-  try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
+  try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
