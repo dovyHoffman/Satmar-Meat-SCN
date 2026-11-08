@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b61">
+<meta name="build" content="b62">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -926,6 +926,7 @@ function bDb(c,k){
  ${rows.length>200?`<p class="note">Showing the first 200 of ${rows.length}. Use the search to find the rest.</p>`:""}</div>`}
 const LNK=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" onclick="return linkPop(this.href,this.textContent)">${t}</a>`:"";
 function linkPop(u,t){
+ if(LIVEMAP[u]&&LIVEMAP[u].p.oid&&(LIVEMAP[u].p.links||[]).indexOf(u)>=0){showPodP(LIVEMAP[u].c,LIVEMAP[u].p,LIVEMAP[u].p.links.indexOf(u));return false}
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  d.innerHTML=`<div class="mod" style="max-width:520px;width:100%"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>${esc(t||"Link")}</b><button data-x="1" title="Close" style="font-size:18px;line-height:1;padding:4px 10px">✕</button></div><input readonly value="${esc(u)}" style="width:100%;margin:12px 0" onfocus="this.select()"><div class="bar" style="gap:8px;flex-wrap:wrap"><button class="pri" data-cp="1">Copy link</button>${navigator.share?`<button data-sh="1">Share</button>`:""}<a href="${esc(u)}" target="_blank" rel="noopener noreferrer"><button>Open in new tab</button></a></div><div class="note" data-st="1" style="margin-top:8px"></div></div>`;
  document.body.appendChild(d);
@@ -1178,7 +1179,7 @@ function pastReal(c){
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
-async function showPodP(c,p){
+async function showPodP(c,p,start){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  d.innerHTML=`<div class="mod podmod"><div class="podh"><div><b>${esc(c.name)}</b><div class="note">${esc([p.drv,p.at||p.k].filter(Boolean).join(" · "))}</div></div><button class="pri" data-x="1">Close</button></div><div id="pod_body" class="note">Loading the pictures… the first time it can take 10 to 20 seconds each.</div></div>`;
  document.body.appendChild(d);
@@ -1192,7 +1193,7 @@ async function showPodP(c,p){
   items.push({url:url,link:p.links[i]||"",info:info})}
  const bd=document.getElementById("pod_body");if(!bd)return;
  if(!items.length){bd.textContent="No picture yet.";return}
- window.__pod={items:items,i:0};podShow(0)}
+ window.__pod={items:items,i:0};podShow(Math.min(start||0,items.length-1))}
 function podShow(i){
  const P=window.__pod,bd=document.getElementById("pod_body");if(!P||!bd)return;P.i=i;const it=P.items[i],n=P.items.length;
  const main=it.url?`<a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" title="Open full size"><img class="podimg" src="${esc(it.url)}" alt=""></a>`
@@ -1661,14 +1662,14 @@ function podNote(cur,L){
  const M=impMap();if(!M)return " · loading POD links…";const w=isoD(dvWk(cur.d));
  if(!(BILL.impWk||{})[w]&&!L.some(r=>liveLinks(r,cur.d).length))return ` · no POD links yet for the week of ${esc(dvWkLbl(dvWk(cur.d)).replace(/^Week of /,""))}: nothing from Scanovator for these customers (press "Sync deliveries now" on the dashboard) and no billing sheet uploaded`;
  const n=L.filter(r=>podFor(r,cur.d).length).length;return ` · ${n.toLocaleString()} of ${L.length.toLocaleString()} have POD links`}
-let LIVEIDX=null,LIVEN=-1;
+let LIVEIDX=null,LIVEN=-1;const LIVEMAP={};
 function liveLinks(r,d){
  if(!S.real||!S.podsLoaded)return [];
  const st=x=>nk(String(x==null?"":x).replace(/\.0+$/,"")).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,"");
  if(!LIVEIDX||LIVEN!=cust.length){LIVEIDX={};LIVEN=cust.length;cust.forEach(c=>{const k=st(c.ref);if(k)(LIVEIDX[k]=LIVEIDX[k]||[]).push(c)})}
  const cs=LIVEIDX[st(r["Application ID"])]||[],co=String(r["Company"]||"").toUpperCase().trim(),k0=+dvWk(d),out=[];
  const c=cs.find(x=>String(x.agency||"").toUpperCase()==co)||cs[0];if(!c)return [];
- (c.pods||[]).forEach(p=>{const t=p.ts;if(!t||isoD(new Date(t))!=String(d).slice(0,10))return;(p.links||[]).forEach(u=>{if(/^https?:\/\//i.test(u)&&out.indexOf(u)<0)out.push(u)});if(/^https?:\/\//i.test(p.rec||"")&&out.indexOf(p.rec)<0)out.push(p.rec)});
+ (c.pods||[]).forEach(p=>{const t=p.ts;if(!t||isoD(new Date(t))!=String(d).slice(0,10))return;(p.links||[]).forEach(u=>{if(/^https?:\/\//i.test(u)&&out.indexOf(u)<0){out.push(u);LIVEMAP[u]={c:c,p:p}}});if(/^https?:\/\//i.test(p.rec||"")&&out.indexOf(p.rec)<0){out.push(p.rec);LIVEMAP[p.rec]={c:c,p:p}}});
  return out}
 function podFor(r,d){const live=liveLinks(r,d),M=impMap();if(!M)return live.length?live:null;const w=isoD(dvWk(d)),strip=x=>nk(String(x==null?"":x).replace(/\.0+$/,"")).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,""),ref=strip(r["Application ID"]),co=String(r["Company"]||"").toUpperCase().trim();
  const a=(co&&M[w+"|"+co+"|"+ref])||M[w+"||"+ref]||[];return a.concat(live.filter(u=>a.indexOf(u)<0))}
