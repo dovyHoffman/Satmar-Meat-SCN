@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b75">
+<meta name="build" content="b76">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1070,6 +1070,7 @@ async function loadDB(){
    ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
+  cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}});
   S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render()}
@@ -1494,11 +1495,13 @@ function parseAddrSmart(text){
 function addrMissing(a){return a.street?"":"Type the street, for example 94 Penn St. The city, state and zip are added for you (Brooklyn, NY and the zip of that street). Put the apartment in its own box."}
 function cleanPhones(){const out=[];Array.prototype.slice.call(arguments).forEach(v=>{let d=String(v||"").replace(/\D/g,"");while(d.length>=10){if(d.length>=11&&d[0]=="1")d=d.slice(1);const x=d.slice(0,10);if(out.indexOf(x)<0)out.push(x);d=d.slice(10)}});return out}
 function fmtPh(d){return d.slice(0,3)+"-"+d.slice(3,6)+"-"+d.slice(6)}
+function zipPre(pre,street,city){const z=zipFor(street,city);if(z&&z.indexOf(pre)==0)return z;const cnt={};cust.forEach(c=>{const x=String((c.a||{}).zip||"").trim();if(/^\d{5}$/.test(x)&&x.indexOf(pre)==0)cnt[x]=(cnt[x]||0)+1});const k=Object.keys(cnt).sort((p,q)=>cnt[q]-cnt[p]);return k[0]||""}
 function cleanAddr(a){
  a={street:a.street||"",apt:a.apt||"",city:a.city||"",state:a.state||"",zip:String(a.zip||"").replace(/["'\s]/g,"")};
  if(/^(new|now)\s+york$|^n\.?\s?y\.?$/i.test(a.state.trim()))a.state="NY";
  if(/^(new|now)\s+york$|^n\.?\s?y\.?$/i.test(a.city.trim())){if(!a.state)a.state="NY";a.city=""}
  if(/^\d{11,}$/.test(a.zip))a.zip=a.zip.slice(0,5);
+ let pre="";if(/^11\d{1,2}$/.test(a.zip)){pre=a.zip;a.zip=""}
  {const z=String(a.zip||""),m5=z.match(/\d{5}/);if(m5){const ex=z.replace(m5[0],"").replace(/^-\d{4}/,"").replace(/[^A-Za-z0-9#\- ]/g," ").trim();a.zip=m5[0];if(ex&&!/^(usa|us)$/i.test(ex))a.apt=(a.apt+" "+ex).trim()}
   else if(z&&!/^\d{5}$/.test(z)){if(!/^(usa|us)$/i.test(z.replace(/[^A-Za-z]/g,"")))a.apt=(a.apt+" "+z).trim();a.zip=""}}
  if(/^\d{5}$/.test(a.apt.trim())&&!a.zip){a.zip=a.apt.trim();a.apt=""}
@@ -1506,15 +1509,20 @@ function cleanAddr(a){
  let si=-1;for(let i=1;i<low.length;i++)if(SFX.indexOf(low[i])>=0){si=i;break}
  if(si>=0&&/^(ave|avenue)$/.test(low[si])&&tk[si+1]&&/^[a-z]$/i.test(tk[si+1]))si++;
  const odd=(si>=0&&si<tk.length-1)||/\b\d{5}\b/.test(a.street)||(a.apt&&book[a.apt.toLowerCase()])||/\d|\s/.test(a.city.trim())||(a.zip&&!/^\d{5}$/.test(a.zip))||(a.state&&!/^[A-Za-z]{2}$/.test(a.state))||(!a.city&&si>=0)||!a.zip||(a.city&&!book[a.city.trim().toLowerCase()])||/\b(brooklyn|bklyn|brookly|monsey|monroe|usa|ny|n\.y|new york|now york)\b/i.test(a.apt)||/\b(ny|nj)\b/i.test(a.street)||/^\d{5}$/.test(a.apt.trim())||/(newyork|nowyork|brookl)/i.test(a.apt);
- if(!odd){if(a.state)a.state=a.state.toUpperCase();return a}
+ if(!odd){if(a.state)a.state=a.state.toUpperCase();const bc=book[a.city.trim().toLowerCase()];if(bc)a.city=bc.city;
+  if(pre&&!a.zip)a.zip=zipPre(pre,a.street,a.city);
+  if(/^brooklyn$/i.test(a.city)&&(!a.zip||!/^112\d\d$/.test(a.zip))){const z=zipFor(a.street,a.city);if(z)a.zip=z}
+  return a}
  let t=[a.street,a.apt,a.city,a.state,a.zip].filter(Boolean).join(" ").replace(/\b(new|now)\s+york\b/ig," NY ").replace(/\bN\.\s?Y\.?(?=\s|$)/ig," NY ").replace(/\bNY(?=\d{5})/ig,"NY ").replace(/\bU\.?S\.?A\.?\b/ig," ").replace(/\s+/g," ").trim(),tail="";
  const zm=t.match(/^(.*?)[,\s]+(\d{5})(?:-\d{4})?(?:[,\s]+(.+))?$/);
  if(zm&&zm[3]){t=zm[1]+" "+zm[2];tail=zm[3].trim()}
- t=t.replace(/\b(NY|NJ)\s+\d{3,4}\s*$/i,"$1");
+ t=t.replace(/\b(NY|NJ)\s+(\d{3,4})\s*$/i,(x,y,z)=>{if(/^11/.test(z))pre=z;return y});
  const r=parseAddrSmart(t);if(!r.street)return a;
+ if(!r.zip&&pre)r.zip=zipPre(pre,r.street,r.city);
  if(tail)r.apt=r.apt?r.apt+" "+tail:tail;
  r.apt=r.apt.replace(/\b(brooklyn|brookly|brookyln|brooklny|bklyn|ny|n\.y|usa|newyork\d*|nowyork\d*)\b\.?/ig," ").replace(/^\d{5}$/,"").replace(/\s+/g," ").trim();
  if(!r.zip&&a.zip&&/^\d{5}$/.test(a.zip))r.zip=a.zip;
+ if(/^brooklyn$/i.test(r.city)&&r.zip&&!/^112\d\d$/.test(r.zip)){const z=zipFor(r.street,r.city);if(z)r.zip=z}
  return r}
 function addrFmtLine(a){return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
 function addrSuggest(inp){
