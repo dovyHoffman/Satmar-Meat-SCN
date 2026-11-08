@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b79">
+<meta name="build" content="b80">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -453,7 +453,7 @@ function vMenu(){
  const edit=own?`<div class="card"><h2>Edit menu ${esc(code)}</h2><p class="note">One item per line. Every change is saved on the server and recorded in History (who and when).</p>
   <textarea id="menu_ta" rows="${Math.min(Math.max(m.lines.length+2,6),24)}" style="width:100%;max-width:560px">${esc(m.lines.join("\n"))}</textarea>
   <p><button class="pri" onclick="menuSave('${code}')">Save menu ${esc(code)}</button> <button onclick="render()">Undo my edits</button></p></div>`:"";
- return `<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
+ return menuFilesCard()+`<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
   <div class="mst"><div><b>${codes.length}</b><span>menus</span></div><div><b>${total}</b><span>different items</span></div></div></div>
  <div class="card">${tabs}</div>
  <div class="card mcard" style="--c:${col(code)}"><div class="mtop"><div class="lt">${esc(code)}</div><div><h2 style="margin:0">Menu ${esc(code)}</h2><div class="note">${m.lines.length} items${cnt[code]!=null?" · "+cnt[code]+" boxes to prepare":""}</div></div></div>
@@ -462,6 +462,41 @@ function vMenu(){
  <div class="card"><h2>Copy for the office</h2><p class="note">Plain text, ready to paste into an email, WhatsApp or a document.</p>
   <div class="bar"><button class="pri" onclick="menuCopy('${esc(code)}')">Copy menu ${esc(code)}</button><button onclick="menuCopy('all')">Copy all ${codes.length} menus</button><span id="menu_copied" class="note"></span></div>
   <textarea id="menu_copy" readonly rows="${Math.min(Math.max(m.lines.length+3,6),22)}" style="width:100%;max-width:560px" onfocus="this.select()">${esc(menuText(code))}</textarea></div>${edit}`}
+
+let MENUF={rows:null,busy:false,msg:"",err:""};
+function fsize(n){n=+n||0;return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"}
+async function loadMenuFiles(){if(!sb||MENUF.loading)return;MENUF.loading=true;
+ try{const {data,error}=await sb.from("menu_files").select("id,name,path,size,ctype,week,note,created_at").order("created_at",{ascending:false});if(error)throw error;MENUF.rows=data||[];MENUF.err=""}
+ catch(e){MENUF.rows=[];MENUF.err="Could not read the menu files ("+dberr(e)+")."}
+ MENUF.loading=false;if(S.view=="menu")render()}
+function menuFilesCard(){
+ if(!S.real||!sb)return "";
+ if(MENUF.rows===null&&!MENUF.loading)setTimeout(loadMenuFiles,0);
+ const rows=MENUF.rows||[];
+ return `<div class="card"><h2>Menu files</h2><p class="note">Upload the menu here (PDF, picture, Excel or Word) until the menu is made from the website. Everyone with the Menu page can open it. Files are kept and never deleted.</p>
+ <div class="bar" style="flex-wrap:wrap;align-items:center"><input id="mf_file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.xlsx,.xls,.csv,.doc,.docx" style="max-width:320px"><input id="mf_week" placeholder="Week / note (optional)" style="max-width:220px"><button class="pri" onclick="menuUpload()" ${MENUF.busy?"disabled":""}>${MENUF.busy?"Uploading…":"Upload menu"}</button></div>
+ ${MENUF.msg?`<p class="msg">${esc(MENUF.msg)}</p>`:""}${MENUF.err?`<p class="err">${esc(MENUF.err)}</p>`:""}
+ ${rows.length?`<div style="overflow:auto"><table class="tl"><tr><th>File</th><th>Week / note</th><th>Size</th><th>Uploaded</th><th></th></tr>${rows.map(r=>`<tr><td title="${esc(r.name)}">${esc(r.name)}</td><td>${esc(r.week)}</td><td>${fsize(r.size)}</td><td>${esc(new Date(r.created_at).toLocaleString())}</td><td><button onclick="menuFileOpen(${r.id})">Open</button></td></tr>`).join("")}</table></div>`:(MENUF.rows===null?`<p class="note">Loading…</p>`:`<p class="note">No menu uploaded yet.</p>`)}</div>`}
+async function menuUpload(){
+ const fi=document.getElementById("mf_file"),wk=(document.getElementById("mf_week")||{}).value||"";
+ if(!fi||!fi.files.length){MENUF.msg="Choose a file first.";render();return}
+ MENUF.busy=true;MENUF.msg="";render();let ok=0,bad=[];
+ for(const f of Array.from(fi.files)){
+  try{if(f.size>40*1048576)throw new Error("bigger than 40 MB");
+   const safe=f.name.replace(/[^A-Za-z0-9._-]+/g,"_"),path=new Date().toISOString().slice(0,10)+"/"+Date.now()+"-"+safe;
+   const u=await sb.storage.from("menu-files").upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(u.error)throw u.error;
+   const r=await sb.from("menu_files").insert({name:f.name,path:path,size:f.size,ctype:f.type||"",week:wk.trim()});if(r.error)throw r.error;ok++}
+  catch(e){bad.push(f.name+" ("+dberr(e)+")")}}
+ MENUF.busy=false;MENUF.msg=(ok?ok+" file"+(ok==1?"":"s")+" uploaded. ":"")+(bad.length?"Not uploaded: "+bad.join("; "):"");
+ MENUF.rows=null;MENUF.loading=false;render()}
+async function menuFileOpen(id){
+ const r=(MENUF.rows||[]).find(x=>x.id==id);if(!r)return;
+ const {data,error}=await sb.storage.from("menu-files").createSignedUrl(r.path,3600);if(error||!data){S.err="Could not open the file: "+dberr(error);render();return}
+ const u=data.signedUrl,ty=r.ctype||"",isImg=/^image\//.test(ty)||/\.(png|jpe?g|webp|gif)$/i.test(r.name),isPdf=/pdf/.test(ty)||/\.pdf$/i.test(r.name);
+ const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ d.innerHTML=`<div class="mod" style="max-width:min(1000px,96vw);width:100%;max-height:94vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>${esc(r.name)}</b><button data-x="1" title="Close" style="font-size:18px;line-height:1;padding:4px 10px">✕</button></div>${isImg?`<img src="${esc(u)}" style="max-width:100%;margin-top:10px;border-radius:8px">`:isPdf?`<iframe src="${esc(u)}" style="width:100%;height:70vh;border:1px solid var(--ln);border-radius:8px;margin-top:10px;background:#fff"></iframe>`:`<p class="note" style="margin-top:10px">This type of file can't be shown here. Use Download.</p>`}<div class="bar" style="gap:8px;flex-wrap:wrap;margin-top:10px"><a class="pri" style="display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none" href="${esc(u)}" download="${esc(r.name)}">Download</a><button data-cp="1">Copy link</button><span class="note" data-st="1">The link works for one hour.</span></div></div>`;
+ document.body.appendChild(d);
+ d.querySelector("[data-cp]").onclick=async()=>{try{await navigator.clipboard.writeText(u);d.querySelector("[data-st]").textContent="Link copied."}catch(e){d.querySelector("[data-st]").textContent="Could not copy."}}}
 function menuText(k){const m=MENU.lists[k]||{info:"",lines:[]};return "Menu "+k+"\n"+(m.info?m.info.split("\n").map(x=>x.trim()).filter(Boolean).join("\n")+"\n":"")+m.lines.map(x=>"- "+x).join("\n")}
 async function menuCopy(w){
  const ks=MENU.order.filter(k=>MENU.lists[k]),t=w=="all"?ks.map(menuText).join("\n\n"):menuText(w);let ok=false;
