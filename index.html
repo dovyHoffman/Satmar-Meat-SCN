@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b76">
+<meta name="build" content="b77">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1505,6 +1505,8 @@ function cleanAddr(a){
  {const z=String(a.zip||""),m5=z.match(/\d{5}/);if(m5){const ex=z.replace(m5[0],"").replace(/^-\d{4}/,"").replace(/[^A-Za-z0-9#\- ]/g," ").trim();a.zip=m5[0];if(ex&&!/^(usa|us)$/i.test(ex))a.apt=(a.apt+" "+ex).trim()}
   else if(z&&!/^\d{5}$/.test(z)){if(!/^(usa|us)$/i.test(z.replace(/[^A-Za-z]/g,"")))a.apt=(a.apt+" "+z).trim();a.zip=""}}
  if(/^\d{5}$/.test(a.apt.trim())&&!a.zip){a.zip=a.apt.trim();a.apt=""}
+ {const bm=a.city.match(/^(.*?)\b(brook\w*|brokk\w*|bklyn)\b(.*)$/i);if(bm&&!cityBook()[a.city.trim().toLowerCase()]){const ex=(bm[1]+" "+bm[3]).replace(/\b(ny|n\.y)\b\.?/ig," ").replace(/&a/g," ").replace(/\s+/g," ").trim();a.city="Brooklyn";if(!a.state)a.state="NY";if(ex)a.apt=(a.apt+" "+ex).trim()}
+  else if(a.city.trim()&&!cityBook()[a.city.trim().toLowerCase()]&&(/\d/.test(a.city)||/\b(fl|floor|apt|aprt|top|second|third|walk|basement|rear|front)\b/i.test(a.city))){a.apt=(a.apt+" "+a.city).trim();a.city=""}}
  const book=cityBook(),tk=a.street.trim().split(/\s+/),low=tk.map(x=>x.toLowerCase().replace(/[^a-z0-9]/g,""));
  let si=-1;for(let i=1;i<low.length;i++)if(SFX.indexOf(low[i])>=0){si=i;break}
  if(si>=0&&/^(ave|avenue)$/.test(low[si])&&tk[si+1]&&/^[a-z]$/i.test(tk[si+1]))si++;
