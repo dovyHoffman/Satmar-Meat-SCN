@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b66">
+<meta name="build" content="b67">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -152,7 +152,7 @@ cust.forEach(c=>c.active=true);
    auth:new Date(2026,10,4+(id*13)%400),hh:hh,food:food,base:base,codes:[],area:AR2[id%AR2.length],lock:"",notes:"",delivered:active&&id%3!=0,active:active,
    weeks:["10/26","10/19","10/12"].map((w,k)=>({w:w,on:k>0||active,got:(k>0||active)?"Sample":"",pod:(k>0||active)&&id%3!=0}))});
  }})();
-const SET={1:["H","B","H","B"],2:["E C","A S","E C","3 B"],3:["E","A M","E","A 3"],4:["E","A M","E","A 3"],5:["E","A L","E","A 3"],6:["E","A L","E","A 3 3"]};const SET0=JSON.stringify(SET);for(let n=7;n<=10;n++)SET[n]=SET[6].slice();
+const SET={1:["H","B","H","B"],2:["E C","A S","E C","3 B"],3:["E B","A M","E B","A 3"],4:["E A","A M","E A","A 3"],5:["E A","A D L","E A","A 3"],6:["E A B","D A L","E A B","A 3 3"]};const SET0=JSON.stringify(SET);for(let n=7;n<=10;n++)SET[n]=SET[6].slice();
 function codesFor(food,hh,area){
  if(area=="Middleton")return "MN"+(hh>=3?"3+":Math.max(hh,1));
  const r=SET[Math.min(Math.max(hh,1),10)],i={meals:0,raw:1,rawnb:1,supper:2,shabbos:3}[food];let t=r[i];
