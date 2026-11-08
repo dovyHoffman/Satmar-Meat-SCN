@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b60">
+<meta name="build" content="b61">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -298,7 +298,7 @@ const COLS=[
  {k:"base",l:"Type",on:1,v:c=>c.base=="box"?"Box":"Meals",s:c=>c.base},
  {k:"hh",l:"HH",on:1,v:c=>c.hh,s:c=>+c.hh||0,num:1},
  {k:"chose",l:"Customer chose",on:1,v:c=>{const code=codesFor(c.food,c.hh,c.area);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area)+" "+optName(c.base,c.food)},
- {k:"deliv",l:"Delivery",on:1,v:c=>delTag(c),s:c=>{const w=S.real?weekDel(c):null;return w?(w.last?w.last.ts:0)+(w.state=="part"?0:0):(c.delivered?1:0)},num:1},
+ {k:"deliv",l:"Delivery",on:1,v:c=>delTag(c,S.wkOff||0),s:c=>{const w=S.real?weekDel(c,S.wkOff||0):null;return w?(w.last?w.last.ts:0)+(w.state=="part"?0:0):(c.delivered?1:0)},num:1},
  {k:"agency",l:"Agency",v:c=>esc(c.agency),s:c=>c.agency},
  {k:"area",l:"Area",v:c=>esc(c.area),s:c=>c.area},
  {k:"cell",l:"Cell",v:c=>esc(c.cell),s:c=>c.cell||""},
@@ -324,7 +324,7 @@ function vList(db){
  const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency+(c.email||"")+(c.legal||"")).toLowerCase().includes(q)).filter(c=>{
   if(S.fBase&&c.base!=S.fBase)return false;
   if(S.fCode&&codesFor(c.food,c.hh,c.area).split(/\s+/).indexOf(S.fCode)<0)return false;
-  if(S.fDel){const st=S.real?weekDel(c).state:(c.delivered?"full":"none");if(S.fDel=="done"?st!="full":S.fDel=="part"?st!="part":st!="none")return false}
+  if(S.fDel){const st=S.real?weekDel(c,S.wkOff||0).state:(c.delivered?"full":"none");if(S.fDel=="done"?st!="full":S.fDel=="part"?st!="part":st!="none")return false}
   return true});
  const letters=[...new Set(cust.filter(c=>c.active).flatMap(c=>codesFor(c.food,c.hh,c.area).split(/\s+/)).filter(x=>/^[A-Za-z]$/.test(x)))].sort();
  const cols=activeCols(),pr=myPrefs(),sc=COLS.find(c=>c.k==pr.sortK);
@@ -335,6 +335,7 @@ function vList(db){
  const sel=cols.map(c=>c.k),menu=S.colMenu?`<div class="colmenu"><div class="note" style="margin-bottom:6px">Tick the columns you want. Saved for you.</div>${COLS.map(c=>`<label class="ck"><input type="checkbox" ${sel.indexOf(c.k)>=0?"checked":""} onchange="toggleCol('${c.k}')"> ${c.l}</label>`).join("")}<div class="bar" style="margin-top:8px"><button onclick="resetCols()">Reset</button><button onclick="S.colMenu=false;render()">Close</button></div></div>`:"";
  return `<div class="card">${head}<div class="bar" style="margin:0 0 12px;align-items:flex-start"><input placeholder="Search name, ID, phone, address or agency" value="${esc(db?S.dq:S.q)}" oninput="S.${db?"dq":"q"}=this.value;S.${pk}=0;render()" style="flex:1"><div style="position:relative"><button onclick="S.colMenu=!S.colMenu;render()">Columns ▾</button>${menu}</div></div>
  <div class="bar" style="margin:0 0 12px;align-items:center;gap:10px"><label class="note" style="display:flex;gap:6px;align-items:center">Delivery <select style="width:auto;margin:0" onchange="S.fDel=this.value;S.${pk}=0;render()"><option value="">All</option><option value="done" ${S.fDel=="done"?"selected":""}>Delivered</option><option value="part" ${S.fDel=="part"?"selected":""}>Part delivered</option><option value="none" ${S.fDel=="none"?"selected":""}>Not delivered yet</option></select></label>
+ <label class="note" style="display:flex;gap:6px;align-items:center">Week <select style="width:auto;margin:0" onchange="S.wkOff=+this.value;S.${pk}=0;render()">${[0,1,2,3,4].map(o=>{const t=weekStart()-o*7*864e5,a=new Date(t),b=new Date(t+6*864e5);return `<option value="${o}" ${(S.wkOff||0)==o?"selected":""}>${o==0?"This week":o==1?"Last week":o+" weeks ago"} (${a.getMonth()+1}/${a.getDate()}–${b.getMonth()+1}/${b.getDate()})</option>`}).join("")}</select></label>
  <label class="note" style="display:flex;gap:6px;align-items:center">Type <select style="width:auto;margin:0" onchange="S.fBase=this.value;S.${pk}=0;render()"><option value="">All</option><option value="box" ${S.fBase=="box"?"selected":""}>Box</option><option value="meals" ${S.fBase=="meals"?"selected":""}>Meals</option></select></label>
  <label class="note" style="display:flex;gap:6px;align-items:center">Box code <select style="width:auto;margin:0" onchange="S.fCode=this.value;S.${pk}=0;render()"><option value="">All</option>${letters.map(l=>`<option value="${l}" ${S.fCode==l?"selected":""}>${l}</option>`).join("")}</select></label>
  ${S.fDel||S.fBase||S.fCode?`<button onclick="S.fDel=S.fBase=S.fCode='';S.${pk}=0;render()">Clear filters</button>`:""}</div>
@@ -1075,11 +1076,11 @@ function banner(){
 /* ---- how many boxes were delivered this week (a code like "E B" is two boxes, sometimes delivered separately) ---- */
 const shortAt=a=>String(a||"").replace(/\/\d{4},/,"");
 function boxNeed(c){return Math.max(1,String(codesFor(c.food,c.hh,c.area)).trim().split(/\s+/).filter(Boolean).length)}
-function weekDel(c){const t0=weekStart(),ps=(c.pods||[]).filter(x=>x.ts&&x.ts>=t0),need=boxNeed(c);
+function weekDel(c,off){off=off||0;const t0=weekStart()-off*7*864e5,t1=off?t0+7*864e5:Infinity,ps=(c.pods||[]).filter(x=>x.ts&&x.ts>=t0&&x.ts<t1),need=boxNeed(c);
  let got=0;ps.forEach(p=>{const b=p.snap&&p.snap.boxes;got+=b>0?b:(ps.length>1?Math.max(1,Math.floor(need/ps.length)):need)});   // an order whose box count is unknown counts as complete
  const last=ps.slice().sort((a,b)=>b.ts-a.ts)[0];
  return {ps:ps,need:need,got:got,state:!ps.length?"none":got>=need?"full":"part",last:last}}
-function delTag(c){const w=weekDel(c);
+function delTag(c,off){const w=weekDel(c,off);
  if(w.state=="none")return `<span class="ctag t-no">Not yet</span>`;
  if(w.state=="full")return `<span class="ctag t-ok">Delivered · ${esc(shortAt(w.last.at))}</span>`;
  return `<span class="ctag t-part" title="Scanovator shows ${w.got} of ${w.need} boxes delivered so far">${w.got} of ${w.need} boxes · ${esc(shortAt(w.last.at))}</span>`}
