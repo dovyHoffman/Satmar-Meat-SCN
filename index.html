@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b58">
+<meta name="build" content="b59">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1659,7 +1659,7 @@ function liveLinks(r,d){
  if(!LIVEIDX||LIVEN!=cust.length){LIVEIDX={};LIVEN=cust.length;cust.forEach(c=>{const k=st(c.ref);if(k)(LIVEIDX[k]=LIVEIDX[k]||[]).push(c)})}
  const cs=LIVEIDX[st(r["Application ID"])]||[],co=String(r["Company"]||"").toUpperCase().trim(),k0=+dvWk(d),out=[];
  const c=cs.find(x=>String(x.agency||"").toUpperCase()==co)||cs[0];if(!c)return [];
- (c.pods||[]).forEach(p=>{const t=podTime(p);if(!t||+wkStartOf(t)!=k0)return;(p.links||[]).forEach(u=>{if(/^https?:\/\//i.test(u)&&out.indexOf(u)<0)out.push(u)});if(/^https?:\/\//i.test(p.rec||"")&&out.indexOf(p.rec)<0)out.push(p.rec)});
+ (c.pods||[]).forEach(p=>{const t=p.ts;if(!t||isoD(new Date(t))!=String(d).slice(0,10))return;(p.links||[]).forEach(u=>{if(/^https?:\/\//i.test(u)&&out.indexOf(u)<0)out.push(u)});if(/^https?:\/\//i.test(p.rec||"")&&out.indexOf(p.rec)<0)out.push(p.rec)});
  return out}
 function podFor(r,d){const live=liveLinks(r,d),M=impMap();if(!M)return live.length?live:null;const w=isoD(dvWk(d)),strip=x=>nk(String(x==null?"":x).replace(/\.0+$/,"")).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,""),ref=strip(r["Application ID"]),co=String(r["Company"]||"").toUpperCase().trim();
  const a=(co&&M[w+"|"+co+"|"+ref])||M[w+"||"+ref]||[];return a.concat(live.filter(u=>a.indexOf(u)<0))}
