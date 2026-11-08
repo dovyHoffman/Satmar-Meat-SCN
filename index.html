@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b70">
+<meta name="build" content="b71">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1496,10 +1496,16 @@ function cleanAddr(a){
  const book=cityBook(),tk=a.street.trim().split(/\s+/),low=tk.map(x=>x.toLowerCase().replace(/[^a-z0-9]/g,""));
  let si=-1;for(let i=1;i<low.length;i++)if(SFX.indexOf(low[i])>=0){si=i;break}
  if(si>=0&&/^(ave|avenue)$/.test(low[si])&&tk[si+1]&&/^[a-z]$/i.test(tk[si+1]))si++;
- const odd=(si>=0&&si<tk.length-1)||/\b\d{5}\b/.test(a.street)||(a.apt&&book[a.apt.toLowerCase()])||/\d|\s/.test(a.city.trim())||(a.zip&&!/^\d{5}$/.test(a.zip))||(a.state&&!/^[A-Za-z]{2}$/.test(a.state))||(!a.city&&si>=0)||/\b(ny|nj)\b/i.test(a.street);
+ const odd=(si>=0&&si<tk.length-1)||/\b\d{5}\b/.test(a.street)||(a.apt&&book[a.apt.toLowerCase()])||/\d|\s/.test(a.city.trim())||(a.zip&&!/^\d{5}$/.test(a.zip))||(a.state&&!/^[A-Za-z]{2}$/.test(a.state))||(!a.city&&si>=0)||!a.zip||(a.city&&!book[a.city.trim().toLowerCase()])||/\b(brooklyn|bklyn|monsey|monroe|usa)\b/i.test(a.apt)||/\b(ny|nj)\b/i.test(a.street);
  if(!odd){if(a.state)a.state=a.state.toUpperCase();return a}
- let t=[a.street,a.apt,a.city,a.state,a.zip].filter(Boolean).join(" ").replace(/\b(NY|NJ)\s+\d{3,4}\s*$/i,"$1");
- const r=parseAddrSmart(t);if(!r.street)return a;return r}
+ let t=[a.street,a.apt,a.city,a.state,a.zip].filter(Boolean).join(" ").replace(/\bU\.?S\.?A\.?\b/ig," ").replace(/\s+/g," ").trim(),tail="";
+ const zm=t.match(/^(.*?)[,\s]+(\d{5})(?:-\d{4})?(?:[,\s]+(.+))?$/);
+ if(zm&&zm[3]){t=zm[1]+" "+zm[2];tail=zm[3].trim()}
+ t=t.replace(/\b(NY|NJ)\s+\d{3,4}\s*$/i,"$1");
+ const r=parseAddrSmart(t);if(!r.street)return a;
+ if(tail)r.apt=r.apt?r.apt+" "+tail:tail;
+ if(!r.zip&&a.zip&&/^\d{5}$/.test(a.zip))r.zip=a.zip;
+ return r}
 function addrFmtLine(a){return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
 function addrSuggest(inp){
  const box=document.createElement("div");box.className="dd";inp.parentNode.appendChild(box);let t=null,seq=0;
