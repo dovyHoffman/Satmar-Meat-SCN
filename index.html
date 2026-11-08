@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b82">
+<meta name="build" content="b83">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -451,6 +451,7 @@ function vMenu(){
  const m=MENU.lists[code]||{info:"",lines:[]},chips=(m.info||"").split("\n").map(x=>x.trim()).filter(Boolean);
  const total=new Set(MENU.order.reduce((a,k)=>a.concat(MENU.lists[k]?MENU.lists[k].lines:[]),[]).map(x=>x.toLowerCase())).size;
  const edit=own?`<div class="card"><h2>Edit menu ${esc(code)}</h2><p class="note">One item per line. Every change is saved on the server and recorded in History (who and when).</p>
+  <label style="display:block;max-width:560px">Delivery date, type of food, household (shown above the menu)<textarea id="menu_info" rows="4" style="width:100%">${esc(m.info||"")}</textarea></label><label style="display:block;max-width:560px;margin-top:8px">Menu items (one per line)</label>
   <textarea id="menu_ta" rows="${Math.min(Math.max(m.lines.length+2,6),24)}" style="width:100%;max-width:560px">${esc(m.lines.join("\n"))}</textarea>
   <p><button class="pri" onclick="menuSave('${code}')">Save menu ${esc(code)}</button> <button onclick="render()">Undo my edits</button></p></div>`:"";
  return menuFilesCard()+`<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
@@ -522,10 +523,11 @@ async function menuCopy(w){
  const el=document.getElementById("menu_copied");if(el){el.textContent=ok?(w=="all"?"All menus copied ✓":"Menu "+w+" copied ✓"):"Could not copy automatically. Select the text in the box and press Ctrl+C.";el.style.color=ok?"var(--ok)":"var(--bad,#b42318)"}}
 async function menuSave(k){
  const nw=document.getElementById("menu_ta").value.split("\n").map(x=>x.trim()).filter(Boolean),old=MENU.lists[k].lines;
- let ch=0;old.forEach(x=>{if(nw.indexOf(x)<0)ch++});nw.forEach(x=>{if(old.indexOf(x)<0)ch++});
+ const inf=(document.getElementById("menu_info")||{value:MENU.lists[k].info||""}).value.trim(),oi=(MENU.lists[k].info||"").trim();
+ let ch=0;old.forEach(x=>{if(nw.indexOf(x)<0)ch++});nw.forEach(x=>{if(old.indexOf(x)<0)ch++});if(inf!==oi)ch++;
  if(!ch&&nw.length==old.length){S.msg="Nothing changed.";S.err="";render();return}
- try{const r=await sb.from("menus").upsert({code:k,info:MENU.lists[k].info||"",lines:nw,updated_at:new Date().toISOString()},{onConflict:"code"});if(r.error)throw r.error;
-  MENU.lists[k].lines=nw;S.msg="Menu "+k+" saved ("+ch+" changes).";S.err=""}catch(e){S.err="Not saved: "+dberr(e);S.msg=""}render()}
+ try{const r=await sb.from("menus").upsert({code:k,info:inf,lines:nw,updated_at:new Date().toISOString()},{onConflict:"code"});if(r.error)throw r.error;
+  MENU.lists[k].lines=nw;MENU.lists[k].info=inf;S.msg="Menu "+k+" saved ("+ch+" changes).";S.err=""}catch(e){S.err="Not saved: "+dberr(e);S.msg=""}render()}
 async function loadMenuDb(){
  if(!sb||!S.user||MENU.loading)return;MENU.loading=true;MENU.err="";
  try{const {data,error}=await sb.from("menus").select("code,info,lines");if(error)throw error;
