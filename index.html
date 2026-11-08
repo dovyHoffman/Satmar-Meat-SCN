@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b69">
+<meta name="build" content="b70">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1228,8 +1228,8 @@ function toDbRows(recs){const seen={},out=[],skipped={noref:0,dup:0};
  recs.forEach(r=>{const ref=String(r.ref||"").trim();if(!ref){skipped.noref++;return}
   const ag=(r.agency||"").trim().toUpperCase()||((ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase());if(!ag){skipped.noref++;return}
   const k=ag+"|"+nk(ref);if(seen[k]){skipped.dup++;return}seen[k]=1;
-  const ad=parseAddr(r.addr),mid=r.area=="Middleton",area=mid?"lee":(r.area=="Monsey/Monroe"?"monsey_monroe":/^bedford$/i.test(r.area)?"bedford":/^bp$/i.test(r.area)?"bp":"lee");
-  out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:r.phone||"",legal_address:String(r.legal||"").trim(),cell:String(r.cell||"").trim(),email:String(r.email||"").trim(),street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",notes_labels:String(r.notesL||"").trim(),note2:String(r.note2||"").trim(),
+  const ad=cleanAddr(parseAddr(r.addr)),PH=cleanPhones(r.phone,r.cell),mid=r.area=="Middleton",area=mid?"lee":(r.area=="Monsey/Monroe"?"monsey_monroe":/^bedford$/i.test(r.area)?"bedford":/^bp$/i.test(r.area)?"bp":"lee");
+  out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:PH[0]?fmtPh(PH[0]):(r.phone||""),legal_address:String(r.legal||"").trim(),cell:PH[1]?fmtPh(PH[1]):(PH.length?"":String(r.cell||"").trim()),email:String(r.email||"").trim(),street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",notes_labels:String(r.notesL||"").trim(),note2:String(r.note2||"").trim(),
    hh:Math.max(1,Math.min(30,r.hh||1)),base:r.base,food:r.food,area:area,middleton:mid,active:!!r.active,auth_end:dstr(r.auth),door_lock:""})});
  return {rows:out,skipped:skipped}}
 function csvToRecs(text){const rows=parseCsv(text).slice(1),col=(a,b)=>rows.map(r=>r.slice(a,b+1));
@@ -1479,6 +1479,7 @@ function parseAddrSmart(text){
   const before=ci>=0?tk.slice(0,ci):tk,bl=ci>=0?low.slice(0,ci):low;if(ci>=0)o.city=tk.slice(ci).join(" ");
   let si=-1;for(let i=1;i<bl.length;i++)if(SFX.indexOf(bl[i])>=0){si=i;break}
   if(si<0)for(let i=1;i<before.length;i++)if(APTW.test(before[i])&&/^(apt|apartment|unit|fl|floor|ste|suite|rm|room|bldg|building|#)/i.test(before[i])){si=i-1;break}
+  if(si>=0&&/^(ave|avenue)$/.test(bl[si])&&before[si+1]&&/^[a-z]$/i.test(before[si+1]))si++;
   if(si>=0){o.street=before.slice(0,si+1).join(" ");const rest=before.slice(si+1);
    if(rest.length){if(ci>=0||APTW.test(rest[0]))o.apt=rest.join(" ");else o.city=rest.join(" ")}}
   else if(ci<0&&o.state&&before.length>2){o.city=before[before.length-1];o.street=before.slice(0,-1).join(" ")}
@@ -1488,6 +1489,17 @@ function parseAddrSmart(text){
  o.apt=o.apt.replace(/^(apt\.?|apartment|unit)\s+/i,"Apt ");
  return o}
 function addrMissing(a){return a.street?"":"Type the street, for example 94 Penn St. The city, state and zip are added for you (Brooklyn, NY and the zip of that street). Put the apartment in its own box."}
+function cleanPhones(){const out=[];Array.prototype.slice.call(arguments).forEach(v=>{let d=String(v||"").replace(/\D/g,"");while(d.length>=10){if(d.length>=11&&d[0]=="1")d=d.slice(1);const x=d.slice(0,10);if(out.indexOf(x)<0)out.push(x);d=d.slice(10)}});return out}
+function fmtPh(d){return d.slice(0,3)+"-"+d.slice(3,6)+"-"+d.slice(6)}
+function cleanAddr(a){
+ a={street:a.street||"",apt:a.apt||"",city:a.city||"",state:a.state||"",zip:a.zip||""};
+ const book=cityBook(),tk=a.street.trim().split(/\s+/),low=tk.map(x=>x.toLowerCase().replace(/[^a-z0-9]/g,""));
+ let si=-1;for(let i=1;i<low.length;i++)if(SFX.indexOf(low[i])>=0){si=i;break}
+ if(si>=0&&/^(ave|avenue)$/.test(low[si])&&tk[si+1]&&/^[a-z]$/i.test(tk[si+1]))si++;
+ const odd=(si>=0&&si<tk.length-1)||/\b\d{5}\b/.test(a.street)||(a.apt&&book[a.apt.toLowerCase()])||/\d|\s/.test(a.city.trim())||(a.zip&&!/^\d{5}$/.test(a.zip))||(a.state&&!/^[A-Za-z]{2}$/.test(a.state))||(!a.city&&si>=0)||/\b(ny|nj)\b/i.test(a.street);
+ if(!odd){if(a.state)a.state=a.state.toUpperCase();return a}
+ let t=[a.street,a.apt,a.city,a.state,a.zip].filter(Boolean).join(" ").replace(/\b(NY|NJ)\s+\d{3,4}\s*$/i,"$1");
+ const r=parseAddrSmart(t);if(!r.street)return a;return r}
 function addrFmtLine(a){return [a.street,a.city,a.state,a.zip].filter(Boolean).join(", ")}
 function addrSuggest(inp){
  const box=document.createElement("div");box.className="dd";inp.parentNode.appendChild(box);let t=null,seq=0;
@@ -1509,7 +1521,8 @@ async function saveNow(id){
  if(S.user.role!="owner")return;
  const raw=g("f_addr").value.trim(),same=raw===fmtA(c.a),ad=same?{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""}:parseAddrSmart(raw),apt=g("f_apt").value.trim();
  if(!same){const miss=addrMissing(ad);if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY"}
- const patch={phone:g("f_phone").value.trim(),street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),...areaDb(g("f_area").value)};
+ const ph=cleanPhones(g("f_phone").value);if(g("f_phone").value.trim()&&!ph.length){ce.textContent="Phone must be 10 digits.";return}
+ const patch={phone:ph[0]?fmtPh(ph[0]):"",street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),...areaDb(g("f_area").value)};
  const hh=Math.round(+g("f_hh").value);if(!(hh>=1&&hh<=30)){ce.textContent="Household size must be a number from 1 to 30.";return}
  patch.hh=hh;patch.base=g("f_base").value;patch.food=g("f_food").value;
  const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
@@ -1610,10 +1623,10 @@ function dvRows(){
   out.rows.push({c:c,d:d,was:was})});
  return out}
 function dvLine(c,d){
- const L=dvLetters(c),a=c.a||{},st=String(a.st||"").toUpperCase(),apt=String(c.apt||"").toUpperCase(),city=a.city||"",
+ const L=dvLetters(c),a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip}),a={state:A.state,zip:A.zip},PH=cleanPhones(c.phone,c.cell),st=String(A.street||"").toUpperCase(),apt=String(A.apt||"").toUpperCase(),city=A.city||"",
   full=[st+(apt?" "+apt:""),(city?city.toUpperCase()+", ":"")+[a.state,a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
  const nm=String(c.name||"").replace(/,+\s*$/,"").replace(/,/g," ").trim().replace(/\s+/g," "),sp=nm.indexOf(" ");
- return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":String(c.phone||"").replace(/\D/g,""),"Cell1":String(c.cell||"").replace(/\D/g,""),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":c.cin||""}}
+ return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":PH[0]||String(c.phone||"").replace(/\D/g,""),"Cell1":PH[1]||(PH.length?"":String(c.cell||"").replace(/\D/g,"")),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":c.cin||""}}
 function dvPick(){return dvRows().rows.filter(r=>!DV.off[r.c.uuid||r.c.id])}
 async function loadSends(){
  if(!S.real||!sb)return;
