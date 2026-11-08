@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b81">
+<meta name="build" content="b82">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -489,7 +489,7 @@ async function menuApplyFile(id){
  if(S.user.role!="owner"){S.err="Only the admin can apply a menu file to the menus.";render();return}
  const r=(MENUF.rows||[]).find(x=>x.id==id);if(!r)return;
  try{const {data,error}=await sb.storage.from("menu-files").download(r.path);if(error)throw error;
-  const M=menuParseCsv(await data.text()),ks=Object.keys(M);if(ks.length<3)throw new Error("This file does not look like the menu sheet (no 'Menu A', 'Menu B' ... titles).");
+  const M=menuParseCsv(await data.text()),ks=Object.keys(M).filter(k=>M[k].lines.length||!((MENU.lists[k]||{}).lines||[]).length);if(ks.length<3)throw new Error("This file does not look like the menu sheet (no 'Menu A', 'Menu B' ... titles).");
   const now=new Date().toISOString(),rows=ks.map(k=>({code:k,info:M[k].info||((MENU.lists[k]||{}).info)||"",lines:M[k].lines,updated_at:now}));
   const u=await sb.from("menus").upsert(rows,{onConflict:"code"});if(u.error)throw u.error;
   await loadMenuDb();S.msg="Menus updated from "+r.name+": "+ks.map(k=>k+" ("+M[k].lines.length+")").join(", ");S.err=""}
@@ -503,7 +503,7 @@ async function menuUpload(){
    const safe=f.name.replace(/[^A-Za-z0-9._-]+/g,"_"),path=new Date().toISOString().slice(0,10)+"/"+Date.now()+"-"+safe;
    const u=await sb.storage.from("menu-files").upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(u.error)throw u.error;
    const r=await sb.from("menu_files").insert({name:f.name,path:path,size:f.size,ctype:f.type||"",week:wk.trim()}).select("id").single();if(r.error)throw r.error;ok++;
-   if(S.user.role=="owner"&&/\.csv$/i.test(f.name)){try{const M=menuParseCsv(await f.text()),ks=Object.keys(M);if(ks.length>=3){const now=new Date().toISOString(),rows=ks.map(k=>({code:k,info:M[k].info||((MENU.lists[k]||{}).info)||"",lines:M[k].lines,updated_at:now}));const u=await sb.from("menus").upsert(rows,{onConflict:"code"});if(!u.error){applied=ks.length}}}catch(e2){}}}
+   if(S.user.role=="owner"&&/\.csv$/i.test(f.name)){try{const M=menuParseCsv(await f.text()),ks=Object.keys(M).filter(k=>M[k].lines.length||!((MENU.lists[k]||{}).lines||[]).length);if(ks.length>=3){const now=new Date().toISOString(),rows=ks.map(k=>({code:k,info:M[k].info||((MENU.lists[k]||{}).info)||"",lines:M[k].lines,updated_at:now}));const u=await sb.from("menus").upsert(rows,{onConflict:"code"});if(!u.error){applied=ks.length}}}catch(e2){}}}
   catch(e){bad.push(f.name+" ("+dberr(e)+")")}}
  if(applied)await loadMenuDb();MENUF.busy=false;MENUF.msg=(applied?"Menus updated from the file ("+applied+" menus). ":"")+(ok?ok+" file"+(ok==1?"":"s")+" uploaded. ":"")+(bad.length?"Not uploaded: "+bad.join("; "):"");
  MENUF.rows=null;MENUF.loading=false;render()}
