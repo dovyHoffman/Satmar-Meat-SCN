@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b67">
+<meta name="build" content="b68">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1243,7 +1243,11 @@ function vImport(){
  <input type="file" accept=".csv,text/csv" onchange="importFile(this.files[0])">
  ${I&&I.err?`<p class="err">${esc(I.err)}</p>`:""}
  ${I&&I.rows?`<div class="card" style="margin-top:12px"><b>${I.rows.length.toLocaleString()} customers ready</b> <span class="note">(${I.rows.filter(r=>r.active).length.toLocaleString()} active). Skipped: ${I.skipped.noref} without an ID, ${I.skipped.dup} repeated IDs.</span>
- <div class="bar"><button class="pri" onclick="doImport()" ${I.busy?"disabled":""}>${I.busy?"Importing… "+I.done+" / "+I.rows.length:"Import them now"}</button></div></div>`:""}
+ <div class="bar"><button class="pri" onclick="doImport()" ${I.busy?"disabled":""}>${I.busy?"Importing… "+I.done+" / "+I.rows.length:"Import them now"}</button></div>
+ ${I.chg&&I.chg.length?`<div style="margin-top:12px"><b>${I.chg.length.toLocaleString()} customers already here have a different household size, food type, box type or area in this file.</b>
+ <div class="wrap" style="max-height:260px;overflow:auto;margin-top:6px"><table style="font-size:12px"><tr><th>Customer</th><th>ID</th><th>What changes</th></tr>${I.chg.slice(0,200).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.ref)}</td><td>${esc(x.d.join(" · "))}</td></tr>`).join("")}</table></div>${I.chg.length>200?`<p class="note">Showing the first 200.</p>`:""}
+ <p class="note">Only these four things are updated. Names, addresses, phones, notes and who is active are not touched. Every change is saved in History.</p>
+ <div class="bar"><button onclick="if(confirm('Update '+S.imp.chg.length+' customers from this file?'))doUpdateExisting()" ${I.busy?"disabled":""}>Update these ${I.chg.length.toLocaleString()} customers</button></div></div>`:I.chg?`<p class="note" style="margin-top:8px">The customers already here match this file.</p>`:""}</div>`:""}
  ${I&&I.ok?`<p class="msg">${esc(I.ok)}</p>`:""}</div>
  <div class="card"><h2>Order IDs and box letters (from Scanovator)</h2>
  <p class="note">Scanovator's delivery feed does not send the Application ID or the case description, but your billing sheet has both for every order. Upload them once and every delivery matches its customer by ID, with the real box letters.</p>
@@ -1375,7 +1379,17 @@ async function importFile(f){
  if(!f)return;S.imp={};render();
  try{const t=await f.text(),recs=csvToRecs(t),{rows,skipped}=toDbRows(recs);
   if(!rows.length){S.imp={err:"No customers were found in that file. Is it the Customer_data tab?"};render();return}
-  S.imp={rows:rows,skipped:skipped,done:0}}catch(e){S.imp={err:"Could not read the file: "+((e&&e.message)||e)}}
+  const ex={};cust.forEach(c=>ex[String(c.agency).toUpperCase()+"|"+nk(c.ref)]=c);const chg=[];
+  rows.forEach(r=>{const c=ex[r.agency+"|"+nk(r.agency_ref)];if(!c)return;const an=r.middleton?"Middleton":AREAL[r.area]||"Lee",d=[];
+   if(c.hh!==r.hh)d.push("household "+c.hh+" → "+r.hh);if(c.food!==r.food)d.push("food "+c.food+" → "+r.food);if(c.base!==r.base)d.push("type "+c.base+" → "+r.base);if(c.area!==an)d.push("area "+c.area+" → "+an);
+   if(d.length)chg.push({r:r,name:c.name,ref:c.ref,d:d})});
+  S.imp={rows:rows,skipped:skipped,done:0,chg:chg}}catch(e){S.imp={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+async function doUpdateExisting(){
+ const I=S.imp;if(!I||!I.chg||I.busy)return;I.busy=true;render();let n=0;
+ try{for(let i=0;i<I.chg.length;i+=300){const b=I.chg.slice(i,i+300).map(x=>({agency:x.r.agency,ref:x.r.agency_ref,hh:x.r.hh,base:x.r.base,food:x.r.food,area:x.r.area,middleton:!!x.r.middleton}));const q=await sb.rpc("update_customers_from_import",{p:b});if(q.error)throw q.error;n+=q.data||0}
+  S.imp={ok:"Updated "+n.toLocaleString()+" customers (household size, food type, box type, area). They are recorded in History."};await loadDB()}
+ catch(e){I.busy=false;I.err="Stopped: "+dberr(e)+(/update_customers_from_import|function/i.test(String(e&&e.message))?" (The database update 030 has not been run yet.)":"")+" Nothing was deleted."}
  render()}
 async function doImport(){
  const I=S.imp;if(!I||!I.rows||I.busy)return;I.busy=true;I.done=0;I.ok="";render();
