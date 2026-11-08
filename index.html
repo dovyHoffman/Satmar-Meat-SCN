@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b80">
+<meta name="build" content="b81">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -476,18 +476,36 @@ function menuFilesCard(){
  return `<div class="card"><h2>Menu files</h2><p class="note">Upload the menu here (PDF, picture, Excel or Word) until the menu is made from the website. Everyone with the Menu page can open it. Files are kept and never deleted.</p>
  <div class="bar" style="flex-wrap:wrap;align-items:center"><input id="mf_file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.xlsx,.xls,.csv,.doc,.docx" style="max-width:320px"><input id="mf_week" placeholder="Week / note (optional)" style="max-width:220px"><button class="pri" onclick="menuUpload()" ${MENUF.busy?"disabled":""}>${MENUF.busy?"Uploading…":"Upload menu"}</button></div>
  ${MENUF.msg?`<p class="msg">${esc(MENUF.msg)}</p>`:""}${MENUF.err?`<p class="err">${esc(MENUF.err)}</p>`:""}
- ${rows.length?`<div style="overflow:auto"><table class="tl"><tr><th>File</th><th>Week / note</th><th>Size</th><th>Uploaded</th><th></th></tr>${rows.map(r=>`<tr><td title="${esc(r.name)}">${esc(r.name)}</td><td>${esc(r.week)}</td><td>${fsize(r.size)}</td><td>${esc(new Date(r.created_at).toLocaleString())}</td><td><button onclick="menuFileOpen(${r.id})">Open</button></td></tr>`).join("")}</table></div>`:(MENUF.rows===null?`<p class="note">Loading…</p>`:`<p class="note">No menu uploaded yet.</p>`)}</div>`}
+ ${rows.length?`<div style="overflow:auto"><table class="tl"><tr><th>File</th><th>Week / note</th><th>Size</th><th>Uploaded</th><th></th></tr>${rows.map(r=>`<tr><td title="${esc(r.name)}">${esc(r.name)}</td><td>${esc(r.week)}</td><td>${fsize(r.size)}</td><td>${esc(new Date(r.created_at).toLocaleString())}</td><td><button onclick="menuFileOpen(${r.id})">Open</button>${S.user.role=="owner"&&/\.csv$/i.test(r.name)?` <button class="pri" onclick="menuApplyFile(${r.id})">Use this menu</button>`:""}</td></tr>`).join("")}</table></div>`:(MENUF.rows===null?`<p class="note">Loading…</p>`:`<p class="note">No menu uploaded yet.</p>`)}</div>`}
+function menuParseCsv(text){
+ const R=parseCsv(text),out={};const T=/^menu\s+(\S+)$/i;let first=true;
+ for(let r=0;r<R.length;r++){const hdr=(R[r]||[]).some(x=>T.test(String(x||"").trim()));if(!hdr)continue;
+  (R[r]||[]).forEach((x,c)=>{const m=String(x||"").trim().match(T);if(!m)return;let k=m[1];if(k.length==1)k=k.toUpperCase();
+   const lines=[];for(let y=r+1;y<R.length;y++){const t=String((R[y]||[])[c]||"").trim().replace(/\s+/g," ");if(!t||T.test(t)||/^no beef/i.test(t)||t=="#N/A"&&false)break;if(t=="#N/A"||/^\d+$/.test(t)&&y>r+1&&!(R[y+1]||[])[c])continue;lines.push(t)}
+   const info=first&&r>0?String((R[r-1]||[])[c]||"").replace(/^"+|"+$/g,"").trim():"";
+   out[k]={lines:lines,info:info}});first=false}
+ return out}
+async function menuApplyFile(id){
+ if(S.user.role!="owner"){S.err="Only the admin can apply a menu file to the menus.";render();return}
+ const r=(MENUF.rows||[]).find(x=>x.id==id);if(!r)return;
+ try{const {data,error}=await sb.storage.from("menu-files").download(r.path);if(error)throw error;
+  const M=menuParseCsv(await data.text()),ks=Object.keys(M);if(ks.length<3)throw new Error("This file does not look like the menu sheet (no 'Menu A', 'Menu B' ... titles).");
+  const now=new Date().toISOString(),rows=ks.map(k=>({code:k,info:M[k].info||((MENU.lists[k]||{}).info)||"",lines:M[k].lines,updated_at:now}));
+  const u=await sb.from("menus").upsert(rows,{onConflict:"code"});if(u.error)throw u.error;
+  await loadMenuDb();S.msg="Menus updated from "+r.name+": "+ks.map(k=>k+" ("+M[k].lines.length+")").join(", ");S.err=""}
+ catch(e){S.err="Not applied: "+dberr(e);S.msg=""}render()}
 async function menuUpload(){
  const fi=document.getElementById("mf_file"),wk=(document.getElementById("mf_week")||{}).value||"";
  if(!fi||!fi.files.length){MENUF.msg="Choose a file first.";render();return}
- MENUF.busy=true;MENUF.msg="";render();let ok=0,bad=[];
+ MENUF.busy=true;MENUF.msg="";render();let ok=0,bad=[],applied=0;
  for(const f of Array.from(fi.files)){
   try{if(f.size>40*1048576)throw new Error("bigger than 40 MB");
    const safe=f.name.replace(/[^A-Za-z0-9._-]+/g,"_"),path=new Date().toISOString().slice(0,10)+"/"+Date.now()+"-"+safe;
    const u=await sb.storage.from("menu-files").upload(path,f,{contentType:f.type||"application/octet-stream",upsert:false});if(u.error)throw u.error;
-   const r=await sb.from("menu_files").insert({name:f.name,path:path,size:f.size,ctype:f.type||"",week:wk.trim()});if(r.error)throw r.error;ok++}
+   const r=await sb.from("menu_files").insert({name:f.name,path:path,size:f.size,ctype:f.type||"",week:wk.trim()}).select("id").single();if(r.error)throw r.error;ok++;
+   if(S.user.role=="owner"&&/\.csv$/i.test(f.name)){try{const M=menuParseCsv(await f.text()),ks=Object.keys(M);if(ks.length>=3){const now=new Date().toISOString(),rows=ks.map(k=>({code:k,info:M[k].info||((MENU.lists[k]||{}).info)||"",lines:M[k].lines,updated_at:now}));const u=await sb.from("menus").upsert(rows,{onConflict:"code"});if(!u.error){applied=ks.length}}}catch(e2){}}}
   catch(e){bad.push(f.name+" ("+dberr(e)+")")}}
- MENUF.busy=false;MENUF.msg=(ok?ok+" file"+(ok==1?"":"s")+" uploaded. ":"")+(bad.length?"Not uploaded: "+bad.join("; "):"");
+ if(applied)await loadMenuDb();MENUF.busy=false;MENUF.msg=(applied?"Menus updated from the file ("+applied+" menus). ":"")+(ok?ok+" file"+(ok==1?"":"s")+" uploaded. ":"")+(bad.length?"Not uploaded: "+bad.join("; "):"");
  MENUF.rows=null;MENUF.loading=false;render()}
 async function menuFileOpen(id){
  const r=(MENUF.rows||[]).find(x=>x.id==id);if(!r)return;
