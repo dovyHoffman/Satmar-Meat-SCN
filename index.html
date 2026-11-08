@@ -126,7 +126,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b78">
+<meta name="build" content="b79">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1453,7 +1453,7 @@ const ADDRMSG2="Type the street, for example 94 Penn St. The city, state and zip
 const SFX="st street ave avenue rd road blvd boulevard pl place dr drive ct court ln lane pkwy parkway way ter terrace hwy highway sq square cir circle trl trail path plz plaza row walk loop".split(" ");
 const CITYB={"brooklyn":["Brooklyn","NY"],"brookly":["Brooklyn","NY"],"brookyln":["Brooklyn","NY"],"brooklin":["Brooklyn","NY"],"bklyn":["Brooklyn","NY"],"bk":["Brooklyn","NY"],"monsey":["Monsey","NY"],"monroe":["Monroe","NY"],"airmont":["Airmont","NY"],"spring valley":["Spring Valley","NY"],"suffern":["Suffern","NY"],"nanuet":["Nanuet","NY"],"kiryas joel":["Kiryas Joel","NY"],"pomona":["Pomona","NY"],"new city":["New City","NY"],"chestnut ridge":["Chestnut Ridge","NY"],"wesley hills":["Wesley Hills","NY"],"far rockaway":["Far Rockaway","NY"],"staten island":["Staten Island","NY"],"bronx":["Bronx","NY"],"queens":["Queens","NY"],"new york":["New York","NY"],"lakewood":["Lakewood","NJ"],"middletown":["Middletown","NY"],"highland mills":["Highland Mills","NY"],"woodridge":["Woodridge","NY"],"south fallsburg":["South Fallsburg","NY"],"ellenville":["Ellenville","NY"]};
 function cityBook(){if(cityBook.n===cust.length&&cityBook.m)return cityBook.m;const m={},cnt={};Object.keys(CITYB).forEach(k=>m[k]={city:CITYB[k][0],state:CITYB[k][1]});
- cust.forEach(c=>{const a=c.a||{},k=String(a.city||"").trim().toLowerCase();if(/^[a-z][a-z .'-]*$/.test(k))cnt[k]=(cnt[k]||0)+1});
+ cust.forEach(c=>{const a=c.a||{},k=String(a.city||"").trim().toLowerCase();if(/^[a-z][a-z .'-]*$/.test(k)&&!APTCITY.test(k)&&!/\b(ny|nj|brook\w*)\b/.test(k))cnt[k]=(cnt[k]||0)+1});
  cust.forEach(c=>{const a=c.a||{},k=String(a.city||"").trim().toLowerCase();if(!m[k]&&cnt[k]>=3)m[k]={city:a.city,state:a.state||""}});cityBook.n=cust.length;cityBook.m=m;return m}
 /* accepts the address with or without commas, and fills what is missing from Brooklyn, NY and the customers already on that street */
 const APTW=/^(apt\.?|apartment|unit|fl\.?|floor|ste\.?|suite|rm|room|bldg|building|basement|bsmt|rear|front|#.*|\d+(st|nd|rd|th)|\d+[a-z]?|[a-z]?\d+[a-z]?|\d+-?[a-z]?)$/i;
