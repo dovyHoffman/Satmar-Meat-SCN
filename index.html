@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b118">
+<meta name="build" content="b119">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1085,7 +1085,7 @@ async function invSetSave(){
 async function loadBillDb(){
  if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
  try{
-  const rpcAll=async(name,args)=>{const out=[];for(let a=0;;a+=1000){const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;out.push(...(r.data||[]));if(!r.data||r.data.length<1000)break}return out};
+  const rpcAll=async(name,args)=>{const page=async a=>{const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;return r.data||[]},out=[],B=8;for(let a=0;;a+=1000*B){const ps=await Promise.all([...Array(B).keys()].map(i=>page(a+i*1000)));ps.forEach(q=>out.push(...q));if(ps[B-1].length<1000)break}return out};
   const pPay=loadPayDb(),pInv=invLoad();
   const [pr,hp,rows,impR]=await Promise.all([sb.from("agency_prices").select("agency,box_price,meal_price"),sb.from("agency_hh_prices").select("agency,hh,price").then(r=>r,e=>({error:e})),rpcAll("billing_rows"),rpcAll("billing_import_rows_since",{since:isoD(new Date(Date.now()-120*864e5))}).then(d=>({d}),e=>({e}))]);
   await pInv;if(pr.error)throw pr.error;
