@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b125">
+<meta name="build" content="b126">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1448,15 +1448,15 @@ function vImport(){
  const I=S.imp;
  return menuFilesCard()+`<div class="card"><h2>Import customers</h2>
  <ol class="note" style="line-height:1.7"><li>Open the Google Sheet <b>Meal Sheet New</b> and click the <b>Customer_data</b> tab.</li><li>Click <b>File → Download → Comma Separated Values (.csv)</b>.</li><li>Choose that file below.</li></ol>
- <p class="note">Only name, ID, phone, cell, email, legal address, address, household size, notes on labels, note 2, food type, location, company, notes and the authorization end date are sent to the database. Birth dates and CIN numbers are never read. Customers that already exist are left untouched, so running this again is safe.</p>
+ <p class="note">Only name, ID, phone, cell, email, legal address, address, household size, notes on labels, note 2, food type, location, company, notes and the authorization end date are sent to the database. Birth dates and CIN numbers are never read. Upload this file every week: it updates the list for next week (name, household size, Meals/Box, food type and who is on the list) and keeps the phones, addresses and notes already in the database.</p>
  <input type="file" accept=".csv,text/csv" onchange="importFile(this.files[0])">
  ${I&&I.err?`<p class="err">${esc(I.err)}</p>`:""}
- ${I&&I.rows?`<div class="card" style="margin-top:12px"><b>${I.rows.length.toLocaleString()} customers ready</b> <span class="note">(${I.rows.filter(r=>r.active).length.toLocaleString()} active). Skipped: ${I.skipped.noref} without an ID, ${I.skipped.dup} repeated IDs.</span>
- <div class="bar"><button class="pri" onclick="doImport()" ${I.busy?"disabled":""}>${I.busy?"Importing… "+I.done+" / "+I.rows.length:"Import them now"}</button></div>
- ${I.chg&&I.chg.length?`<div style="margin-top:12px"><b>${I.chg.length.toLocaleString()} customers already here have a different household size, food type, box type or area in this file.</b>
+ ${I&&I.rows?`<div class="card" style="margin-top:12px"><b>${I.rows.length.toLocaleString()} customers in this file</b> <span class="note">(${I.rows.filter(r=>r.active).length.toLocaleString()} active). Skipped: ${I.skipped.noref} without an ID, ${I.skipped.dup} repeated IDs.</span>
+ ${I.busy?`<p class="note">Working… ${I.done} / ${I.rows.length}</p>`:""}
+ ${I.chg&&I.chg.length?`<div style="margin-top:12px"><b>${I.chg.length.toLocaleString()} customers already here are different in this file</b> <span class="note">(${I.nOn||0} switched on, ${I.nOff||0} switched off, ${(I.nNew||0).toLocaleString()} new customers)</span>
  <div class="wrap" style="max-height:260px;overflow:auto;margin-top:6px"><table style="font-size:12px"><tr><th>Customer</th><th>ID</th><th>What changes</th></tr>${I.chg.slice(0,200).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.ref)}</td><td>${esc(x.d.join(" · "))}</td></tr>`).join("")}</table></div>${I.chg.length>200?`<p class="note">Showing the first 200.</p>`:""}
- <p class="note">Only these four things are updated. Names, addresses, phones, notes and who is active are not touched. Every change is saved in History.</p>
- <div class="bar"><button onclick="if(confirm('Update '+S.imp.chg.length+' customers from this file?'))doUpdateExisting()" ${I.busy?"disabled":""}>Update these ${I.chg.length.toLocaleString()} customers</button></div></div>`:I.chg?`<p class="note" style="margin-top:8px">The customers already here match this file.</p>`:""}</div>`:""}
+ <p class="note">This updates the <b>name, household size, Meals/Box, food type, area and who is on the list</b>. Phones, addresses and notes stay exactly as they are in the database. New customers in the file are added. Nobody is deleted, and every change is saved in History.</p>
+ <div class="bar"><button class="pri" onclick="if(confirm('Apply this list? '+S.imp.chg.length+' customers change ('+(S.imp.nOff||0)+' switched off, '+(S.imp.nOn||0)+' switched on) and '+(S.imp.nNew||0)+' new customers are added. Phones, addresses and notes are not touched.'))doApplyList()" ${I.busy?"disabled":""}>Apply this week's list</button></div></div>`:I.chg?`<p class="note" style="margin-top:8px">The customers already here match this file.</p>`:""}</div>`:""}
  ${I&&I.ok?`<p class="msg">${esc(I.ok)}</p>`:""}</div>
  <div class="card"><h2>Order IDs and box letters (from Scanovator)</h2>
  <p class="note">Scanovator's delivery feed does not send the Application ID or the case description, but your billing sheet has both for every order. Upload them once and every delivery matches its customer by ID, with the real box letters.</p>
@@ -1590,9 +1590,9 @@ async function importFile(f){
   if(!rows.length){S.imp={err:"No customers were found in that file. Is it the Customer_data tab?"};render();return}
   const ex={};cust.forEach(c=>ex[String(c.agency).toUpperCase()+"|"+nk(c.ref)]=c);const chg=[];
   rows.forEach(r=>{const c=ex[r.agency+"|"+nk(r.agency_ref)];if(!c)return;const an=r.middleton?"Middleton":AREAL[r.area]||"Lee",d=[];
-   if(c.hh!==r.hh)d.push("household "+c.hh+" → "+r.hh);if(c.food!==r.food)d.push("food "+c.food+" → "+r.food);if(c.base!==r.base)d.push("type "+c.base+" → "+r.base);if(c.area!==an)d.push("area "+c.area+" → "+an);
+   if(r.name&&String(c.name||"").trim()!==String(r.name).trim())d.push("name "+(c.name||"")+" → "+r.name);if(!!c.active!==!!r.active)d.push(r.active?"switch ON (on the list)":"switch OFF (not on the list)");if(c.hh!==r.hh)d.push("household "+c.hh+" → "+r.hh);if(c.food!==r.food)d.push("food "+c.food+" → "+r.food);if(c.base!==r.base)d.push("type "+c.base+" → "+r.base);if(c.area!==an)d.push("area "+c.area+" → "+an);
    if(d.length)chg.push({r:r,name:c.name,ref:c.ref,d:d})});
-  S.imp={rows:rows,skipped:skipped,done:0,chg:chg}}catch(e){S.imp={err:"Could not read the file: "+((e&&e.message)||e)}}
+  const nNew=rows.filter(r=>!ex[r.agency+"|"+nk(r.agency_ref)]).length;S.imp={rows:rows,skipped:skipped,done:0,chg:chg,nNew:nNew,nOn:chg.filter(x=>x.d.some(t=>/^switch ON/.test(t))).length,nOff:chg.filter(x=>x.d.some(t=>/^switch OFF/.test(t))).length}}catch(e){S.imp={err:"Could not read the file: "+((e&&e.message)||e)}}
  render()}
 async function doUpdateExisting(){
  const I=S.imp;if(!I||!I.chg||I.busy)return;I.busy=true;render();let n=0;
@@ -1600,7 +1600,16 @@ async function doUpdateExisting(){
   S.imp={ok:"Updated "+n.toLocaleString()+" customers (household size, food type, box type, area). They are recorded in History."};await loadDB()}
  catch(e){I.busy=false;I.err="Stopped: "+dberr(e)+(/update_customers_from_import|function/i.test(String(e&&e.message))?" (The database update 030 has not been run yet.)":"")+" Nothing was deleted."}
  render()}
-async function doImport(){
+async function doApplyList(){
+ const I=S.imp;if(!I||!I.rows||I.busy)return;I.busy=true;I.err="";I.done=0;render();
+ try{
+  await doImport(true);
+  let n=0;const all=I.chg.map(x=>({agency:x.r.agency,ref:x.r.agency_ref,name:x.r.name,hh:x.r.hh,base:x.r.base,food:x.r.food,area:x.r.area,middleton:!!x.r.middleton,active:!!x.r.active}));
+  for(let i=0;i<all.length;i+=300){const q=await sb.rpc("update_customers_from_list",{p:all.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
+  S.imp={ok:"Done. "+n.toLocaleString()+" customers updated ("+(I.nOn||0)+" switched on, "+(I.nOff||0)+" switched off) and "+(I.nNew||0).toLocaleString()+" new customers added. Phones, addresses and notes were not touched. Everything is in History."};await loadDB()}
+ catch(e){const I2=S.imp;if(I2){I2.busy=false;I2.err="Stopped: "+dberr(e)+(/update_customers_from_list|function/i.test(String(e&&e.message))?" (Database update 042 has not been run yet.)":"")+" Nothing was deleted."}}
+ render()}
+async function doImport(quiet){
  const I=S.imp;if(!I||!I.rows||I.busy)return;I.busy=true;I.done=0;I.ok="";render();
  try{
   const ags=[...new Set(I.rows.map(r=>r.agency))].map(c=>({code:c,name:c}));
@@ -1608,8 +1617,8 @@ async function doImport(){
   for(let i=0;i<I.rows.length;i+=300){const b=I.rows.slice(i,i+300);
    r=await sb.from("customers").upsert(b,{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error;I.done=Math.min(i+300,I.rows.length);render()}
   let filled=0;for(let i=0;i<I.rows.length;i+=500){const b=I.rows.slice(i,i+500).filter(x=>x.legal_address||x.cell||x.email||x.notes_labels||x.note2).map(x=>({agency:x.agency,ref:x.agency_ref,legal:x.legal_address,cell:x.cell,email:x.email,nl:x.notes_labels,n2:x.note2}));if(!b.length)continue;const q=await sb.rpc("fill_legal_addresses",{p:b});if(q.error)throw q.error;filled+=(q.data||0)}
-  const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed, only empty legal address, cell, email and label notes were filled ("+filled.toLocaleString()+")."};await loadDB()
- }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";}
+  if(quiet)return;const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed, only empty legal address, cell, email and label notes were filled ("+filled.toLocaleString()+")."};await loadDB()
+ }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";if(quiet)throw e}
  render()}
 /* ---- settings: people and next-week switches ---- */
 const goOld=go;go=function(v,id){goOld(v,id);if(v=="settings")loadUsers()};
