@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b122">
+<meta name="build" content="b123">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1051,7 +1051,7 @@ async function invOpen(c,k){
   catch(e){invMsg(String(e.message||e),true)}
   b.disabled=false}}
 function invSetCard(){
- const own=S.user&&(S.user.role=="owner"||S.user.role=="billing");
+ const own=!!S.user&&(S.user.role=="owner"||upages(S.user).indexOf("billing")>=0);
  return `<div class="card"><h2>Invoice details by company</h2><p class="note">Who each company's invoice is sent to, and who is copied. Separate several emails with a comma. These are filled in automatically when you press <b>Send invoice</b> on a week.</p>
  <div class="wrap"><table><tr><th>Company</th><th>Name on invoice</th><th>Send to</th><th>CC</th></tr>${COS.map(c=>{const ce=invCo(c);return `<tr><td><b>${esc(coName(c))}</b></td><td><input id="is_nm_${c}" value="${esc(ce.name)}" style="width:150px" ${own?"":"disabled"}></td><td><input id="is_to_${c}" value="${esc(ce.emails)}" style="width:250px" placeholder="email@company.com" ${own?"":"disabled"}></td><td><input id="is_cc_${c}" value="${esc(ce.cc)}" style="width:210px" placeholder="optional" ${own?"":"disabled"}></td></tr>`}).join("")}</table></div>
  <p><button class="pri" onclick="invSetSave()" ${own?"":"disabled"}>Save invoice details</button> <span id="is_msg" class="note"></span></p></div>`}
