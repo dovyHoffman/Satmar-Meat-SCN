@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b115">
+<meta name="build" content="b116">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -760,7 +760,7 @@ async function saveHhPrices(){
   S.msg="Household prices saved ("+up.length+" changed). Billing totals are updated.";S.err=""}catch(e){S.err="Not saved: "+dberr(e)+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?" The database update 019 has not been run yet.":"");S.msg=""}
  render()}
 function vBill(){
- if(!BILL.real)return `<div class="card"><h2>Billing</h2>${BILL.err?`<p class="err">${esc(BILL.err)}</p>`:`<p class="note">Loading the deliveries…</p>`}</div>`;
+ if(!BILL.real)return BILL.err?`<div class="card"><h2>Billing</h2><p class="err">${esc(BILL.err)}</p><button onclick="loadBillDb()">Try again</button></div>`:`<div class="ldr"><img src="logo.png" alt=""><div class="spin"></div><b>Loading billing</b><span>Getting the weeks, prices and payments…</span></div>`;
  if(!BILL.weeks.length)return `<div class="card"><h2>Billing</h2><p class="note">No delivered orders in the database yet. Press Sync deliveries now on the Customers page.</p></div>`;
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const tab=B.t=="wk"?"dash":B.t,c0=B.co||cos[0];
@@ -1085,12 +1085,13 @@ async function invSetSave(){
 async function loadBillDb(){
  if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
  try{
-  await invLoad();
-  const pr=await sb.from("agency_prices").select("agency,box_price,meal_price");if(pr.error)throw pr.error;
-  try{const hp=await sb.from("agency_hh_prices").select("agency,hh,price");if(!hp.error){Object.keys(HHP).forEach(k=>delete HHP[k]);(hp.data||[]).forEach(r=>{if(r.price!=null){(HHP[r.agency]=HHP[r.agency]||{})[r.hh]=Number(r.price)}})}}catch(e){}
+  const rpcAll=async name=>{const page=async a=>{const r=await sb.rpc(name).range(a,a+999);if(r.error)throw r.error;return r.data||[]};const out=[],first=await Promise.all([0,1000,2000,3000].map(page));first.forEach(q=>out.push(...q));if(first[3].length==1000)for(let a=4000;;a+=1000){const q=await page(a);out.push(...q);if(q.length<1000)break}return out};
+  const pPay=loadPayDb(),pInv=invLoad();
+  const [pr,hp,rows,impR]=await Promise.all([sb.from("agency_prices").select("agency,box_price,meal_price"),sb.from("agency_hh_prices").select("agency,hh,price").then(r=>r,e=>({error:e})),rpcAll("billing_rows"),rpcAll("billing_import_rows").then(d=>({d}),e=>({e}))]);
+  await pInv;if(pr.error)throw pr.error;
+  try{if(!hp.error){Object.keys(HHP).forEach(k=>delete HHP[k]);(hp.data||[]).forEach(r=>{if(r.price!=null){(HHP[r.agency]=HHP[r.agency]||{})[r.hh]=Number(r.price)}})}}catch(e){}
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
-  const rows=[];for(let a=0;;a+=1000){const r=await sb.rpc("billing_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>rows.push(x));if(!r.data||r.data.length<1000)break}
-  let imp=[];BILL.impErr="";try{for(let a=0;;a+=1000){const r=await sb.rpc("billing_import_rows").range(a,a+999);if(r.error)throw r.error;(r.data||[]).forEach(x=>imp.push(x));if(!r.data||r.data.length<1000)break}}catch(e){imp=[];BILL.impErr=dberr(e)}   // weeks taken from the sheet (migration 017/018)
+  let imp=impR.d||[];BILL.impErr=impR.e?dberr(impR.e):"";
   const iw=new Set(),ir=[],cnt={};BILL.impAll=imp;BILL.impMap=null;imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
    // every row of the sheet is one billed line (the same family can have a meals row and a box row, or two rows of the same kind)
    const ck=x.tab_date+"|"+x.company+"|"+x.ref,n=cnt[ck]=(cnt[ck]||0)+1,links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));
@@ -1099,9 +1100,9 @@ async function loadBillDb(){
   BILL.hist=BILL.hist||{};
   {const mx=imp.length?Math.max.apply(null,imp.map(x=>{const m=String(x.tab_date).split("-");return wkKey(new Date(+m[0],+m[1]-1,+m[2],12)).getTime()})):0,ws={};
    rows2.forEach(r=>{const t=wkKey(Date.parse(r.delivered_at)).getTime();if(mx&&t>mx)ws[t]=1});
-   for(const ts of Object.keys(ws)){if(BILL.hist[ts])continue;try{const a=[];for(let i=0;;i+=1000){const r=await sb.rpc("week_history_list",{w:isoD(new Date(+ts))}).range(i,i+999);if(r.error)throw r.error;a.push(...(r.data||[]));if(!r.data||r.data.length<1000)break}BILL.hist[ts]=a}catch(e){BILL.hist[ts]=[]}}}
+   await Promise.all(Object.keys(ws).filter(ts=>!BILL.hist[ts]).map(async ts=>{try{const a=[];for(let i=0;;i+=1000){const r=await sb.rpc("week_history_list",{w:isoD(new Date(+ts))}).range(i,i+999);if(r.error)throw r.error;a.push(...(r.data||[]));if(!r.data||r.data.length<1000)break}BILL.hist[ts]=a}catch(e){BILL.hist[ts]=[]}}))}
   BILL.rowsBase=rows2;BILL.impMax=imp.length?Math.max.apply(null,imp.map(x=>{const m=String(x.tab_date).split("-");return wkKey(new Date(+m[0],+m[1]-1,+m[2],12)).getTime()})):0;
-  BILL.rows=billListRows(rows2);BILL.weeks=buildWeeks(BILL.rows);BILL.real=true;BILL.det={};await loadPayDb();
+  BILL.rows=billListRows(rows2);BILL.weeks=buildWeeks(BILL.rows);BILL.real=true;BILL.det={};await pPay;
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
  }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
  BILL.loading=false;render()}
