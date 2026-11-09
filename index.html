@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b101">
+<meta name="build" content="b102">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -235,7 +235,7 @@ function render(){
  document.getElementById("who").innerHTML=u?`<div class="me"><div class="av">${esc((u.name||"?").trim().charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(ROLE_NAMES[u.role]||u.role)}</div></div></div><div class="acts"><button onclick="openPw()">Password</button><button onclick="out()">Sign out</button></div>`:"";
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!inSet(u,S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
- const m=(S.view=="menu"||S.view=="billing"?"":banner())+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
+ const m=(S.view=="dashboard"&&u.role=="owner"?banner():"")+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
  app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(true),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,chat:vChatPage,menu:vMenu,raw:vRaw,billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
  if(keep&&keep.v==S.view)try{const el=keep.id?document.getElementById(keep.id):[...app.querySelectorAll("input,textarea")].find(x=>x.placeholder==keep.ph);if(el){el.focus();if(keep.s!=null)el.setSelectionRange(keep.s,keep.e)}}catch(e){}
