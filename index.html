@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b105">
+<meta name="build" content="b106">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1086,18 +1086,18 @@ function vLogin(){
  if(!sb)return `<div class="card" style="max-width:420px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2><p class="err">The login library could not be loaded. Check the internet connection and refresh.</p></div>`;
  const L=S.lg,err=S.err?`<p class="err">${esc(S.err)}</p>`:"";
  if(L.step=="code")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
- <p class="note">We sent an email to <b>${esc(L.email)}</b>. <b>Click the sign-in link in it</b> and you will come back here signed in. If the email shows a code instead, type it below.</p>
- <label>Code (only if the email has one)<input id="lg_code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" onkeydown="if(event.key=='Enter')checkCode()"></label>
+ <p class="note">We sent an email to <b>${esc(L.email)}</b>. Type the <b>6-digit code</b> from that email below.</p>
+ <label>6-digit code<input id="lg_code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" onkeydown="if(event.key=='Enter')checkCode()"></label>
  <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.err='';render()">Back</button></div>${err}</div>`;
  if(L.mode=="link")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <label>Email<input id="lg_em" type="email" autocomplete="email" value="${esc(L.email)}" onkeydown="if(event.key=='Enter')sendCode()"></label>
- <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Email me a sign-in link"}</button><button onclick="S.lg.mode='pw';S.err='';render()">Use my password</button></div>
+ <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Email me a code"}</button><button onclick="S.lg.mode='pw';S.err='';render()">Use my password</button></div>
  <p class="note">Only invited people can sign in.</p>${err}</div>`;
  return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <label>Email<input id="lg_em" type="email" autocomplete="username" value="${esc(L.email)}"></label>
  <label>Password<input id="lg_pw" type="password" autocomplete="current-password" onkeydown="if(event.key=='Enter')signInPw()"></label>
- <div class="bar"><button class="pri" onclick="signInPw()" ${L.busy?"disabled":""}>${L.busy?"Signing in…":"Sign in"}</button><button onclick="S.lg.email=(document.getElementById('lg_em').value||'').trim();S.lg.mode='link';S.err='';render()">Email me a link instead</button></div>
- <p class="note">Only invited people can sign in. This device stays signed in until you press Sign out, so you do not have to sign in again each time.</p>${err}</div>`}
+ <div class="bar"><button class="pri" onclick="signInPw()" ${L.busy?"disabled":""}>${L.busy?"Signing in…":"Sign in"}</button><button onclick="S.lg.email=(document.getElementById('lg_em').value||'').trim();S.lg.mode='link';S.err='';render()">Email me a code instead</button></div>
+ <p class="note">Only invited people can sign in.</p>${err}</div>`}
 async function signInPw(){
  const e=(document.getElementById("lg_em").value||"").trim().toLowerCase(),p=document.getElementById("lg_pw").value||"";
  if(!e||!p){S.err="Enter your email and password.";render();return}
@@ -1107,7 +1107,7 @@ async function signInPw(){
  await afterLogin();render()}
 function openPw(first){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
- d.innerHTML=`<div class="mod" style="max-width:380px"><b>${first?"Welcome! Create your password":"Change my password"}</b>${first?`<p class="note">You are signed in. Choose a password now so you can sign in next time with your email and this password. (You can also always use "Email me a link".)</p>`:""}
+ d.innerHTML=`<div class="mod" style="max-width:380px"><b>${first?"Welcome! Create your password":"Change my password"}</b>${first?`<p class="note">You are signed in. Choose a password now so you can sign in next time with your email and this password. (You can also always use "Email me a code".)</p>`:""}
  <label>New password (at least 8 characters)<input id="pw1" type="password" autocomplete="new-password"></label>
  <label>New password again<input id="pw2" type="password" autocomplete="new-password"></label>
  <p class="err" id="pwe"></p><div class="bar"><button class="pri" id="pwb">Save password</button><button data-x="1">${first?"Later":"Cancel"}</button></div></div>`;
