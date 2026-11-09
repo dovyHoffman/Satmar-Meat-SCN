@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b120">
+<meta name="build" content="b121">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -957,10 +957,9 @@ function billInvoice(c,k,brief){
  h2{font-size:16px;margin:28px 0 0}@media print{.bar{display:none}body{margin:0;max-width:none}}</style></head><body>
  <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
  <div class="top"><div style="display:flex;gap:14px;align-items:center"><img src="${LOGO}" alt="Satmar Meats" style="height:78px;width:auto"><div><h1>Invoice</h1><div class="mut">No. ${H(no)}</div></div></div><div class="r"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>(929) 250-1100</div></div>
- <div class="top"><div><div class="mut">Bill to</div><b style="font-size:18px">${H(coName(c))}</b></div><div class="r"><div class="mut">Delivery week</div><b>${H(weekRange(k))}</b><div class="mut">Date: ${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div></div>
+ <div class="top"><div><div class="mut">Bill to</div><b style="font-size:18px">${H(invCo(c).name)}</b></div><div class="r"><div class="mut">Delivery week</div><b>${H(weekRange(k))}</b><div class="mut">Date: ${H(new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}))}</div></div></div>
  <table><tr><th>Description</th><th class="n">Quantity</th><th class="n">Price</th><th class="n">Amount</th></tr>
- ${mealsN?`<tr><td>${brief?`Meals: ${mealsN} deliver${mealsN==1?"y":"ies"} · household total ${x.mhh} × 21 meals`:`Meals customers (${mealsN} customer${mealsN==1?"":"s"}, household total ${x.mhh}) × 21 meals each`}</td><td class="n">${mm.toLocaleString()} meals</td><td class="n">${m(p.meals)}</td><td class="n">${m(mAmt)}</td></tr>`:""}
- ${x.box?`<tr><td>${brief?`Boxes: ${x.box} deliver${x.box==1?"y":"ies"}`:"Boxes delivered"}</td><td class="n">${x.box} HH</td><td class="n">${HHP[c]&&x.boxh?"by household size":m(p.raw)}</td><td class="n">${m(bAmt)}</td></tr>`:""}
+ ${(invModel(c,k)||{lines:[]}).lines.filter(l=>l.tax).map(l=>`<tr><td>${H(l.desc)}</td><td class="n">${inQ(l.qty)}</td><td class="n">${l.rate==null?"—":m(l.rate)}</td><td class="n">${l.amt==null?"—":m(l.amt)}</td></tr>`).join("")}
  <tr class="tot"><td colspan="3">Total</td><td class="n">${m(e)}</td></tr></table>
  ${e==null?`<p class="mut">No price is set for ${H(c)} yet, so the amount is blank.</p>`:""}
  ${brief?"":`<h2>Customers billed (${rows.length})</h2>
@@ -992,42 +991,36 @@ function invModel(c,k,o){
  const d=o.date||isoD(new Date(new Date(w.t).setDate(new Date(w.t).getDate()+3))),dm=d.split("-"),no=o.no!=null?o.no:((invFor(c,w)[0]||{}).inv_no||"");
  return {c,k,co:ce,date:dm[1]*1+"/"+dm[2]*1+"/"+dm[0],iso:d,no,lines:L,total:L.reduce((t,l)=>t+(l.amt||0),0),missing:L.some(l=>l.amt==null),range:weekRange(k)}}
 function invHtml(M){
- const T="border:1px solid #666;",td="padding:2px 6px;font:12px Arial,sans-serif;";
- const rows=M.lines.map((l,i)=>`<tr style="background:${i%2?"#ffffff":"#e8e8e8"}"><td style="${td}text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td style="${td}">${esc(l.desc)}</td><td style="${td}text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:inM2(l.rate)}</td><td style="${td}"></td><td style="${td}text-align:right">${l.amt==null?"—":inM2(l.amt)}${l.tax?"T":""}</td></tr>`).join("");
- return `<div style="max-width:720px;margin:0 auto;font-family:Arial,sans-serif;color:#000">
- <table width="100%" cellpadding="0" cellspacing="0"><tr><td valign="top" style="font:14px Georgia,serif;line-height:1.5"><br>Satmar Meat<br><br>82 Lee Ave.<br>Brooklyn Ny 11211</td><td valign="top" align="right" style="width:60%"><div style="font:bold 26px Arial,sans-serif;margin-bottom:12px;text-align:right">Invoice</div>
- <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;${T}margin-left:auto"><tr><td style="${T}${td}text-align:center;background:#e8e8e8;width:110px">Date</td><td style="${T}${td}text-align:center;background:#e8e8e8;width:90px">Invoice #</td></tr><tr><td style="${T}${td}text-align:center;padding:6px">${esc(M.date)}</td><td style="${T}${td}text-align:center;padding:6px">${esc(M.no)}</td></tr></table></td></tr></table>
- <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:26px"><tr><td valign="top" width="50%"><table width="96%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;${T}"><tr><td style="${T}${td}background:#f4f4f4;padding:4px 14px">Bill To</td></tr><tr><td style="${td}font-family:Georgia,serif;font-size:12px;height:90px;vertical-align:top;white-space:pre-line">${esc(M.co.name)}\n${esc(M.co.addr)}</td></tr></table></td>
- <td valign="top" width="50%"><table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;${T}"><tr><td style="${T}${td}padding:4px 14px">Ship To</td></tr><tr><td style="height:90px">&nbsp;</td></tr></table></td></tr></table>
- <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:26px 0 12px auto;width:52%"><tr><td style="${T}${td}text-align:center;background:#e8e8e8">P.O. No.</td><td style="${T}${td}text-align:center;background:#e8e8e8">Terms</td><td style="${T}${td}text-align:center;background:#e8e8e8">Project</td></tr><tr><td style="${T}height:30px">&nbsp;</td><td style="${T}">&nbsp;</td><td style="${T}">&nbsp;</td></tr></table>
- <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;${T}"><tr style="background:#e8e8e8"><td style="${T}${td}text-align:center;width:11%;padding:5px">Quantity</td><td style="${T}${td}text-align:center;padding:5px">Description</td><td style="${T}${td}text-align:center;width:15%">Rate</td><td style="${T}${td}text-align:center;width:14%">Class</td><td style="${T}${td}text-align:center;width:16%">Amount</td></tr>${rows}
- <tr><td style="border-left:1px solid #666;height:150px">&nbsp;</td><td style="border-left:1px solid #666">&nbsp;</td><td style="border-left:1px solid #666">&nbsp;</td><td style="border-left:1px solid #666">&nbsp;</td><td style="border-left:1px solid #666;border-right:1px solid #666">&nbsp;</td></tr></table>
- <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #666;border-top:0"><tr><td style="padding:8px 12px;width:64%"><table cellpadding="0" cellspacing="0" style="border-collapse:collapse;${T}margin-left:16px"><tr><td style="${T}${td}text-align:center;padding:5px 16px">Phone #</td><td style="${T}${td}text-align:center;padding:5px 16px">Fax #</td></tr><tr><td style="${T}${td}text-align:center;padding:9px 16px">718-963-1100</td><td style="${T}${td}text-align:center;padding:9px 16px">718-963-3633</td></tr></table></td><td align="right" style="padding:8px 14px;border-left:1px solid #666;width:36%"><span style="font:bold 17px Arial,sans-serif">Total</span><span style="font:12px Arial,sans-serif;margin-left:46px">$${inM2(M.total)}</span></td></tr></table>
- ${M.missing?`<p style="font:12px Arial;color:#b42318">No price is set for some lines yet; those amounts show —.</p>`:""}</div>`}
+ const td="padding:9px 10px;border-bottom:1px solid #ddd;font:14px/1.4 Inter,Arial,sans-serif;vertical-align:top",th="padding:8px 10px;background:#f6f6f6;border-bottom:1px solid #ddd;font:600 12px Inter,Arial,sans-serif;text-transform:uppercase;color:#555";
+ const rows=M.lines.map(l=>`<tr><td style="${td};text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td style="${td}${l.tax?"":";color:#666;font-size:12px"}">${esc(l.desc)}</td><td style="${td};text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:"$"+inM2(l.rate)}</td><td style="${td};text-align:right">${l.amt==null?"—":"$"+inM2(l.amt)}</td></tr>`).join("");
+ return `<div style="max-width:720px;margin:0 auto;font-family:Inter,Arial,sans-serif;color:#111;line-height:1.45">
+ <table width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle"><img src="${LOGO}" alt="Satmar Meats" style="height:72px;width:auto;vertical-align:middle"><span style="display:inline-block;vertical-align:middle;margin-left:14px"><span style="font:700 26px Inter,Arial,sans-serif">Invoice</span><br><span style="font-size:12px;color:#666">No. ${esc(M.no||"—")}</span></span></td><td valign="top" align="right" style="font-size:13px"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>718-963-1100</td></tr></table>
+ <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 8px"><tr><td valign="top"><div style="font-size:12px;color:#666">Bill to</div><b style="font-size:18px">${esc(M.co.name)}</b><div style="font-size:13px;white-space:pre-line;color:#333">${esc(M.co.addr||"")}</div></td><td valign="top" align="right"><div style="font-size:12px;color:#666">Delivery week</div><b>${esc(M.range)}</b><div style="font-size:12px;color:#666;margin-top:4px">Date: ${esc(M.date)}</div></td></tr></table>
+ <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:14px 0"><tr><td style="${th};text-align:right;width:12%">Quantity</td><td style="${th}">Description</td><td style="${th};text-align:right;width:15%">Rate</td><td style="${th};text-align:right;width:17%">Amount</td></tr>${rows}
+ <tr><td colspan="3" style="padding:12px 10px;border-top:2px solid #111;font:700 17px Inter,Arial,sans-serif">Total</td><td style="padding:12px 10px;border-top:2px solid #111;text-align:right;font:700 17px Inter,Arial,sans-serif">$${inM2(M.total)}</td></tr></table>
+ ${M.missing?`<p style="font:12px Arial;color:#b42318">No price is set for some lines yet; those amounts show —.</p>`:""}
+ <p style="font-size:12px;color:#666;margin-top:18px">Thank you · Satmar Meats · 718-963-1100</p></div>`}
 function invPage(M){return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${esc(M.no||M.c)}</title><style>body{margin:24px}@media print{.nb{display:none}body{margin:0}}</style></head><body><div class="nb" style="max-width:720px;margin:0 auto 16px"><button onclick="window.print()" style="font:14px Arial;padding:8px 16px">Print / Save as PDF</button></div>${invHtml(M)}</body></html>`}
 function loadPdfLib(){return window.jspdf?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=ok;s.onerror=()=>no(new Error("The PDF tool could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
+let _invLogo=null;
+async function invLogoData(){if(_invLogo)return _invLogo;try{const b=await (await fetch(LOGO)).blob(),u=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)}),im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u});_invLogo={u,w:im.naturalWidth,h:im.naturalHeight}}catch(e){_invLogo={u:null}}return _invLogo}
 async function invPdf(M){
- await loadPdfLib();const doc=new window.jspdf.jsPDF({unit:"pt",format:"letter"}),W=612,X0=36,X1=576;
- const box=(x,y,w,h,fill)=>{if(fill){doc.setFillColor(fill);doc.rect(x,y,w,h,"FD")}else doc.rect(x,y,w,h,"S")},tx=(t,x,y,o)=>doc.text(String(t),x,y,o||{});
- doc.setDrawColor(100);doc.setLineWidth(.6);doc.setTextColor(0);
- doc.setFont("times","normal");doc.setFontSize(11);tx("Satmar Meat",X0+6,62);tx("82 Lee Ave.",X0+6,86);tx("Brooklyn Ny 11211",X0+6,99);
- doc.setFont("helvetica","bold");doc.setFontSize(22);tx("Invoice",X1-4,64,{align:"right"});
- doc.setFont("helvetica","normal");doc.setFontSize(9);
- box(400,76,92,16,"#e8e8e8");box(492,76,84,16,"#e8e8e8");box(400,92,92,24);box(492,92,84,24);tx("Date",446,87,{align:"center"});tx("Invoice #",534,87,{align:"center"});tx(M.date,446,108,{align:"center"});tx(M.no,534,108,{align:"center"});
- box(X0,140,250,16,"#f4f4f4");box(X0,156,250,76);tx("Bill To",X0+30,151);
- doc.setFont("times","normal");doc.setFontSize(9);[M.co.name].concat(String(M.co.addr||"").split("\n")).filter(Boolean).forEach((t,i)=>tx(t,X0+4,170+i*11));
- doc.setFont("helvetica","normal");doc.setFontSize(9);box(306,140,270,16);box(306,156,270,76);tx("Ship To",320,151);
- [["P.O. No.",300],["Terms",388],["Project",482]].forEach(([t,x],i)=>{const w=i==2?94:88;box(x,254,w,14,"#e8e8e8");box(x,268,w,24);tx(t,x+w/2,264,{align:"center"})});
- const cx=[X0,100,360,440,500,X1],hy=306;box(X0,hy,X1-X0,16,"#e8e8e8");
- ["Quantity","Description","Rate","Class","Amount"].forEach((t,i)=>tx(t,(cx[i]+cx[i+1])/2,hy+11,{align:"center"}));
- let y=hy+16;doc.setFontSize(8.5);
- M.lines.forEach((l,i)=>{if(i%2==0){doc.setFillColor("#e8e8e8");doc.rect(X0,y,X1-X0,12.5,"F")}
-  if(l.qty!=="")tx(inQ(l.qty),cx[1]-6,y+9.5,{align:"right"});tx(l.desc,cx[1]+4,y+9.5);
-  tx(l.rate==null?"-":typeof l.rate=="string"?l.rate:inM2(l.rate),cx[3]-6,y+9.5,{align:"right"});tx(l.amt==null?"-":inM2(l.amt)+(l.tax?"T":""),cx[5]-6,y+9.5,{align:"right"});y+=12.5});
- const bodyEnd=640;doc.rect(X0,hy,X1-X0,bodyEnd-hy,"S");cx.slice(1,5).forEach(x=>doc.line(x,hy,x,bodyEnd));
- doc.rect(X0,bodyEnd,X1-X0,48,"S");doc.line(400,bodyEnd,400,bodyEnd+48);
- doc.setFont("helvetica","bold");doc.setFontSize(14);tx("Total",412,bodyEnd+30);doc.setFont("helvetica","normal");doc.setFontSize(9);tx("$"+inM2(M.total),X1-8,bodyEnd+29,{align:"right"});
- box(60,bodyEnd+8,92,16);box(152,bodyEnd+8,92,16);box(60,bodyEnd+24,92,22);box(152,bodyEnd+24,92,22);tx("Phone #",106,bodyEnd+19,{align:"center"});tx("Fax #",198,bodyEnd+19,{align:"center"});tx("718-963-1100",106,bodyEnd+38,{align:"center"});tx("718-963-3633",198,bodyEnd+38,{align:"center"});
+ await loadPdfLib();const lg=await invLogoData(),doc=new window.jspdf.jsPDF({unit:"pt",format:"letter"}),X0=40,X1=572,tx=(t,x,y,o)=>doc.text(String(t),x,y,o||{});
+ doc.setTextColor(17);let hx=X0;
+ if(lg.u){const h=54,w=h*lg.w/lg.h;try{doc.addImage(lg.u,"PNG",X0,36,w,h);hx=X0+w+12}catch(e){}}
+ doc.setFont("helvetica","bold");doc.setFontSize(22);tx("Invoice",hx,62);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(100);tx("No. "+(M.no||"-"),hx,78);
+ doc.setTextColor(17);doc.setFont("helvetica","bold");doc.setFontSize(10);tx("Satmar Meats",X1,50,{align:"right"});doc.setFont("helvetica","normal");doc.setFontSize(9);["82 Lee Avenue","Brooklyn, NY 11211","718-963-1100"].forEach((t,i)=>tx(t,X1,63+i*12,{align:"right"}));
+ doc.setTextColor(100);doc.setFontSize(8.5);tx("Bill to",X0,122);tx("Delivery week",X1,122,{align:"right"});
+ doc.setTextColor(17);doc.setFont("helvetica","bold");doc.setFontSize(14);tx(M.co.name,X0,139);doc.setFontSize(10);tx(M.range,X1,139,{align:"right"});
+ doc.setFont("helvetica","normal");doc.setFontSize(9);String(M.co.addr||"").split("\n").filter(Boolean).forEach((t,i)=>tx(t,X0,154+i*12));doc.setTextColor(100);tx("Date: "+M.date,X1,153,{align:"right"});doc.setTextColor(17);
+ const cx=[X0,100,380,462,X1],hy=200;doc.setFillColor("#f6f6f6");doc.rect(X0,hy,X1-X0,22,"F");doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(85);
+ tx("QUANTITY",cx[1]-8,hy+14,{align:"right"});tx("DESCRIPTION",cx[1]+8,hy+14);tx("RATE",cx[3]-8,hy+14,{align:"right"});tx("AMOUNT",cx[4]-8,hy+14,{align:"right"});
+ let y=hy+22;doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setDrawColor(221);doc.setLineWidth(.6);
+ M.lines.forEach(l=>{const dull=!l.tax;doc.setTextColor(dull?100:17);doc.setFontSize(dull?8.5:10);
+  if(l.qty!=="")tx(inQ(l.qty),cx[1]-8,y+16,{align:"right"});tx(l.desc,cx[1]+8,y+16);tx(l.rate==null?"-":typeof l.rate=="string"?l.rate:"$"+inM2(l.rate),cx[3]-8,y+16,{align:"right"});tx(l.amt==null?"-":"$"+inM2(l.amt),cx[4]-8,y+16,{align:"right"});y+=26;doc.line(X0,y,X1,y)});
+ doc.setTextColor(17);doc.setDrawColor(17);doc.setLineWidth(1.4);doc.line(X0,y+6,X1,y+6);y+=28;
+ doc.setFont("helvetica","bold");doc.setFontSize(14);tx("Total",X0+8,y);tx("$"+inM2(M.total),X1-8,y,{align:"right"});
+ doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(110);tx("Thank you · Satmar Meats · 718-963-1100",X0,y+40);
  return doc}
 function invFile(M){return "Invoice "+(M.no||M.c+" "+M.k.replace("/","-"))+" - "+M.co.name.replace(/[^A-Za-z0-9 ]/g,"")+".pdf"}
 function invRead(c,k){
