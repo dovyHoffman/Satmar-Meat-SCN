@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b96">
+<meta name="build" content="b97">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -760,7 +760,7 @@ function vBill(){
  const tab=B.t=="wk"?"dash":B.t,c0=B.co||cos[0];
  const nav=`<div class="card"><div class="bar"><button class="${tab=="dash"?"on":""}" onclick="bgo('dash')">Overview</button><button class="${tab=="co"?"on":""}" onclick="bgo('co','${c0}')">Companies</button><button class="${tab=="pay"?"on":""}" onclick="bgo('pay')">Payments</button><button class="${tab=="price"?"on":""}" onclick="bgo('price')">Prices</button>${tab=="co"?`<select onchange="bgo('co',this.value)" style="width:auto;margin-left:12px">${cos.map(c=>`<option value="${c}" ${B.co==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`:""}</div>
  ${BILL.loading||BILL.err?`<p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":`<span class="err">${esc(BILL.err)}</span>`}</p>`:""}
- <details style="margin-top:8px"><summary class="note" style="cursor:pointer">How this is counted</summary><p class="note">A week runs Saturday to Friday. Meals customers are billed price per meal × 21 × household size; box customers by household size (flat box price × household, or the household price table). ${(BILL.impWeeks||[]).length?"Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""}${BILL.impErr?" The saved sheet weeks could not be read: "+esc(BILL.impErr):""}</p></details></div>`;
+ <details style="margin-top:8px"><summary class="note" style="cursor:pointer">How this is counted</summary><p class="note">A week runs Saturday to Friday. Weeks after your last sheet week are billed from the active customer list (every active customer once), not from scanned deliveries. Meals customers are billed price per meal × 21 × household size; box customers by household size (flat box price × household, or the household price table). ${(BILL.impWeeks||[]).length?"Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""}${BILL.impErr?" The saved sheet weeks could not be read: "+esc(BILL.impErr):""}</p></details></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="pay"?bPay():B.t=="price"?bPrices():bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
@@ -976,10 +976,25 @@ async function loadBillDb(){
    const ck=x.tab_date+"|"+x.company+"|"+x.ref,n=cnt[ck]=(cnt[ck]||0)+1,links=(x.links||[]).filter(u=>/^https?:\/\//i.test(u));
    ir.push({order_id:"sheet",delivered_at:dt.toISOString(),agency:x.company,agency_ref:n>1?x.ref+" ("+n+")":x.ref,name:x.name,base:x.base,food:x.food,hh:x.hh,enh:x.enh||0,boxes:x.base=="box"?x.hh:1,letters:"",receipt_url:links[0]||"",photo_urls:links.slice(1)})});
   const rows2=iw.size?rows.filter(x=>!iw.has(wkLab(wkKey(new Date(Date.parse(x.delivered_at)))))).concat(ir):rows;BILL.impWeeks=[...iw];
-  BILL.rows=rows2;BILL.weeks=buildWeeks(rows2);BILL.real=true;BILL.det={};await loadPayDb();
+  BILL.rowsBase=rows2;BILL.impMax=imp.length?Math.max.apply(null,imp.map(x=>{const m=String(x.tab_date).split("-");return wkKey(new Date(+m[0],+m[1]-1,+m[2],12)).getTime()})):0;
+  BILL.rows=billListRows(rows2);BILL.weeks=buildWeeks(BILL.rows);BILL.real=true;BILL.det={};await loadPayDb();
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
  }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
  BILL.loading=false;render()}
+/* Weeks newer than the last sheet week are billed from the ACTIVE CUSTOMER LIST (every active customer once), not from scanned deliveries.
+   Receipt and picture links of deliveries that exist are attached to the same customer. */
+function billListRows(rows){
+ if(!S.real||!cust.length||!BILL.impMax)return rows;
+ const keep=[],proof={},weeks={};
+ rows.forEach(r=>{const d=wkKey(Date.parse(r.delivered_at)),t=d.getTime();
+  if(t<=BILL.impMax){keep.push(r);return}
+  weeks[t]=1;const k=t+"|"+r.agency+"|"+r.agency_ref;if(!proof[k]&&(r.receipt_url||(r.photo_urls||[]).length))proof[k]=r});
+ const out=keep.slice();
+ Object.keys(weeks).forEach(ts=>{const t=+ts,mid=new Date(t+3*864e5);mid.setHours(12,0,0,0);
+  cust.filter(c=>c.active).forEach(c=>{const pr=proof[t+"|"+c.agency+"|"+c.ref];
+   out.push({order_id:"sheet",delivered_at:mid.toISOString(),agency:c.agency,agency_ref:c.ref,name:c.name,base:c.base,food:c.food,hh:c.hh,enh:0,boxes:c.base=="box"?c.hh:1,letters:"",receipt_url:pr?pr.receipt_url||"":"",photo_urls:pr?pr.photo_urls||[]:[]})})});
+ return out}
+function billRelist(){if(!BILL.rowsBase)return;BILL.rows=billListRows(BILL.rowsBase);BILL.weeks=buildWeeks(BILL.rows);BILL.det={};BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}))}
 function buildWeeks(rows){
  const W={};
  rows.forEach(r=>{
@@ -1143,7 +1158,7 @@ async function loadDB(){
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}});
-  S.real=true;S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
+  S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render()}
 function banner(){
