@@ -129,7 +129,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b90">
+<meta name="build" content="b91">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -171,13 +171,16 @@ const optName=(base,food)=>(optList(base,"").find(x=>x[0]==food)||[0,F[food]])[1
 const tag=c=>(c.base=="box"?"Box":"Meals")+" "+codesFor(c.food,c.hh,c.area);
 let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:false,loading:false,rerr:"",pg:0,dq:"",dpg:0,dflt:"all",msg:"",err:""},log=[],reqs=[];
 
-const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
+const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
 const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["raw","Raw Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
 const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
-function navFor(u){const a=upages(u);return PAGES.filter(p=>a.indexOf(p[0])>=0)}
+const NAVHID={history:1,import:1,delivery_prev:1};
+function navFor(u){const a=upages(u);return PAGES.filter(p=>!NAVHID[p[0]]&&(a.indexOf(p[0])>=0||(p[0]=="delivery"&&a.indexOf("delivery_prev")>=0)))}
+const setTabs=()=>`<div class="bar" style="margin-bottom:8px">${[["settings","Settings"],["history","History"],["import","Import"]].map(t=>`<button class="${S.view==t[0]?"pri":""}" onclick="go('${t[0]}')">${t[1]}</button>`).join("")}</div>`;
+const inSet=(u,v)=>!!u&&u.role=="owner"&&(v=="history"||v=="import");
 let USERS=[];
 function usave(){try{localStorage.setItem("sm_users",JSON.stringify(USERS))}catch(e){}}
 const LG=(who,f,o,n)=>log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:who,field:f,o:String(o),n:String(n)});
@@ -227,12 +230,12 @@ function render(){
  const u=S.user,app=document.getElementById("app");
  let keep=null;try{const ae=document.activeElement;if(ae&&app.contains(ae)&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.type!="checkbox"&&ae.type!="radio"&&(ae.id||ae.placeholder))keep={id:ae.id,ph:ae.placeholder,v:S.view,s:ae.selectionStart,e:ae.selectionEnd}}catch(e){}
  document.body.classList.toggle("anon",!u);
- document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="nv ${S.view==n[0]||(S.view=="card"&&n[0]=="customers")?"on":""}" onclick="go('${n[0]}')">${icon(n[0])}<span>${n[1]}</span></button>`).join(""):"";
+ document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="nv ${S.view==n[0]||(S.view=="card"&&n[0]=="customers")||(n[0]=="settings"&&inSet(u,S.view))?"on":""}" onclick="go('${n[0]}')">${icon(n[0])}<span>${n[1]}</span></button>`).join(""):"";
  document.getElementById("who").innerHTML=u?`<div class="me"><div class="av">${esc((u.name||"?").trim().charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(ROLE_NAMES[u.role]||u.role)}</div></div></div><div class="acts"><button onclick="openPw()">Password</button><button onclick="out()">Sign out</button></div>`:"";
  if(!u){app.innerHTML=vLogin();return}
- const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
+ const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!inSet(u,S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=(S.view=="menu"||S.view=="billing"?"":banner())+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
- app.innerHTML=m+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,menu:vMenu,raw:vRaw,billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
+ app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(S.user.role=="owner"),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,menu:vMenu,raw:vRaw,billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
  if(keep&&keep.v==S.view)try{const el=keep.id?document.getElementById(keep.id):[...app.querySelectorAll("input,textarea")].find(x=>x.placeholder==keep.ph);if(el){el.focus();if(keep.s!=null)el.setSelectionRange(keep.s,keep.e)}}catch(e){}
 }
@@ -1486,7 +1489,7 @@ async function setOpt(k,v){
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S[k]=!!v;S.msg="Saved.";S.err=""}render()}
 function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
- const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
+ const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
  return `<div class="card"><h2>Changes for next week</h2>
  <div class="bar"><label>Next week starts (like 11/9)<input id="nw_in" value="${esc(nwk())}" style="max-width:120px"></label><button onclick="saveNextWeek()">Save</button></div>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
@@ -1958,7 +1961,7 @@ async function rwImportRun(){
  render()}
 function setHash(v,id){try{const u=BASE+(v=="card"?"customer/"+(id||S.sel||""):v)+location.search;if(location.pathname+location.search!=u)history.pushState(null,"",u)}catch(e){}}
 function routeFromHash(){let m=String(location.pathname).slice(BASE.length).match(/^([a-z]+)(?:\/(\d+))?/);if(!m)m=String(location.hash).match(/^#\/([a-z]+)(?:\/(\d+))?/);if(!m||!S.user)return;const nv=navFor(S.user);
- if(m[1]=="customer"){if(m[2]&&nv.some(n=>n[0]=="customers"))go("card",+m[2])}else if(nv.some(n=>n[0]==m[1]))go(m[1])}
+ if(m[1]=="customer"){if(m[2]&&nv.some(n=>n[0]=="customers"))go("card",+m[2])}else if(nv.some(n=>n[0]==m[1])||inSet(S.user,m[1]))go(m[1])}
 const goOld3=go;go=function(v,id){goOld3(v,id);setHash(v,id)};
 window.addEventListener("popstate",()=>{if(S.user)routeFromHash()});
 
@@ -2013,6 +2016,7 @@ function dvAll(v){DGROUPS.forEach(g=>DV.areas[g.id]=v);DV.pg=0;render()}
 function dvOff(id,v){if(v)delete DV.off[id];else DV.off[id]=true;render()}
 function dvOffAll(v){dvRows().rows.forEach(r=>{const k=r.c.uuid||r.c.id;if(v)delete DV.off[k];else DV.off[k]=true});render()}
 function vDelivery(){
+ if(upages(S.user).indexOf("delivery")<0)DV.tab="prev";
  if(DV.tab=="prev")return vPrev();
  if(!S.real)return `<div class="card"><h2>Delivery</h2><p class="note">Load the real data first (the green/blue bar at the top of Customers), then come back here.</p></div>`;
  const R=dvRows(),pick=R.rows.filter(r=>!DV.off[r.c.uuid||r.c.id]),foods={},cos={};
@@ -2060,7 +2064,7 @@ async function dvFile(kind,real,pre){
  catch(e){S.err="Could not make the file: "+(e.message||e);S.msg=""}
  render()}
 
-const dvTabs=()=>`<div class="bar" style="margin-bottom:8px"><button class="${DV.tab=="prev"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button><button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`;
+const dvTabs=()=>upages(S.user).indexOf("delivery")<0?"":`<div class="bar" style="margin-bottom:8px"><button class="${DV.tab=="prev"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button><button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`;
 function dvTabsList(){
  const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;String(r.letters||"").split(",").filter(Boolean).forEach(l=>{const p=String(r.delivery_date).split("-"),k=l+"_"+(+p[1])+"_"+(+p[2]);(m[k]=m[k]||{k:k,d:r.delivery_date,l:l,rows:[]}).rows.push(r)})});
  return Object.values(m).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.l<b.l?-1:1)}
