@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b98">
+<meta name="build" content="b99">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1592,7 +1592,16 @@ function cleanPhones(){const out=[];Array.prototype.slice.call(arguments).forEac
 function fmtPh(d){return d.slice(0,3)+"-"+d.slice(3,6)+"-"+d.slice(6)}
 const APTCITY=/\d|\b(fl|floor|apt|aprt|apartment|unit|top|second|third|fourth|walk|walkup|basement|bsmnt|rear|front|side|door|flight|right|left|lower|upper|ground)\b|^[^a-z]|[^a-z .'-]/i;
 function zipPre(pre,street,city){const z=zipFor(street,city);if(z&&z.indexOf(pre)==0)return z;const cnt={};cust.forEach(c=>{const x=String((c.a||{}).zip||"").trim();if(/^\d{5}$/.test(x)&&x.indexOf(pre)==0)cnt[x]=(cnt[x]||0)+1});const k=Object.keys(cnt).sort((p,q)=>cnt[q]-cnt[p]);return k[0]||""}
-function cleanAddr(a){
+function cleanAddr(a){return aptTidy(cleanAddr0(a))}
+/* Tidies the apartment text: no zip code in it, no repeated words (like "Apt 4B 4B"), no dangling "Apt", and a city that slipped in goes back to the city. */
+function aptTidy(r){let apt=String(r.apt||"");
+ apt=apt.replace(/\b(\d{5})(?:-\d{4})?\b/g,(m,z)=>{if(!r.zip)r.zip=z;return " "});
+ apt=apt.replace(/\bNY[a-z]?\s*$/i," ").replace(/\s+/g," ").trim();
+ const m=apt.match(/^(.*?)\s*\b(rego park|queens county|far rockaway)\s*$/i);
+ if(m){apt=m[1].trim();if(/^(rego park|far rockaway)$/i.test(m[2])&&(!r.city||/^brooklyn$/i.test(r.city)))r.city=m[2].replace(/\b\w/g,x=>x.toUpperCase())}
+ const seen={},out=[];apt.split(/\s+/).filter(Boolean).forEach(t=>{const k=t.toLowerCase().replace(/[^a-z0-9]/g,"");if(!k){out.push(t);return}if(seen[k])return;seen[k]=1;out.push(t)});
+ r.apt=out.join(" ").replace(/\s*\b(apt|apartment|unit|ste|suite)\.?$/i,"").trim();return r}
+function cleanAddr0(a){
  a={street:a.street||"",apt:a.apt||"",city:a.city||"",state:a.state||"",zip:String(a.zip||"").replace(/["'\s]/g,"")};
  if(/^(new|now)\s+york$|^n\.?\s?y\.?$/i.test(a.state.trim()))a.state="NY";
  if(/^(new|now)\s+york$|^n\.?\s?y\.?$/i.test(a.city.trim())){if(!a.state)a.state="NY";a.city=""}
