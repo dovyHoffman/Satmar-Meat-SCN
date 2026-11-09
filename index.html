@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b95">
+<meta name="build" content="b96">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1966,7 +1966,9 @@ async function rwImportRun(){
 /* ===== Team chat (bubble for everyone with the Chat page; owner also has a Chat tab in Settings) ===== */
 const CH={open:false,msgs:[],lastId:0,seen:0,err:"",t:null,busy:false};
 try{CH.seen=+localStorage.getItem("ch_seen")||0}catch(e){}
-const chatOn=()=>!!S.user&&!!sb&&(S.user.role=="owner"||upages(S.user).indexOf("chat")>=0);
+const chatOn=()=>!!S.user&&!!sb&&CH.enabled===true&&(S.user.role=="owner"||upages(S.user).indexOf("chat")>=0);
+async function chEnabledLoad(){if(CH.loadingE||!sb)return;CH.loadingE=true;try{const {data}=await sb.from("app_settings").select("value").eq("key","chat_enabled").maybeSingle();CH.enabled=!!(data&&data.value===true)}catch(e){CH.enabled=false}CH.loadingE=false;try{chSync()}catch(e){}}
+async function chSwitch(v){const {error}=await sb.from("app_settings").upsert({key:"chat_enabled",value:!!v,updated_at:new Date().toISOString()});if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{CH.enabled=!!v;S.msg=v?"Team chat is ON. People with Chat access now see the chat button.":"Team chat is OFF. Nobody sees the chat button.";S.err=""}render()}
 const chTime=t=>{const d=new Date(t),n=new Date(),hm=d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});return d.toDateString()==n.toDateString()?hm:(d.getMonth()+1)+"/"+d.getDate()+" "+hm};
 async function chLoad(){
  if(!chatOn())return;
@@ -2000,9 +2002,10 @@ async function chSend(){
 function chTimer(){clearInterval(CH.t);if(!chatOn())return;CH.t=setInterval(()=>{if(!document.hidden)chLoad()},CH.open?4000:25000)}
 function chSync(){
  let b=document.getElementById("chat_b");
+ if(S.user&&sb&&CH.enabled===undefined){chEnabledLoad();return}
  if(!chatOn()){if(b)b.remove();const p=document.getElementById("chat_p");if(p)p.remove();CH.open=false;clearInterval(CH.t);CH.t=null;CH.msgs=[];return}
  if(!b){b=document.createElement("button");b.id="chat_b";b.className="chatb";b.title="Team chat";b.onclick=()=>chToggle();document.body.appendChild(b);chLoad();chTimer()}}
-function vChatPage(){return `<div class="card"><h2>Chat</h2><p class="note">The team chat is the round chat button at the bottom right of every page. Everyone you tick <b>Chat</b> for in the People table can use it; you can always use it.</p><div class="bar"><button class="pri rwbig" onclick="chToggle(true)">Open team chat</button></div></div>
+function vChatPage(){return `<div class="card"><h2>Chat</h2><p class="note">When it is on, the team chat is the round chat button at the bottom right of every page. Everyone you tick <b>Chat</b> for in the People table can use it; you can always use it.</p><label class="ck" style="font-size:17px"><input type="checkbox" style="width:auto" ${CH.enabled?"checked":""} onchange="chSwitch(this.checked)"> Team chat is ${CH.enabled?"<b>ON</b>":"<b>OFF</b>"}</label>${CH.enabled?`<div class="bar"><button class="pri rwbig" onclick="chToggle(true)">Open team chat</button></div>`:`<p class="note">Turned off for now. Nobody sees the chat button. Switch it on here whenever you are ready.</p>`}</div>
  <div class="card"><h3 style="margin-top:0">Coming next</h3><p class="note"><b>Text customers (SMS)</b> and <b>Ask Claude</b> need an account first: a text-message service (for example Twilio) and an AI key. They will only be visible to you, the owner.</p></div>`}
 const renderOld9=render;render=function(){renderOld9();try{chSync()}catch(e){}};
 function setHash(v,id){try{const u=BASE+(v=="card"?"customer/"+(id||S.sel||""):v)+location.search;if(location.pathname+location.search!=u)history.pushState(null,"",u)}catch(e){}}
