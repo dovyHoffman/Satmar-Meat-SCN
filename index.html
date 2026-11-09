@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b112">
+<meta name="build" content="b113">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -396,11 +396,12 @@ function vCard(){
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
  ${lock?`<p class="err">The cut-off has passed. Only the admin can add changes now.</p>`:""}
  <div class="grid">${nf("nf_phone","New phone",n.phone,"Current: "+c.phone)}
- <label class="ac" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}><span id="nf_hint" class="note" style="display:block;margin-top:3px"></span></label>
- ${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}
+ ${c.agency=="RY"?`<div style="grid-column:span 3"><b>New delivery address</b><input type="hidden" id="nf_addr" value="" disabled><input type="hidden" id="nf_apt" value=""><div class="card" style="margin:6px 0 0;background:var(--bg)"><b>RY customers cannot change the delivery address here.</b><div class="note" style="margin-top:4px">Ask the agency (RY) to change it. Customer phone number to give them: <b id="ry_ph">${esc(c.phone||"")}</b> <button type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('ry_ph').textContent);this.textContent='Copied'">Copy</button></div></div></div>`:`<label class="ac" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}><span id="nf_hint" class="note" style="display:block;margin-top:3px"></span></label>
+${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}`}
+
  ${nf("nf_notes","New notes / door lock",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New notes 2",stripCS(n.note2,c.note2,n.food),"Current: "+(c.note2||"none"))}
  <input type="hidden" id="nf_base" value="">
- <label>Option<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
+ <label>Food type<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
  <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
  <p class="note">Leave a field empty to keep it as is. These changes start next week and do not touch this week. One set of changes per customer per week.</p>
  <div class="bar">${ed?`<button class="pri" onclick="saveNext(${c.id})" ${lock?"disabled":""}>Save changes for next week</button>`:""}<button onclick="go('customers')">Back</button></div></div>
@@ -607,7 +608,7 @@ function showPod(id,w){
  document.body.appendChild(d)}
 function fillOpt(){
  const c=cust.find(x=>x.id==S.sel),b=document.getElementById("nf_base");if(!c||!b)return;
- const bv=b.value||c.base,cur=(c.next&&c.next.food)||"",l=optList(bv,c.agency).concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[]);
+ const bv=b.value||c.base,cur=(c.next&&c.next.food)||"",l=optList(bv,c.agency).filter(x=>x[0]!="meals").concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[]);
  const o=document.getElementById("nf_opt");o.innerHTML='<option value="">No change</option>'+l.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join("");
  o.value=l.some(x=>x[0]==cur)?cur:"";prevCode()}
 function prevCode(){
