@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b102">
+<meta name="build" content="b103">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -174,12 +174,15 @@ let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:
 
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Chat"],["raw","Raw Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Chat"],["raw","Menu · Raw"],["kitchen","Menu · Kitchen"],["meat","Menu · Meat"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
 const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
-const NAVHID={history:1,import:1,delivery_prev:1,chat:1};
-function navFor(u){const a=upages(u);return PAGES.filter(p=>!NAVHID[p[0]]&&(a.indexOf(p[0])>=0||(p[0]=="delivery"&&a.indexOf("delivery_prev")>=0)))}
+const NAVHID={history:1,import:1,delivery_prev:1,chat:1,raw:1,meat:1,kitchen:1};
+const MTABS=[["menu","Menu"],["raw","Raw"],["kitchen","Kitchen"],["meat","Meat"]];
+const mTabsFor=u=>{const a=upages(u);return MTABS.filter(t=>a.indexOf(t[0])>=0)};
+const inMenu=(u,v)=>!!u&&(v=="raw"||v=="meat"||v=="kitchen")&&mTabsFor(u).some(t=>t[0]==v);
+function navFor(u){const a=upages(u);return PAGES.filter(p=>!NAVHID[p[0]]&&(a.indexOf(p[0])>=0||(p[0]=="delivery"&&a.indexOf("delivery_prev")>=0)||(p[0]=="menu"&&mTabsFor(u).length>0)))}
 const setTabs=()=>`<div class="bar" style="margin-bottom:8px">${[["settings","Settings"],["chat","Chat"],["history","History"],["import","Import"]].map(t=>`<button class="${S.view==t[0]?"pri":""}" onclick="go('${t[0]}')">${t[1]}</button>`).join("")}</div>`;
 const inSet=(u,v)=>!!u&&u.role=="owner"&&(v=="history"||v=="import"||v=="chat");
 let USERS=[];
@@ -231,12 +234,13 @@ function render(){
  const u=S.user,app=document.getElementById("app");
  let keep=null;try{const ae=document.activeElement;if(ae&&app.contains(ae)&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.type!="checkbox"&&ae.type!="radio"&&(ae.id||ae.placeholder))keep={id:ae.id,ph:ae.placeholder,v:S.view,s:ae.selectionStart,e:ae.selectionEnd}}catch(e){}
  document.body.classList.toggle("anon",!u);
- document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="nv ${S.view==n[0]||(S.view=="card"&&n[0]=="customers")||(n[0]=="settings"&&inSet(u,S.view))?"on":""}" onclick="go('${n[0]}')">${icon(n[0])}<span>${n[1]}</span></button>`).join(""):"";
+ document.getElementById("nav").innerHTML=u?navFor(u).map(n=>`<button class="nv ${S.view==n[0]||(S.view=="card"&&n[0]=="customers")||(n[0]=="menu"&&inMenu(u,S.view))||(n[0]=="settings"&&inSet(u,S.view))?"on":""}" onclick="go('${n[0]}')">${icon(n[0])}<span>${n[1]}</span></button>`).join(""):"";
  document.getElementById("who").innerHTML=u?`<div class="me"><div class="av">${esc((u.name||"?").trim().charAt(0).toUpperCase())}</div><div style="min-width:0"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(ROLE_NAMES[u.role]||u.role)}</div></div></div><div class="acts"><button onclick="openPw()">Password</button><button onclick="out()">Sign out</button></div>`:"";
  if(!u){app.innerHTML=vLogin();return}
- const nv=navFor(u);if(!nv.some(n=>n[0]==S.view)&&!inSet(u,S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
+ const nv=navFor(u);if(S.view=="menu"&&!upages(u).includes("menu")&&mTabsFor(u).length)S.view=mTabsFor(u)[0][0];
+ if(!nv.some(n=>n[0]==S.view)&&!inSet(u,S.view)&&!inMenu(u,S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=(S.view=="dashboard"&&u.role=="owner"?banner():"")+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
- app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(true),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,chat:vChatPage,menu:vMenu,raw:vRaw,billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
+ app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(true),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,chat:vChatPage,menu:()=>mTabs()+vMenu(),raw:()=>mTabs()+vRawM("raw"),meat:()=>mTabs()+vRawM("meat"),kitchen:()=>mTabs()+vKitchen(),billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
  if(keep&&keep.v==S.view)try{const el=keep.id?document.getElementById(keep.id):[...app.querySelectorAll("input,textarea")].find(x=>x.placeholder==keep.ph);if(el){el.focus();if(keep.s!=null)el.setSelectionRange(keep.s,keep.e)}}catch(e){}
 }
@@ -1850,6 +1854,9 @@ async function rwLibSave(id){
  const p={vendor:g("rl_v").trim(),units_per_case:rwNum(g("rl_u")),case_price:rwNum(g("rl_p")),nutrient:g("rl_n").trim()};Object.assign(li,p);
  const {error}=await sb.from("raw_items").update(p).eq("id",id);if(error)return rwSaveErr(error);RW.msg="Saved "+li.name+".";RW.err="";render()}
 /* ---------- screens ---------- */
+const mTabs=()=>{const t=mTabsFor(S.user);return t.length>1?`<div class="bar" style="margin-bottom:8px">${t.map(x=>`<button class="${S.view==x[0]?"pri":""}" onclick="go('${x[0]}')">${x[1]}</button>`).join("")}</div>`:""};
+const vKitchen=()=>`<div class="card"><h2>Kitchen menu</h2><p class="note">Coming soon. The kitchen menu will be built here.</p></div>`;
+function vRawM(m){RW.mode=m;return vRaw()}
 function vRaw(){
  if(!sb||!S.user)return `<div class="card"><h2>Raw Menu</h2><p class="note">Sign in to use the Raw Menu.</p></div>`;
  if(!RW.ok){rwLoad();return `<div class="card"><h2>Raw Menu</h2>${RW.err?`<p class="err">${esc(RW.err)}</p><button onclick="RW.err='';rwLoad(true)">Try again</button>`:`<p class="note">Loading…</p>`}</div>`}
@@ -1865,7 +1872,7 @@ function rwWeeksView(msg){
   return `<button class="rwwk" onclick="RW.open=${w.id};RW.tab='${n?"order":"boxes"}';RW.msg='';RW.err='';render()"><div><b>Week ${esc(w.label)}</b><span class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}">${w.status=="live"?"live":"draft"}</span></div><div class="note">${n} items · ${rwN(boxes,0)} boxes</div><div class="rwtot">${c.total?rwMoney(c.total):"—"}</div></button>`}).join("");
  const last=RW.weeks.find(w=>RW.wi.some(x=>x.week_id==w.id));
  const nxt=(()=>{const d=new Date();d.setDate(d.getDate()+((8-d.getDay())%7||7));return d})();
- return `<div class="card"><h2>Raw Menu</h2><p class="note">Plan each week's grocery and meat boxes. Tap a week to open it.</p>${msg}
+ return `<div class="card"><h2>${RW.mode=="meat"?"Meat Menu":"Raw Menu"}</h2><p class="note">Plan each week's grocery and meat boxes. Tap a week to open it.</p>${msg}
  <div class="rwbar"><button class="pri rwbig" onclick="RW.nw=!RW.nw;render()">+ New week</button><button class="rwbig" onclick="RW.page='lib';RW.msg='';render()">Item library (${RW.lib.length})</button>${S.user.role=="owner"?`<button class="rwbig" onclick="rwImportOpen()">Import from Excel</button>`:""}</div>
  ${RW.nw?`<div class="rwform"><label>Week name<input id="rw_nl" value="${nxt.getMonth()+1}/${nxt.getDate()}"></label><label>Week date<input id="rw_nd" type="date" value="${isoD(nxt)}"></label><label>Start from<select id="rw_nf"><option value="">Empty week</option>${RW.weeks.filter(w=>RW.wi.some(x=>x.week_id==w.id)).map(w=>`<option value="${w.id}" ${last&&w.id==last.id?"selected":""}>Week ${esc(w.label)} (${RW.wi.filter(x=>x.week_id==w.id).length} items)</option>`).join("")}</select></label><button class="pri rwbig" onclick="rwCreateWeek()" ${RW.busy?"disabled":""}>${RW.busy?"Creating…":"Create week"}</button></div>`:""}
  ${RW.imp?rwImportCard():""}</div>
@@ -1877,10 +1884,10 @@ function rwHdr(w,c){
 function rwHdrRefresh(wid){const e=document.getElementById("rw_hdr");if(e)e.innerHTML=rwHdr(null,rwCalc(wid))}
 function rwWeekView(msg){
  const w=RW.weeks.find(x=>x.id==RW.open);if(!w){RW.open=null;return rwWeeksView(msg)}
- const c=rwCalc(w.id),tabs=[["boxes","Boxes"],["items","Items"],["order","Order"],["meat","Meat"]];
+ const c=rwCalc(w.id),tabs=RW.mode=="meat"?[["meat","Meat"]]:[["boxes","Boxes"],["items","Items"],["order","Order"]];if(!tabs.some(t=>t[0]==RW.tab))RW.tab=tabs[0][0];
  const body={boxes:rwBoxes,items:rwItems,order:rwOrder,meat:rwMeat}[RW.tab](w,c);
  return `<div class="card rwtop"><button onclick="RW.open=null;RW.msg='';RW.err='';render()">← All weeks</button><h2 style="margin:0">Week ${esc(w.label)}</h2><button onclick="rwStatus(${w.id})" class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}" title="Tap to change">${w.status=="live"?"live":"draft"}</button><span class="rwsum">${c.total?rwMoney(c.total):""}</span><div id="rw_hdr" class="rwhdr">${rwHdr(w,c)}</div></div>${msg}${body}
- <div class="rwtabs">${tabs.map(t=>`<button class="${RW.tab==t[0]?"on":""}" onclick="RW.tab='${t[0]}';RW.ex=null;RW.add=false;render();scrollTo(0,0)">${t[1]}</button>`).join("")}</div><div style="height:76px"></div>`}
+ <div class="rwtabs" style="${tabs.length<2?"display:none":""}">${tabs.map(t=>`<button class="${RW.tab==t[0]?"on":""}" onclick="RW.tab='${t[0]}';RW.ex=null;RW.add=false;render();scrollTo(0,0)">${t[1]}</button>`).join("")}</div><div style="height:76px"></div>`}
 function rwBoxes(w,c){
  const types=Object.keys(RW.types).filter(k=>c.cm[k]||c.rows.some(r=>(r.it.qty||{})[k]));
  const grp=(title,list)=>list.length?`<h3 class="rwh">${title}</h3>`+list.map(k=>{const x=c.cm[k]||{},pb=c.perBox[k]||0,bud=x.budget==null?(RW.types[k]||{}).budget:x.budget,rem=bud==null?null:bud-pb;
