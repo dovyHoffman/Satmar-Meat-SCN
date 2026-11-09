@@ -52,7 +52,7 @@ const label = (iso: string | null) => {
   return p; // e.g. "10/27"
 };
 
-async function who(req: Request): Promise<{ ok: boolean; owner: boolean; customers: boolean }> {
+async function who(req: Request): Promise<{ ok: boolean; owner: boolean; customers: boolean; id?: string }> {
   const secret = Deno.env.get("SYNC_SECRET");
   if (secret && req.headers.get("x-sync-secret") === secret) return { ok: true, owner: true, customers: true };
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -61,7 +61,7 @@ async function who(req: Request): Promise<{ ok: boolean; owner: boolean; custome
   if (!data?.user) return { ok: false, owner: false, customers: false };
   const { data: p } = await sb.from("profiles").select("role,active,pages").eq("id", data.user.id).single();
   if (!p || !p.active) return { ok: false, owner: false, customers: false };
-  return { ok: true, owner: p.role === "owner", customers: p.role === "owner" || (p.pages || []).includes("customers") };
+  return { ok: true, id: data.user.id, owner: p.role === "owner", customers: p.role === "owner" || (p.pages || []).includes("customers") };
 }
 
 async function search(phones: string[], page: number) {
@@ -139,6 +139,16 @@ Deno.serve(async (req) => {
       return json({ ok: true, path: p || "", info: p ? "" : photoInfo });
     }
     if (!me.owner) return json({ error: "not allowed" }, 403);
+    if (body.mode === "removeuser") {
+      // Owner removes a person completely: their login and their access row. Customer data is not touched.
+      const uid = String(body.id || "");
+      if (!/^[0-9a-f-]{36}$/i.test(uid)) return json({ ok: false, error: "No person selected." });
+      if (uid === me.id) return json({ ok: false, error: "You cannot remove yourself." });
+      const { error: de } = await sb.auth.admin.deleteUser(uid);
+      if (de && !/not found/i.test(de.message || "")) return json({ ok: false, error: de.message || "Could not remove." });
+      await sb.from("profiles").delete().eq("id", uid);
+      return json({ ok: true });
+    }
     if (body.mode === "invite") {
       const email = String(body.email || "").trim().toLowerCase();
       const name = String(body.name || "").trim();
