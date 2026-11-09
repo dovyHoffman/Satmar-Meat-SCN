@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b119">
+<meta name="build" content="b120">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -765,7 +765,7 @@ function vBill(){
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const tab=B.t=="wk"?"dash":B.t,c0=B.co||cos[0];
  const nav=`<div class="card"><div class="bar"><button class="${tab=="dash"?"on":""}" onclick="bgo('dash')">Overview</button><button class="${tab=="co"?"on":""}" onclick="bgo('co','${c0}')">Companies</button><button class="${tab=="pay"?"on":""}" onclick="bgo('pay')">Payments</button><button class="${tab=="price"?"on":""}" onclick="bgo('price')">Prices</button>${tab=="co"?`<select onchange="bgo('co',this.value)" style="width:auto;margin-left:12px">${cos.map(c=>`<option value="${c}" ${B.co==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`:""}</div>
- ${BILL.loading||BILL.err?`<p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":`<span class="err">${esc(BILL.err)}</span>`}</p>`:""}
+ ${BILL.loading||BILL.bg||BILL.err?`<p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.bg?"Loading older weeks…":`<span class="err">${esc(BILL.err)}</span>`}</p>`:""}
  <details style="margin-top:8px"><summary class="note" style="cursor:pointer">How this is counted</summary><p class="note">A week runs Saturday to Friday. Weeks after your last sheet week are billed from that week's list (the SCN Sheet week tab you uploaded, every customer on the list once), not from scanned deliveries. If a week's list was not uploaded, today's active list is used. Meals customers are billed price per meal × 21 × household size; box customers by household size (flat box price × household, or the household price table). ${(BILL.impWeeks||[]).length?"Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""}${BILL.impErr?" The saved sheet weeks could not be read: "+esc(BILL.impErr):""}</p></details></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="pay"?bPay():B.t=="price"?bPrices():bDash())}
 function bDash(){
@@ -1086,11 +1086,12 @@ async function loadBillDb(){
  if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
  try{
   const rpcAll=async(name,args)=>{const page=async a=>{const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;return r.data||[]},out=[],B=8;for(let a=0;;a+=1000*B){const ps=await Promise.all([...Array(B).keys()].map(i=>page(a+i*1000)));ps.forEach(q=>out.push(...q));if(ps[B-1].length<1000)break}return out};
-  const pPay=loadPayDb(),pInv=invLoad();
-  const [pr,hp,rows,impR]=await Promise.all([sb.from("agency_prices").select("agency,box_price,meal_price"),sb.from("agency_hh_prices").select("agency,hh,price").then(r=>r,e=>({error:e})),rpcAll("billing_rows"),rpcAll("billing_import_rows_since",{since:isoD(new Date(Date.now()-120*864e5))}).then(d=>({d}),e=>({e}))]);
+  const pPay=loadPayDb(),pInv=invLoad(),since1=isoD(new Date(Date.now()-22*864e5)),since2=isoD(new Date(Date.now()-120*864e5));
+  const [pr,hp,rows,impR]=await Promise.all([sb.from("agency_prices").select("agency,box_price,meal_price"),sb.from("agency_hh_prices").select("agency,hh,price").then(r=>r,e=>({error:e})),rpcAll("billing_rows"),rpcAll("billing_import_rows_since",{since:since1}).then(d=>({d}),e=>({e}))]);
   await pInv;if(pr.error)throw pr.error;
   try{if(!hp.error){Object.keys(HHP).forEach(k=>delete HHP[k]);(hp.data||[]).forEach(r=>{if(r.price!=null){(HHP[r.agency]=HHP[r.agency]||{})[r.hh]=Number(r.price)}})}}catch(e){}
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
+  const proc=async(impR,rows)=>{
   let imp=impR.d||[];BILL.impErr=impR.e?dberr(impR.e):"";
   const iw=new Set(),ir=[],cnt={};imp.forEach(x=>{const m=String(x.tab_date).split("-"),dt=new Date(+m[0],+m[1]-1,+m[2],12);iw.add(wkLab(wkKey(dt)));
    // every row of the sheet is one billed line (the same family can have a meals row and a box row, or two rows of the same kind)
@@ -1103,7 +1104,11 @@ async function loadBillDb(){
    await Promise.all(Object.keys(ws).filter(ts=>!BILL.hist[ts]).map(async ts=>{try{const a=[];for(let i=0;;i+=1000){const r=await sb.rpc("week_history_list",{w:isoD(new Date(+ts))}).range(i,i+999);if(r.error)throw r.error;a.push(...(r.data||[]));if(!r.data||r.data.length<1000)break}BILL.hist[ts]=a}catch(e){BILL.hist[ts]=[]}}))}
   BILL.rowsBase=rows2;BILL.impMax=imp.length?Math.max.apply(null,imp.map(x=>{const m=String(x.tab_date).split("-");return wkKey(new Date(+m[0],+m[1]-1,+m[2],12)).getTime()})):0;
   BILL.rows=billListRows(rows2);BILL.weeks=buildWeeks(BILL.rows);BILL.real=true;BILL.det={};await pPay;
-  BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}));
+  BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}))};
+  await proc(impR,rows.filter(x=>String(x.delivered_at)>=since1));
+  BILL.loading=false;BILL.bg=true;render();
+  (async()=>{try{const r2=await rpcAll("billing_import_rows_since",{since:since2});await proc({d:r2},rows)}catch(e){BILL.impErr=dberr(e)}BILL.bg=false;render()})();
+  return;
  }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
  BILL.loading=false;render()}
 /* Weeks newer than the last sheet week are billed from the ACTIVE CUSTOMER LIST (every active customer once), not from scanned deliveries.
