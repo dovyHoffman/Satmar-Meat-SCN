@@ -52,16 +52,16 @@ const label = (iso: string | null) => {
   return p; // e.g. "10/27"
 };
 
-async function who(req: Request): Promise<{ ok: boolean; owner: boolean; customers: boolean; id?: string }> {
+async function who(req: Request): Promise<{ ok: boolean; owner: boolean; customers: boolean; billing?: boolean; id?: string }> {
   const secret = Deno.env.get("SYNC_SECRET");
-  if (secret && req.headers.get("x-sync-secret") === secret) return { ok: true, owner: true, customers: true };
+  if (secret && req.headers.get("x-sync-secret") === secret) return { ok: true, owner: true, customers: true, billing: true };
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!jwt) return { ok: false, owner: false, customers: false };
   const { data } = await sb.auth.getUser(jwt);
   if (!data?.user) return { ok: false, owner: false, customers: false };
   const { data: p } = await sb.from("profiles").select("role,active,pages").eq("id", data.user.id).single();
   if (!p || !p.active) return { ok: false, owner: false, customers: false };
-  return { ok: true, id: data.user.id, owner: p.role === "owner", customers: p.role === "owner" || (p.pages || []).includes("customers") };
+  return { ok: true, id: data.user.id, owner: p.role === "owner", customers: p.role === "owner" || (p.pages || []).includes("customers"), billing: p.role === "owner" || (p.pages || []).includes("billing") };
 }
 
 async function search(phones: string[], page: number) {
@@ -139,6 +139,58 @@ Deno.serve(async (req) => {
       return json({ ok: true, path: p || "", info: p ? "" : photoInfo });
     }
     if (!me.owner) return json({ error: "not allowed" }, 403);
+    // ---- mode "smtptest": owner only. Checks whether this server can reach the mail server (no password used). ----
+    if (body.mode === "smtptest") {
+      if (!me.owner) return json({ ok: false, error: "Only the owner." });
+      const out: Record<string, string> = {};
+      for (const port of [587, 465, 25]) {
+        try {
+          const c = await Promise.race([Deno.connect({ hostname: "smtp.office365.com", port }), wait(6000).then(() => { throw new Error("timeout"); })]) as Deno.Conn;
+          const buf = new Uint8Array(200); const n = await Promise.race([c.read(buf), wait(5000).then(() => null)]);
+          out["port " + port] = "open" + (n ? ": " + new TextDecoder().decode(buf.subarray(0, n as number)).trim().slice(0, 60) : "");
+          c.close();
+        } catch (e) { out["port " + port] = "blocked: " + String((e as Error).message || e).slice(0, 80); }
+      }
+      out.secrets = ["SMTP_USER", "SMTP_PASS", "RESEND_API_KEY"].map((k) => k + "=" + (Deno.env.get(k) ? "set" : "missing")).join(", ");
+      return json({ ok: true, result: out });
+    }
+
+    // ---- mode "sendinvoice": owner or billing. Emails an invoice (PDF attached) and records it. ----
+    if (body.mode === "sendinvoice") {
+      if (!me.billing) return json({ ok: false, error: "Only the admin or billing can send invoices." });
+      const okMail = (e: string) => /^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/.test(e);
+      const clean = (a: unknown) => (Array.isArray(a) ? a : []).map((x) => String(x).trim()).filter(Boolean);
+      const to = clean(body.to), cc = clean(body.cc);
+      if (!to.length) return json({ ok: false, error: "Add at least one email address to send to." });
+      const bad = to.concat(cc).filter((e) => !okMail(e));
+      if (bad.length) return json({ ok: false, error: "These do not look like email addresses: " + bad.join(", ") });
+      if (to.length + cc.length > 20) return json({ ok: false, error: "Too many addresses." });
+      const subject = String(body.subject || "Invoice").slice(0, 200), html = String(body.html || "").slice(0, 400000), text = String(body.text || "").slice(0, 20000);
+      const pdf = String(body.pdf_b64 || ""), fname = String(body.filename || "Invoice.pdf").replace(/[^A-Za-z0-9._ -]/g, "_").slice(0, 80);
+      if (pdf.length > 6_000_000) return json({ ok: false, error: "The attachment is too large." });
+      const fromAddr = Deno.env.get("SMTP_USER") || Deno.env.get("INVOICE_FROM") || "";
+      const fromName = String(body.from_name || "Satmar Meat").replace(/[<>"\r\n]/g, "").slice(0, 60);
+      let sent = false, err = "";
+      try {
+        if (Deno.env.get("RESEND_API_KEY")) {
+          const r = await fetch("https://api.resend.com/emails", {
+            method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("RESEND_API_KEY"), "content-type": "application/json" },
+            body: JSON.stringify({ from: fromName + " <" + (Deno.env.get("INVOICE_FROM") || fromAddr) + ">", to, cc, subject, html, text, attachments: pdf ? [{ filename: fname, content: pdf }] : [] }),
+          });
+          if (!r.ok) throw new Error("Mail service said: " + (await r.text()).slice(0, 200));
+          sent = true;
+        } else {
+          if (!Deno.env.get("SMTP_USER") || !Deno.env.get("SMTP_PASS")) return json({ ok: false, error: "Email sending is not switched on yet: the mailbox password has not been added in Supabase (Edge Functions → Secrets: SMTP_USER and SMTP_PASS)." });
+          const nm = (await import("npm:nodemailer@6.9.14")).default;
+          const tr = nm.createTransport({ host: Deno.env.get("SMTP_HOST") || "smtp.office365.com", port: Number(Deno.env.get("SMTP_PORT") || 587), secure: false, requireTLS: true, auth: { user: Deno.env.get("SMTP_USER"), pass: Deno.env.get("SMTP_PASS") }, connectionTimeout: 15000, socketTimeout: 30000 });
+          await tr.sendMail({ from: '"' + fromName + '" <' + fromAddr + '>', to: to.join(", "), cc: cc.join(", ") || undefined, subject, html, text, attachments: pdf ? [{ filename: fname, content: pdf, encoding: "base64" }] : [] });
+          sent = true;
+        }
+      } catch (e) { err = String((e as Error).message || e).slice(0, 300); }
+      await sb.from("invoice_emails").insert({ company: String(body.company || ""), week: String(body.week || ""), inv_no: String(body.inv_no || ""), amount: Number(body.amount) || null, to_list: to, cc_list: cc, subject, ok: sent, error: err || null, sent_by: me.id ?? null });
+      return sent ? json({ ok: true }) : json({ ok: false, error: "Not sent: " + err });
+    }
+
     if (body.mode === "removeuser") {
       // Owner removes a person completely: their login and their access row. Customer data is not touched.
       const uid = String(body.id || "");
