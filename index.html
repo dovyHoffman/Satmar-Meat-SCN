@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b123">
+<meta name="build" content="b124">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -350,7 +350,7 @@ function vList(db){
  const letters=[...new Set(cust.filter(c=>c.active).flatMap(c=>codesFor(c.food,c.hh,c.area).split(/\s+/)).filter(x=>/^[A-Za-z]$/.test(x)))].sort();
  const cols=activeCols(),pr=myPrefs(),sc=COLS.find(c=>c.k==pr.sortK);
  if(sc){const dir=pr.sortD=="desc"?-1:1;rows.sort((x,y)=>{const a=sc.s(x),b=sc.s(y);const r=sc.num?(a-b):String(a||"").localeCompare(String(b||""),undefined,{numeric:true,sensitivity:"base"});return r*dir||x.name.localeCompare(y.name)})}
- const pages=Math.max(1,Math.ceil(rows.length/50)),pg=Math.min(S[pk],pages-1),vis=rows.slice(pg*50,pg*50+50),nf=n=>n.toLocaleString();
+ const psz=(myPrefs().psz===0?0:myPrefs().psz)||100,PS=psz||Math.max(rows.length,1),pages=Math.max(1,Math.ceil(rows.length/PS)),pg=Math.min(S[pk],pages-1),vis=rows.slice(pg*PS,pg*PS+PS),nf=n=>n.toLocaleString();
  const tile=(k,l,n,col)=>`<div class="kpi click ${f==k?"on":""}" onclick="S.dflt='${k}';S.dpg=0;render()"><span class="note">${l}</span><b${col?` style="color:${col}"`:""}>${nf(n)}</b></div>`;
  const head=db?`<h2>Customers</h2><div class="kpis" style="margin-bottom:12px">${tile("all","Total customers",cust.length)}${tile("active","Active (on this week's list)",nA,"var(--ok)")}${tile("off","Not active (Not in list)",nI)}</div>`:`<h2>Customers (${nf(rows.length)})</h2>`;
  const sel=cols.map(c=>c.k),menu=S.colMenu?`<div class="colmenu"><div class="note" style="margin-bottom:6px">Tick the columns you want. Saved for you.</div>${COLS.map(c=>`<label class="ck"><input type="checkbox" ${sel.indexOf(c.k)>=0?"checked":""} onchange="toggleCol('${c.k}')"> ${c.l}</label>`).join("")}<div class="bar" style="margin-top:8px"><button onclick="resetCols()">Reset</button><button onclick="S.colMenu=false;render()">Close</button></div></div>`:"";
@@ -362,7 +362,7 @@ function vList(db){
  ${S.fDel||S.fBase||S.fCode?`<button onclick="S.fDel=S.fBase=S.fCode='';S.${pk}=0;render()">Clear filters</button>`:""}</div>
  <div class="wrap"><table class="tl"><tr>${cols.map(c=>`<th class="srt" onclick="sortBy('${c.k}')">${c.l}<span class="ar">${pr.sortK==c.k?(pr.sortD=="desc"?"▼":"▲"):""}</span></th>`).join("")}</tr>
  ${vis.map(c=>`<tr class="row" onclick="go('card',${c.id})">${cols.map(x=>`<td${x.cls?` class="${x.cls}"`:""} title="${esc(String(x.s(c)==null?"":x.s(c)))}">${x.v(c)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan=${cols.length} class='no'>No customers found.</td></tr>`}</table></div>
- <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button></div></div>`}
+ <div class="bar"><button onclick="S.${pk}=${pg-1};render()" ${pg?"":"disabled"}>Previous</button><span class="note" style="align-self:center">Page ${pg+1} of ${pages} · ${nf(rows.length)} customers</span><button onclick="S.${pk}=${pg+1};render()" ${pg<pages-1?"":"disabled"}>Next</button><label class="note" style="display:flex;gap:6px;align-items:center;margin-left:auto">Show <select style="width:auto;margin:0" onchange="savePrefs({psz:+this.value});S.${pk}=0;render()">${[100,500,1000,0].map(n=>`<option value="${n}" ${psz==n?"selected":""}>${n?n:"All"}</option>`).join("")}</select> per page</label></div></div>`}
 const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn",state:"NY",zip:"11211"})).concat([{st:"250 Sample Ave",city:"Brooklyn",state:"NY",zip:"11211"},{st:"18 Example Rd",city:"Brooklyn",state:"NY",zip:"11206"},{st:"77 Demo Blvd",city:"Brooklyn",state:"NY",zip:"11249"},{st:"5 Sample Rd",city:"Monsey",state:"NY",zip:"10952"}]);
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
 const addrStr=(a,apt)=>a?[a.st,apt,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
