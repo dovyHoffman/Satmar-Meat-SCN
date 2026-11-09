@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b107">
+<meta name="build" content="b108">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -473,7 +473,7 @@ function vMenu(){
   <label style="display:block;max-width:560px">Delivery date, type of food, household (shown above the menu)<textarea id="menu_info" rows="4" style="width:100%">${esc(m.info||"")}</textarea></label><label style="display:block;max-width:560px;margin-top:8px">Menu items (one per line)</label>
   <textarea id="menu_ta" rows="${Math.min(Math.max(m.lines.length+2,6),24)}" style="width:100%;max-width:560px">${esc(m.lines.join("\n"))}</textarea>
   <p><button class="pri" onclick="menuSave('${code}')">Save menu ${esc(code)}</button> <button onclick="render()">Undo my edits</button></p></div>`:"";
- return menuFilesCard()+`<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
+ return `<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
   <div class="mst"><div><b>${codes.length}</b><span>menus</span></div><div><b>${total}</b><span>different items</span></div></div></div>
  <div class="card">${tabs}</div>
  <div class="card mcard" style="--c:${col(code)}"><div class="mtop"><div class="lt">${esc(code)}</div><div><h2 style="margin:0">Menu ${esc(code)}</h2><div class="note">${m.lines.length} items${cnt[code]!=null?" · "+cnt[code]+" boxes to prepare":""}</div></div></div>
@@ -493,7 +493,7 @@ function menuFilesCard(){
  if(!S.real||!sb)return "";
  if(MENUF.rows===null&&!MENUF.loading)setTimeout(loadMenuFiles,0);
  const rows=MENUF.rows||[];
- return `<div class="card"><h2>Menu files</h2><p class="note">Upload the menu here (PDF, picture, Excel or Word) until the menu is made from the website. Everyone with the Menu page can open it. Files are kept and never deleted.</p>
+ return `<div class="card"><h2>Menu files</h2><p class="note">Upload the menu here (PDF, picture, Excel or Word) until the menu is made from the website. Files are kept and never deleted.</p>
  <div class="bar" style="flex-wrap:wrap;align-items:center"><input id="mf_file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.xlsx,.xls,.csv,.doc,.docx" style="max-width:320px"><input id="mf_week" placeholder="Week / note (optional)" style="max-width:220px"><button class="pri" onclick="menuUpload()" ${MENUF.busy?"disabled":""}>${MENUF.busy?"Uploading…":"Upload menu"}</button></div>
  ${MENUF.msg?`<p class="msg">${esc(MENUF.msg)}</p>`:""}${MENUF.err?`<p class="err">${esc(MENUF.err)}</p>`:""}
  ${rows.length?`<div style="overflow:auto"><table class="tl"><tr><th>File</th><th>Week / note</th><th>Size</th><th>Uploaded</th><th></th></tr>${rows.map(r=>`<tr><td title="${esc(r.name)}">${esc(r.name)}</td><td>${esc(r.week)}</td><td>${fsize(r.size)}</td><td>${esc(new Date(r.created_at).toLocaleString())}</td><td><button onclick="menuFileOpen(${r.id})">Open</button>${S.user.role=="owner"&&/\.csv$/i.test(r.name)?` <button class="pri" onclick="menuApplyFile(${r.id})">Use this menu</button>`:""}</td></tr>`).join("")}</table></div>`:(MENUF.rows===null?`<p class="note">Loading…</p>`:`<p class="note">No menu uploaded yet.</p>`)}</div>`}
@@ -1337,7 +1337,7 @@ function csvToRecs(text){const rows=parseCsv(text).slice(1),col=(a,b)=>rows.map(
 function vImport(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can import.</p></div>`;
  const I=S.imp;
- return `<div class="card"><h2>Import customers</h2>
+ return menuFilesCard()+`<div class="card"><h2>Import customers</h2>
  <ol class="note" style="line-height:1.7"><li>Open the Google Sheet <b>Meal Sheet New</b> and click the <b>Customer_data</b> tab.</li><li>Click <b>File → Download → Comma Separated Values (.csv)</b>.</li><li>Choose that file below.</li></ol>
  <p class="note">Only name, ID, phone, cell, email, legal address, address, household size, notes on labels, note 2, food type, location, company, notes and the authorization end date are sent to the database. Birth dates and CIN numbers are never read. Customers that already exist are left untouched, so running this again is safe.</p>
  <input type="file" accept=".csv,text/csv" onchange="importFile(this.files[0])">
