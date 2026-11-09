@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b104">
+<meta name="build" content="b105">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1793,6 +1793,7 @@ const rwNk=s=>String(s||"").toLowerCase().replace(/\s+/g," ").trim();
 const rwMoney=n=>"$"+(+n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const rwN=(n,d)=>(+n||0).toLocaleString("en-US",{maximumFractionDigits:d==null?1:d});
 const rwMeatCode=c=>/^(S|M|L|Sc|Mc|Lc)$/.test(c);
+const rwIsM=k=>rwMeatCode(k)||(RW.types[k]||{}).kind=="meat",rwMM=()=>RW.mode=="meat",rwKeep=k=>rwMM()?rwIsM(k):!rwIsM(k),rwTot=c=>rwMM()?c.meatTotal:c.total;
 async function rwLoad(force){
  if(!sb||RW.loading||(RW.ok&&!force))return;RW.loading=true;RW.err="";
  try{const [w,t,l,i,c]=await Promise.all([fetchAll("raw_weeks","*",q=>q.order("week_date",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_box_types","*",q=>q.order("sort").order("code")),fetchAll("raw_items","*",q=>q.order("last_used",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_week_items","*",q=>q.order("id")),fetchAll("raw_week_counts","*",q=>q.order("week_id").order("code"))]);
@@ -1809,7 +1810,7 @@ function rwCalc(wid){
   return {it,need:n,upc,cp,cn,sug,co,use,left:upc?use*upc-n:0,cost:use*cp,short:!!upc&&co!=null&&co<cn-1e-9,nocase:co==null&&n>0}});
  const perBox={};rows.forEach(r=>{const u=r.meat?r.cp:(r.upc?r.cp/r.upc:0);Object.keys(r.it.qty||{}).forEach(c=>{perBox[c]=(perBox[c]||0)+(+r.it.qty[c]||0)*u})});
  const g=rows.filter(r=>!r.meat),m=rows.filter(r=>r.meat);
- return {cm,rows,g,m,perBox,total:g.reduce((s,r)=>s+r.cost,0),meatTotal:m.reduce((s,r)=>s+r.cost,0),codes:Object.keys(cm).concat(rows.reduce((a,r)=>a.concat(Object.keys(r.it.qty||{})),[])).filter((c,i,a)=>a.indexOf(c)===i).sort((a,b)=>((RW.types[a]||{}).sort||100)-((RW.types[b]||{}).sort||100)||a.localeCompare(b))}}
+ return {cm,rows,g,m,perBox,total:g.reduce((s,r)=>s+r.cost,0),meatTotal:m.reduce((s,r)=>s+r.cost,0),codes:Object.keys(cm).concat(rows.reduce((a,r)=>a.concat(Object.keys(r.it.qty||{})),[])).filter((c,i,a)=>a.indexOf(c)===i).filter(rwKeep).sort((a,b)=>((RW.types[a]||{}).sort||100)-((RW.types[b]||{}).sort||100)||a.localeCompare(b))}}
 function rwSaveErr(e){RW.err="Not saved: "+dberr(e);RW.msg="";render()}
 async function rwItemPatch(id,p,rerender){
  const it=RW.wi.find(x=>x.id==id);if(!it)return;Object.assign(it,p);if(rerender!==false)render();
@@ -1840,12 +1841,12 @@ async function rwRemoveItem(id){
 async function rwCreateWeek(){
  const lab=(document.getElementById("rw_nl").value||"").trim(),dt=document.getElementById("rw_nd").value||null,from=document.getElementById("rw_nf").value;
  if(!lab){RW.err="Give the week a name, for example 11/16.";render();return}
- if(RW.weeks.some(w=>w.label==lab)){RW.err="A week called "+lab+" already exists.";render();return}
+ const ex=RW.weeks.find(w=>w.label==lab);if(ex&&rwHas(ex)){RW.err="Week "+lab+" already has "+(rwMM()?"meat":"raw")+" data.";render();return}
  RW.busy=true;render();
- try{const {data:w,error}=await sb.from("raw_weeks").insert({label:lab,week_date:dt,status:"draft"}).select().single();if(error)throw error;RW.weeks.unshift(w);
-  if(from){const src=RW.wi.filter(x=>x.week_id==from).map(x=>({week_id:w.id,item_id:x.item_id,section:x.section,name:x.name,vendor:x.vendor,qty:x.qty,units_per_case:x.units_per_case,case_price:x.case_price,nutrient:x.nutrient,credits:x.credits,sort:x.sort}));
+ try{let w=ex;if(!w){const r=await sb.from("raw_weeks").insert({label:lab,week_date:dt,status:"draft"}).select().single();if(r.error)throw r.error;w=r.data;RW.weeks.unshift(w)}
+  if(from){const src=RW.wi.filter(x=>x.week_id==from&&((x.section=="meat")==rwMM())).map(x=>({week_id:w.id,item_id:x.item_id,section:x.section,name:x.name,vendor:x.vendor,qty:x.qty,units_per_case:x.units_per_case,case_price:x.case_price,nutrient:x.nutrient,credits:x.credits,sort:x.sort}));
    if(src.length){const {data,error:e2}=await sb.from("raw_week_items").insert(src).select();if(e2)throw e2;RW.wi.push(...data)}
-   const cs=RW.cnt.filter(x=>x.week_id==from).map(x=>({week_id:w.id,code:x.code,ordered:x.ordered,counted:null,budget:x.budget}));
+   const cs=RW.cnt.filter(x=>x.week_id==from&&rwKeep(x.code)).map(x=>({week_id:w.id,code:x.code,ordered:x.ordered,counted:null,budget:x.budget}));
    if(cs.length){const {error:e3}=await sb.from("raw_week_counts").insert(cs);if(e3)throw e3;RW.cnt.push(...cs)}}
   RW.open=w.id;RW.tab="boxes";RW.nw=false;RW.err="";RW.msg="Week "+lab+" created"+(from?" from the earlier week. Check the box counts.":".")}
  catch(e){RW.err="Not created: "+dberr(e)}
@@ -1866,17 +1867,19 @@ function vRaw(){
  if(RW.page=="lib")return rwLibView(msg);
  if(RW.open)return rwWeekView(msg);
  return rwWeeksView(msg)}
-function rwCurrent(){return RW.weeks.filter(w=>RW.wi.some(x=>x.week_id==w.id)).sort((a,b)=>String(b.week_date||"").localeCompare(String(a.week_date||"")))[0]}
+function rwHas(w){return RW.wi.some(x=>x.week_id==w.id&&((x.section=="meat")==rwMM()))||(rwMM()&&RW.cnt.some(x=>x.week_id==w.id&&rwIsM(x.code)&&(+x.ordered||0)>0))}
+function rwCurrent(){return RW.weeks.filter(rwHas).sort((a,b)=>String(b.week_date||"").localeCompare(String(a.week_date||"")))[0]}
 function rwCurCard(){const w=rwCurrent();if(!w)return "";const c=rwCalc(w.id),ks=c.codes.filter(k=>(+((c.cm[k]||{}).ordered)||0)>0);
- return `<div class="card rwcur"><div class="rwvh"><div><span class="note">Current week</span><h2 style="margin:2px 0">Week ${esc(w.label)}</h2></div><div class="rwtot">${rwMoney(c.total+c.meatTotal)}</div></div><div class="rwbxs">${ks.map(k=>`<div class="rwbx2"><span class="tag">${esc(k)}</span> <b>${rwN((c.cm[k]||{}).ordered,0)}</b> boxes<div class="note">${rwMoney(c.perBox[k]||0)} per box</div></div>`).join("")}</div><div class="rwbar"><button class="pri rwbig" onclick="RW.open=${w.id};RW.tab='items';RW.msg='';render()">Items &amp; prices</button><button class="rwbig" onclick="RW.open=${w.id};RW.tab='order';RW.msg='';render()">Order</button><button class="rwbig" onclick="RW.open=${w.id};RW.tab='boxes';RW.msg='';render()">Box counts</button><button class="rwbig" onclick="RW.open=${w.id};RW.tab='meat';RW.msg='';render()">Meat</button></div></div>`}
+ return `<div class="card rwcur"><div class="rwvh"><div><span class="note">Current week</span><h2 style="margin:2px 0">Week ${esc(w.label)}</h2></div><div class="rwtot">${rwMoney(rwTot(c))}</div></div><div class="rwbxs">${ks.map(k=>`<div class="rwbx2"><span class="tag">${esc(k)}</span> <b>${rwN((c.cm[k]||{}).ordered,0)}</b> boxes<div class="note">${rwMoney(c.perBox[k]||0)} per box</div></div>`).join("")}</div><div class="rwbar"><button class="pri rwbig" onclick="RW.open=${w.id};RW.tab='${rwMM()?"meat":"items"}';RW.msg='';render()">Items &amp; prices</button>${rwMM()?"":`<button class="rwbig" onclick="RW.open=${w.id};RW.tab='order';RW.msg='';render()">Order</button>`}<button class="rwbig" onclick="RW.open=${w.id};RW.tab='boxes';RW.msg='';render()">Box counts</button></div></div>`}
 function rwWeeksView(msg){
- const cards=RW.weeks.map(w=>{const c=rwCalc(w.id),n=RW.wi.filter(x=>x.week_id==w.id).length,boxes=c.g.length?Object.keys(c.cm).filter(k=>!rwMeatCode(k)).reduce((s,k)=>s+(+c.cm[k].ordered||0),0):0;
-  return `<button class="rwwk" onclick="RW.open=${w.id};RW.tab='${n?"order":"boxes"}';RW.msg='';RW.err='';render()"><div><b>Week ${esc(w.label)}</b><span class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}">${w.status=="live"?"live":"draft"}</span></div><div class="note">${n} items · ${rwN(boxes,0)} boxes</div><div class="rwtot">${c.total?rwMoney(c.total):"—"}</div></button>`}).join("");
- const last=RW.weeks.find(w=>RW.wi.some(x=>x.week_id==w.id));
+ const M=rwMM(),wl=RW.weeks.filter(w=>rwHas(w)||!RW.wi.some(x=>x.week_id==w.id));
+ const cards=wl.map(w=>{const c=rwCalc(w.id),n=RW.wi.filter(x=>x.week_id==w.id&&((x.section=="meat")==M)).length,ks=c.codes.filter(k=>(+((c.cm[k]||{}).ordered)||0)>0),boxes=ks.reduce((t,k)=>t+(+c.cm[k].ordered||0),0);
+  return `<button class="rwwk" onclick="RW.open=${w.id};RW.tab='${n?(M?"meat":"order"):"boxes"}';RW.msg='';RW.err='';render()"><div><b>Week ${esc(w.label)}</b><span class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}">${w.status=="live"?"live":"draft"}</span></div><div class="note">${n} items · ${rwN(boxes,0)} boxes</div>${M&&ks.length?`<div class="note">${ks.map(k=>esc(k)+" "+rwN(c.cm[k].ordered,0)).join(" · ")}</div>`:""}<div class="rwtot">${rwTot(c)?rwMoney(rwTot(c)):"—"}</div></button>`}).join("");
+ const last=RW.weeks.find(rwHas);
  const nxt=(()=>{const d=new Date();d.setDate(d.getDate()+((8-d.getDay())%7||7));return d})();
- return `<div class="card"><h2>${RW.mode=="meat"?"Meat Menu":"Raw Menu"}</h2><p class="note">Plan each week's grocery and meat boxes. Tap a week to open it.</p>${msg}
- <div class="rwbar"><button class="pri rwbig" onclick="RW.nw=!RW.nw;render()">+ New week</button><button class="rwbig" onclick="RW.page='lib';RW.msg='';render()">Item library (${RW.lib.length})</button>${S.user.role=="owner"?`<button class="rwbig" onclick="rwImportOpen()">Import from Excel</button>`:""}</div>
- ${RW.nw?`<div class="rwform"><label>Week name<input id="rw_nl" value="${nxt.getMonth()+1}/${nxt.getDate()}"></label><label>Week date<input id="rw_nd" type="date" value="${isoD(nxt)}"></label><label>Start from<select id="rw_nf"><option value="">Empty week</option>${RW.weeks.filter(w=>RW.wi.some(x=>x.week_id==w.id)).map(w=>`<option value="${w.id}" ${last&&w.id==last.id?"selected":""}>Week ${esc(w.label)} (${RW.wi.filter(x=>x.week_id==w.id).length} items)</option>`).join("")}</select></label><button class="pri rwbig" onclick="rwCreateWeek()" ${RW.busy?"disabled":""}>${RW.busy?"Creating…":"Create week"}</button></div>`:""}
+ return `<div class="card"><h2>${rwMM()?"Meat Menu":"Raw Menu"}</h2><p class="note">${rwMM()?"Plan each week's meat boxes and items. Past weeks below are the meat history with box counts and totals. Tap a week to open it.":"Plan each week's grocery boxes and items. Tap a week to open it."}</p>${msg}
+ <div class="rwbar"><button class="pri rwbig" onclick="RW.nw=!RW.nw;render()">+ New week</button>${rwMM()?"":`<button class="rwbig" onclick="RW.page='lib';RW.msg='';render()">Item library (${RW.lib.length})</button>`}${S.user.role=="owner"&&!rwMM()?`<button class="rwbig" onclick="rwImportOpen()">Import from Excel</button>`:""}</div>
+ ${RW.nw?`<div class="rwform"><label>Week name<input id="rw_nl" value="${nxt.getMonth()+1}/${nxt.getDate()}"></label><label>Week date<input id="rw_nd" type="date" value="${isoD(nxt)}"></label><label>Start from<select id="rw_nf"><option value="">Empty week</option>${RW.weeks.filter(rwHas).map(w=>`<option value="${w.id}" ${last&&w.id==last.id?"selected":""}>Week ${esc(w.label)} (${RW.wi.filter(x=>x.week_id==w.id&&((x.section=="meat")==rwMM())).length} items)</option>`).join("")}</select></label><button class="pri rwbig" onclick="rwCreateWeek()" ${RW.busy?"disabled":""}>${RW.busy?"Creating…":"Create week"}</button></div>`:""}
  ${RW.imp?rwImportCard():""}</div>
  ${rwCurCard()}<div class="rwgrid">${cards||`<div class="card"><p class="note">No weeks yet. Create one, or import your Excel file.</p></div>`}</div>`}
 function rwHdr(w,c){
@@ -1886,12 +1889,12 @@ function rwHdr(w,c){
 function rwHdrRefresh(wid){const e=document.getElementById("rw_hdr");if(e)e.innerHTML=rwHdr(null,rwCalc(wid))}
 function rwWeekView(msg){
  const w=RW.weeks.find(x=>x.id==RW.open);if(!w){RW.open=null;return rwWeeksView(msg)}
- const c=rwCalc(w.id),tabs=RW.mode=="meat"?[["meat","Meat"]]:[["boxes","Boxes"],["items","Items"],["order","Order"]];if(!tabs.some(t=>t[0]==RW.tab))RW.tab=tabs[0][0];
+ const c=rwCalc(w.id),tabs=rwMM()?[["boxes","Boxes"],["meat","Items"]]:[["boxes","Boxes"],["items","Items"],["order","Order"]];if(!tabs.some(t=>t[0]==RW.tab))RW.tab=tabs[0][0];
  const body={boxes:rwBoxes,items:rwItems,order:rwOrder,meat:rwMeat}[RW.tab](w,c);
- return `<div class="card rwtop"><button onclick="RW.open=null;RW.msg='';RW.err='';render()">← All weeks</button><h2 style="margin:0">Week ${esc(w.label)}</h2><button onclick="rwStatus(${w.id})" class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}" title="Tap to change">${w.status=="live"?"live":"draft"}</button><span class="rwsum">${c.total?rwMoney(c.total):""}</span><div id="rw_hdr" class="rwhdr">${rwHdr(w,c)}</div></div>${msg}${body}
+ return `<div class="card rwtop"><button onclick="RW.open=null;RW.msg='';RW.err='';render()">← All weeks</button><h2 style="margin:0">Week ${esc(w.label)}</h2><button onclick="rwStatus(${w.id})" class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}" title="Tap to change">${w.status=="live"?"live":"draft"}</button><span class="rwsum">${rwTot(c)?rwMoney(rwTot(c)):""}</span><div id="rw_hdr" class="rwhdr">${rwHdr(w,c)}</div></div>${msg}${body}
  <div class="rwtabs" style="${tabs.length<2?"display:none":""}">${tabs.map(t=>`<button class="${RW.tab==t[0]?"on":""}" onclick="RW.tab='${t[0]}';RW.ex=null;RW.add=false;render();scrollTo(0,0)">${t[1]}</button>`).join("")}</div><div style="height:76px"></div>`}
 function rwBoxes(w,c){
- const types=Object.keys(RW.types).filter(k=>c.cm[k]||c.rows.some(r=>(r.it.qty||{})[k]));
+ const types=Object.keys(RW.types).filter(k=>rwKeep(k)&&(c.cm[k]||c.rows.some(r=>(r.it.qty||{})[k])));
  const grp=(title,list)=>list.length?`<h3 class="rwh">${title}</h3>`+list.map(k=>{const x=c.cm[k]||{},pb=c.perBox[k]||0,bud=x.budget==null?(RW.types[k]||{}).budget:x.budget,rem=bud==null?null:bud-pb;
   return `<div class="card rwbx"><div class="rwbxh"><span class="tag">${esc(k)}</span><b>${esc((RW.types[k]||{}).name||k)}</b></div>
   <div class="rwfld"><label>Boxes to order<input type="number" inputmode="decimal" value="${x.ordered==null?"":x.ordered}" onchange="rwCount(${w.id},'${esc(k)}','ordered',this.value)"></label>
@@ -1899,8 +1902,8 @@ function rwBoxes(w,c){
   <label>Budget per box $<input type="number" inputmode="decimal" value="${bud==null?"":bud}" onchange="rwCount(${w.id},'${esc(k)}','budget',this.value)"></label></div>
   <div class="rwres"><span>Cost per box <b>${rwMoney(pb)}</b></span>${rem==null?"":`<span class="${rem<0?"bad":"ok"}">${rem<0?"Over budget by "+rwMoney(-rem):"Left in budget "+rwMoney(rem)}</span>`}</div></div>`}).join(""):"";
  return `<div class="card"><p class="note">Type how many boxes of each kind you are ordering this week. Later this can come from the dashboard.</p></div>`
-  +grp("Grocery boxes",types.filter(k=>!rwMeatCode(k)&&(RW.types[k]||{}).kind!="meat"))+grp("Meat boxes",types.filter(k=>rwMeatCode(k)||(RW.types[k]||{}).kind=="meat"))
-  +`<div class="card"><b>Add a box type</b><div class="rwfld" style="margin-top:8px"><label>Name (for example D)<input id="rw_tc" maxlength="8"></label><label>Kind<select id="rw_tk"><option value="grocery">Grocery box</option><option value="meat">Meat box</option></select></label></div><button class="rwbig" onclick="rwAddType(${w.id})">Add box type</button></div>`}
+  +grp(rwMM()?"Meat boxes":"Grocery boxes",types)
+  +`<div class="card"><b>Add a box type</b><div class="rwfld" style="margin-top:8px"><label>Name (for example D)<input id="rw_tc" maxlength="8"></label><input type="hidden" id="rw_tk" value="${rwMM()?"meat":"grocery"}"></div><button class="rwbig" onclick="rwAddType(${w.id})">Add box type</button></div>`}
 function rwItems(w,c){
  const q=rwNk(RW.q),list=c.g.filter(r=>!q||rwNk(r.it.name+" "+r.it.vendor).indexOf(q)>=0),gcodes=c.codes.filter(k=>!rwMeatCode(k)&&(RW.types[k]||{}).kind!="meat");
  const card=r=>{const it=r.it,open=RW.ex==it.id,chips=Object.keys(it.qty||{}).filter(k=>!rwMeatCode(k)).map(k=>`${esc(k)} ${it.qty[k]}`).join(" · ")||"no boxes yet";
