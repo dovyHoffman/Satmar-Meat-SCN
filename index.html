@@ -129,7 +129,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b92">
+<meta name="build" content="b93">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1045,6 +1045,7 @@ async function loadDet(tab){
 
 
 /* ================= LIVE DATABASE (Supabase) ================= */
+const INVITED=/type=(invite|recovery)/.test(String(location.hash)+String(location.search));
 const SB_URL="https://znszotxuhkxgbszhyqcp.supabase.co",SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpuc3pvdHh1aGt4Z2Jzemh5cWNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NDYzMTUsImV4cCI6MjEwOTIyMjMxNX0.UUZAT5wU8iR9lXia_AQRo_kICaNrWbz_67bnH8Aw_38";
 let sb=null;try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}})}catch(e){}
 const AREAS=["Lee","Monsey/Monroe","Bedford","BP","Middleton"],AREA_KEY={"Lee":"lee","Monsey/Monroe":"monsey_monroe","Bedford":"bedford","BP":"bp"};
@@ -1077,12 +1078,12 @@ async function signInPw(){
  const {error}=await sb.auth.signInWithPassword({email:e,password:p});
  S.lg.busy=false;if(error){S.err=/invalid login/i.test(error.message||"")?"Wrong email or password.":dberr(error);render();return}
  await afterLogin();render()}
-function openPw(){
+function openPw(first){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
- d.innerHTML=`<div class="mod" style="max-width:380px"><b>Change my password</b>
+ d.innerHTML=`<div class="mod" style="max-width:380px"><b>${first?"Welcome! Create your password":"Change my password"}</b>${first?`<p class="note">You are signed in. Choose a password now so you can sign in next time with your email and this password. (You can also always use "Email me a link".)</p>`:""}
  <label>New password (at least 8 characters)<input id="pw1" type="password" autocomplete="new-password"></label>
  <label>New password again<input id="pw2" type="password" autocomplete="new-password"></label>
- <p class="err" id="pwe"></p><div class="bar"><button class="pri" id="pwb">Save password</button><button data-x="1">Cancel</button></div></div>`;
+ <p class="err" id="pwe"></p><div class="bar"><button class="pri" id="pwb">Save password</button><button data-x="1">${first?"Later":"Cancel"}</button></div></div>`;
  document.body.appendChild(d);
  document.getElementById("pwb").onclick=async()=>{
   const a=document.getElementById("pw1").value,b=document.getElementById("pw2").value,er=document.getElementById("pwe");
@@ -1090,7 +1091,7 @@ function openPw(){
   if(a!==b){er.textContent="The two passwords are not the same.";return}
   const {error}=await sb.auth.updateUser({password:a});
   if(error){er.textContent=dberr(error);return}
-  d.remove();S.msg="Your password was saved.";S.err="";render()}}
+  d.remove();S.msg=first?"Your password was saved. Next time sign in with your email "+((S.user&&S.user.email)||"")+" and this password.":"Your password was saved.";S.err="";render()}}
 async function sendCode(){
  const e=(document.getElementById("lg_em").value||"").trim().toLowerCase();if(!e||e.indexOf("@")<1){S.err="Enter your email.";render();return}
  S.lg.email=e;S.lg.busy=true;S.err="";render();
@@ -1120,6 +1121,7 @@ async function boot(){
  S.boot=true;render();
  try{const {data}=await sb.auth.getSession();if(data&&data.session)await afterLogin()}catch(e){S.err=dberr(e)}
  S.boot=false;render();
+ if(INVITED&&S.user)setTimeout(()=>openPw(true),400);
  sb.auth.onAuthStateChange(ev=>{if(ev=="SIGNED_OUT"&&S.user){S.user=null;cust.length=0;render()}})}
 async function out(){try{await sb.auth.signOut()}catch(e){}S.user=null;S.err="";cust.length=0;S.real=false;S.podsLoaded=false;render()}
 async function fetchAll(table,cols,build){
