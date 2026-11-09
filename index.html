@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b111">
+<meta name="build" content="b112">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -399,7 +399,9 @@ function vCard(){
  <label class="ac" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}><span id="nf_hint" class="note" style="display:block;margin-top:3px"></span></label>
  ${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}
  ${nf("nf_notes","New notes / door lock",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New notes 2",stripCS(n.note2,c.note2,n.food),"Current: "+(c.note2||"none"))}
- </div>
+ <input type="hidden" id="nf_base" value="">
+ <label>Option<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
+ <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
  <p class="note">Leave a field empty to keep it as is. These changes start next week and do not touch this week. One set of changes per customer per week.</p>
  <div class="bar">${ed?`<button class="pri" onclick="saveNext(${c.id})" ${lock?"disabled":""}>Save changes for next week</button>`:""}<button onclick="go('customers')">Back</button></div></div>
  ${S.real?pastReal(c):`<div class="card"><h2>Past weeks</h2><div class="wrap"><table><tr><th>Week</th><th>On list</th><th>Got</th><th>Customer request / change</th><th>Delivered by · when</th><th>POD</th></tr>
@@ -1681,9 +1683,10 @@ async function saveNow(id){
  S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
- const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?stripCS(g("nf_notes2").value.trim(),c.note2,"mid"):"",food:""},nx={};
+ const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?stripCS(g("nf_notes2").value.trim(),c.note2,"mid"):"",food:g("nf_opt").value},nx={};
  for(const k in v)if(v[k]&&v[k]!==(k=="food"?c.food:c[k]))nx[k]=v[k];
  if(nx.food=="mid"){const tag="CS "+nwk(),b2=(nx.note2||c.note2||"").trim();if(b2.indexOf(tag)<0)nx.note2=(b2?b2+" ":"")+tag}
+ if(nx.food)nx.base=g("nf_base").value||c.base;
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
  if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
