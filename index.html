@@ -130,7 +130,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b103">
+<meta name="build" content="b104">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -213,8 +213,8 @@ function vSettings(){
  const pg=PAGES.filter(p=>p[0]!="settings");
  return `<div class="card"><h2>Changes for next week (${nwk()})</h2>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
- <label><input type="checkbox" style="width:auto" ${S.cut?"checked":""} onchange="setOpt('cut',this.checked)"> Cut-off has passed (only the admin can add changes)</label>
- <p class="note">Changes always start next week and never touch this week. When the cut-off has passed, only the admin can add or change a request. Every switch is saved in History.</p></div>
+
+ <p class="note">Changes never touch this week. Anyone with access can add them any time; the cut-off (Sunday 7:00pm New York time) only decides which week they start.</p></div>
  <div class="card"><h2>People and access</h2>
  <p class="note">Choose which pages each person can open. A person is never deleted, only turned off, so the history stays. The Settings page is always yours. In this demo any password works; an email in this list gets exactly the pages ticked here, and a turned-off person cannot sign in. Real accounts and passwords come with the live system. This list is kept on this device until the database is connected.</p>
  <div class="wrap"><table><tr><th>Name</th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th></tr>
@@ -374,7 +374,7 @@ function opts(c){
  return o.map(x=>[x,F[x]]).concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[])}
 function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
- const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=S.cut&&!own,dis=ed&&!lock?"":"disabled",o=opts(c);
+ const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=false,dis=ed&&!lock?"":"disabled",o=opts(c);
  const ro=(l,v,w)=>`<label${w?` class="${w}"`:""}>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
  const fPhone=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label>`:ro("Phone",c.phone);
  const fAddr=own?`<label class="ac s2">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr,"s2");
@@ -414,7 +414,6 @@ function saveNow(id){
  S.msg=n?"Saved now."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":""):"Nothing changed.";S.err="";render()}
 function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce");
- if(S.cut&&!own){ce.textContent="The cut-off has passed. Only the admin can add changes now.";return}
  const v={phone:nf_phone.value.trim(),notes:nf_notes.value.trim(),food:(nf_opt.value!==c.food||nf_base.value!==c.base)?nf_opt.value:""},nx={},pk=nf_addr.dataset.pick,apt=nf_apt.value.trim();
  for(const k in v)if(v[k]&&v[k]!==(k=="food"?c.food:c[k]))nx[k]=v[k];
  if(nx.food)nx.base=nf_base.value;
@@ -435,7 +434,7 @@ function cancelNext(id){const c=cust.find(x=>x.id==id);c.next=null;L(c,"Changes 
 function vChanges(){
  const own=S.user.role=="owner",rows=cust.filter(c=>c.next);
  return `<div class="card"><h2>Changes for next week (${nwk()})</h2>
- <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>${S.cut?"passed (only the admin can add changes)":"open"}</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
+ <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>every Sunday 7:00pm</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by)}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button> <button onclick="cancelNext(${c.id})">Cancel</button>`:""}</td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 const DRV=["Driver A","Driver B","Driver C"];
@@ -1168,7 +1167,7 @@ async function loadDB(){
    const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.order("delivered_at",{ascending:false,nullsFirst:false}).order("order_id",{ascending:true});let ds;try{ds=await fetchAll("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAll("deliveries",dcols,dord)}
    ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
   try{const {data}=await sb.from("app_settings").select("key,value");(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
-  try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
+  try{const rq=await fetchAll("change_requests","id,customer_id,payload,requested_at,effective_week",q=>q.eq("status","pending"));rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,ew:r.effective_week,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}});
   S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
@@ -1521,9 +1520,9 @@ function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
  const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
  return `<div class="card"><h2>Changes for next week</h2>
- <div class="bar"><label>Next week starts (like 11/9)<input id="nw_in" value="${esc(nwk())}" style="max-width:120px"></label><button onclick="saveNextWeek()">Save</button></div>
+ <p class="note">Anyone with access can add changes any time. Cut-off: every Sunday 7:00pm (New York time). Changes made before it start ${esc(nwk())}; changes made after it start one week later. This switches by itself.</p>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
- <label><input type="checkbox" style="width:auto" ${S.cut?"checked":""} onchange="setOpt('cut',this.checked)"> Cut-off has passed (only the admin can add changes)</label></div>
+</div>
  <div class="card"><h2>People and access</h2>
  <p class="note">Everyone here was invited by email. Choose a role and which pages each person can open. You can change a name, role or pages, turn someone Off (keeps their record), or Remove them completely.</p>
  <div class="wrap"><table><tr><th>Name</th><th></th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th></tr>
@@ -1547,7 +1546,10 @@ async function inviteUser(){
 
 
 /* ================= STAGE 2: editing, next-week changes, history ================= */
-const nwk=()=>S.nextWk||"11/9";
+/* Cut-off: every Sunday 7:00pm New York time. Before it, changes start on the coming Monday; after it, one week later. Nobody is blocked. */
+const nwDate=()=>{const d=new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));d.setHours(d.getHours()+5);let a=(1-d.getDay()+7)%7;if(a==0)a=7;d.setDate(d.getDate()+a);return d};
+const nwk=()=>{const d=nwDate();return (d.getMonth()+1)+"/"+d.getDate()};
+
 const ADDRMSG2="Type the street, for example 94 Penn St. The city, state and zip are added for you (Brooklyn, NY and the zip of that street).";
 const SFX="st street ave avenue rd road blvd boulevard pl place dr drive ct court ln lane pkwy parkway way ter terrace hwy highway sq square cir circle trl trail path plz plaza row walk loop".split(" ");
 const CITYB={"brooklyn":["Brooklyn","NY"],"brookly":["Brooklyn","NY"],"brookyln":["Brooklyn","NY"],"brooklin":["Brooklyn","NY"],"bklyn":["Brooklyn","NY"],"bk":["Brooklyn","NY"],"monsey":["Monsey","NY"],"monroe":["Monroe","NY"],"airmont":["Airmont","NY"],"spring valley":["Spring Valley","NY"],"suffern":["Suffern","NY"],"nanuet":["Nanuet","NY"],"kiryas joel":["Kiryas Joel","NY"],"pomona":["Pomona","NY"],"new city":["New City","NY"],"chestnut ridge":["Chestnut Ridge","NY"],"wesley hills":["Wesley Hills","NY"],"far rockaway":["Far Rockaway","NY"],"staten island":["Staten Island","NY"],"bronx":["Bronx","NY"],"queens":["Queens","NY"],"new york":["New York","NY"],"lakewood":["Lakewood","NJ"],"middletown":["Middletown","NY"],"highland mills":["Highland Mills","NY"],"woodridge":["Woodridge","NY"],"south fallsburg":["South Fallsburg","NY"],"ellenville":["Ellenville","NY"]};
@@ -1668,7 +1670,6 @@ async function saveNow(id){
  S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
- if(S.cut&&!own){ce.textContent="The cut-off has passed. Only the admin can add changes now.";return}
  const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?stripCS(g("nf_notes2").value.trim(),c.note2,"mid"):"",food:g("nf_opt").value},nx={};
  for(const k in v)if(v[k]&&v[k]!==(k=="food"?c.food:c[k]))nx[k]=v[k];
  if(g("nf_base").value&&g("nf_base").value!==c.base&&!v.food){ce.textContent="Choose the option for the new food type, or set Food type back to No change.";return}
@@ -1680,6 +1681,7 @@ async function saveNext(id){
   const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
   if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!==c.area&&nx.food!="mid"&&c.area!="Middleton")nx.area=ar}}
  const had=c.next&&c.next.rid;
+ if(had&&c.next.ew&&c.next.ew!=nwk()){ce.textContent="This customer already has changes waiting for the week of "+c.next.ew+". Apply or cancel those first, then add changes for "+nwk()+".";return}
  if(!Object.keys(nx).length){
   if(had){const {error}=await sb.from("change_requests").update({status:"cancelled"}).eq("id",c.next.rid);if(error){ce.textContent="Not saved: "+dberr(error);return}c.next=null;S.msg="Changes for next week cleared."}
   else S.msg="Nothing to save.";S.err="";render();return}
@@ -1714,10 +1716,10 @@ async function cancelNext(id){
 function vChanges(){
  const own=S.user.role=="owner",rows=cust.filter(c=>c.next);
  return `<div class="card"><h2>Changes for next week (${esc(nwk())})</h2>
- <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>${S.cut?"passed (only the admin can add changes)":"open"}</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
+ <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>every Sunday 7:00pm</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
  ${own&&rows.length?`<div class="bar"><button onclick="if(confirm('Apply all ${rows.length} waiting changes now?'))applyAll()">Apply all ${rows.length} now</button></div>`:""}
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
- ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" ${S.cut&&!own?"disabled":""}>Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
+ ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" >Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
 const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v=="menu"&&!MENU.real)loadMenuDb();if(v=="delivery")loadSends();if(v=="billing"&&!BILL.real&&!BILL.loading)loadBillDb()};
 // The address shows the page (…/billing, …/delivery, …/customer/123) so a refresh, a bookmark or the back button opens the same page.
