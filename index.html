@@ -129,7 +129,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b91">
+<meta name="build" content="b92">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -171,9 +171,9 @@ const optName=(base,food)=>(optList(base,"").find(x=>x[0]==food)||[0,F[food]])[1
 const tag=c=>(c.base=="box"?"Box":"Meals")+" "+codesFor(c.food,c.hh,c.area);
 let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:false,loading:false,rerr:"",pg:0,dq:"",dpg:0,dflt:"all",msg:"",err:""},log=[],reqs=[];
 
-const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
+const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["raw","Raw Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["raw","Raw Menu"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
 const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
