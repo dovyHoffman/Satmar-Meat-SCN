@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b110">
+<meta name="build" content="b111">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1170,7 +1170,8 @@ async function loadDB(){
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const {data}=await pSet;(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await pReq;rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,ew:r.effective_week,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
-  cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}});
+  zipIdxBuild();try{
+  cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}})}finally{ZI=null}
   S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render();
@@ -1568,8 +1569,11 @@ const APTW=/^(apt\.?|apartment|unit|fl\.?|floor|ste\.?|suite|rm|room|bldg|buildi
 const SFXN={street:"st",avenue:"ave",road:"rd",boulevard:"blvd",place:"pl",drive:"dr",court:"ct",lane:"ln",parkway:"pkwy",terrace:"ter",highway:"hwy",square:"sq",circle:"cir"};
 function streetKey(st){let t=String(st||"").toLowerCase().replace(/[.,#]/g," ").replace(/\s+/g," ").trim().split(" ");if(t.length&&/^\d+[a-z]?$/.test(t[0]))t.shift();
  return t.map(w=>SFXN[w]||w).join(" ")}
+let ZI=null;
+function zipIdxBuild(){const m={};cust.forEach(c=>{const a=c.a||{};if(!/^\d{5}$/.test(String(a.zip||"").trim())||!a.st)return;const key=streetKey(a.st)+"|"+String(a.city||"").toLowerCase();(m[key]=m[key]||[]).push({hn:parseInt((String(a.st).match(/^\s*(\d+)/)||[0,"0"])[1],10)||0,zip:a.zip})});ZI=m}
 function zipFor(street,city){
  const k=streetKey(street),num=parseInt((String(street).match(/^\s*(\d+)/)||[0,"0"])[1],10)||0;let best=null,bd=1e9;
+ if(ZI){(ZI[k+"|"+String(city||"").toLowerCase()]||[]).forEach(e=>{const d=Math.abs(e.hn-num)+(e.hn%2!==num%2?0.5:0);if(d<bd){bd=d;best=e.zip}});return best||""}
  cust.forEach(c=>{const a=c.a||{};if(!/^\d{5}$/.test(String(a.zip||"").trim())||!a.st||String(a.city||"").toLowerCase()!==String(city||"").toLowerCase()||streetKey(a.st)!==k)return;
   const hn=parseInt((String(a.st).match(/^\s*(\d+)/)||[0,"0"])[1],10)||0,d=Math.abs(hn-num)+(hn%2!==num%2?0.5:0);if(d<bd){bd=d;best=a.zip}});
  return best||""}
