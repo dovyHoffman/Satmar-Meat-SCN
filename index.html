@@ -129,7 +129,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b88">
+<meta name="build" content="b89">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -210,10 +210,10 @@ function vSettings(){
  <p class="note">Changes always start next week and never touch this week. When the cut-off has passed, only the admin can add or change a request. Every switch is saved in History.</p></div>
  <div class="card"><h2>People and access</h2>
  <p class="note">Choose which pages each person can open. A person is never deleted, only turned off, so the history stays. The Settings page is always yours. In this demo any password works; an email in this list gets exactly the pages ticked here, and a turned-off person cannot sign in. Real accounts and passwords come with the live system. This list is kept on this device until the database is connected.</p>
- <div class="wrap"><table><tr><th>Name</th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th><th></th></tr>
- ${USERS.map((u,i)=>`<tr style="${u.active?"":"opacity:.55"}"><td><input value="${esc(u.name)}" style="min-width:130px" onchange="uname(${i},this.value)"></td><td>${esc(u.email)}</td><td><select onchange="urole(${i},this.value)">${Object.keys(ROLE_NAMES).map(r=>`<option value="${r}" ${u.role==r?"selected":""}>${ROLE_NAMES[r]}</option>`).join("")}</select></td>
+ <div class="wrap"><table><tr><th>Name</th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th></tr>
+ ${USERS.map((u,i)=>`<tr style="${u.active?"":"opacity:.55"}"><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><select onchange="urole(${i},this.value)">${Object.keys(ROLE_NAMES).map(r=>`<option value="${r}" ${u.role==r?"selected":""}>${ROLE_NAMES[r]}</option>`).join("")}</select></td>
  ${pg.map(p=>`<td style="text-align:center"><input type="checkbox" style="width:auto" ${upages(u).indexOf(p[0])>=0?"checked":""} ${u.role=="owner"?"disabled":""} onchange="upage(${i},'${p[0]}',this.checked)"></td>`).join("")}
- <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td><td>${u.id==S.user.id?"":`<button onclick="uremove(${i})">Remove</button>`}</td></tr>`).join("")||`<tr><td colspan="${pg.length+5}" class="no">Nobody added yet. Add the first person below.</td></tr>`}</table></div>
+ <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td></tr>`).join("")||`<tr><td colspan="${pg.length+5}" class="no">Nobody added yet. Add the first person below.</td></tr>`}</table></div>
  <h3 class="gh">Add a person</h3>
  <div class="bar"><input id="nu_name" placeholder="Name" style="max-width:180px"><input id="nu_email" type="email" placeholder="Email" style="max-width:240px"><select id="nu_role">${Object.keys(ROLE_NAMES).map(r=>`<option value="${r}">${ROLE_NAMES[r]}</option>`).join("")}</select><button class="pri" onclick="uadd()">Add person</button></div>
  <p class="note">The role fills in the usual pages (secretary: Customers, Changes, Menu; billing: Billing; demo: Demo). You can then tick or untick any page for that person.</p></div>
@@ -1493,11 +1493,11 @@ function vSettings(){
  <label><input type="checkbox" style="width:auto" ${S.cut?"checked":""} onchange="setOpt('cut',this.checked)"> Cut-off has passed (only the admin can add changes)</label></div>
  <div class="card"><h2>People and access</h2>
  <p class="note">Everyone here was invited by email. Choose a role and which pages each person can open. You can change a name, role or pages, turn someone Off (keeps their record), or Remove them completely.</p>
- <div class="wrap"><table><tr><th>Name</th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th></tr>
- ${USERS.map((u,i)=>`<tr style="${u.active?"":"opacity:.55"}"><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
+ <div class="wrap"><table><tr><th>Name</th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th><th></th></tr>
+ ${USERS.map((u,i)=>`<tr style="${u.active?"":"opacity:.55"}"><td><input value="${esc(u.name)}" style="min-width:130px" onchange="uname(${i},this.value)"></td><td>${esc(u.email)}</td>
  <td><select onchange="urole(${i},this.value)" ${u.id==S.user.id?"disabled":""}>${Object.keys(RN).map(r=>`<option value="${r}" ${u.role==r?"selected":""}>${RN[r]}</option>`).join("")}</select></td>
  ${pg.map(p=>`<td style="text-align:center"><input type="checkbox" style="width:auto" ${u.role=="owner"||(u.pages||[]).indexOf(p[0])>=0?"checked":""} ${u.role=="owner"?"disabled":""} onchange="upage(${i},'${p[0]}',this.checked)"></td>`).join("")}
- <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} ${u.id==S.user.id?"disabled":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td></tr>`).join("")||`<tr><td colspan="${pg.length+4}" class="no">Loading…</td></tr>`}</table></div>
+ <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} ${u.id==S.user.id?"disabled":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td><td>${u.id==S.user.id?"":`<button onclick="uremove(${i})">Remove</button>`}</td></tr>`).join("")||`<tr><td colspan="${pg.length+5}" class="no">Loading…</td></tr>`}</table></div>
  <h3 class="gh">Invite a new person</h3>
 
  <p class="note">Type their email and choose a role. They get an email with a link; they click it once, and then they sign in here (they can also make their own password). You can change their pages in the table above afterwards.</p>
