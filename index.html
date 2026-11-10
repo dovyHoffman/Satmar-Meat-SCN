@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b132">
+<meta name="build" content="b133">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1621,7 +1621,7 @@ async function doImport(quiet){
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";if(quiet)throw e}
  render()}
 /* ===== New list (draft): upload, review, edit, approve ===== */
-const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"chg"};
+const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"name"};
 const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
 async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;NL.d=r.data&&r.data.payload&&r.data.payload.rows?r.data.payload:null;NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
 async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
@@ -1631,12 +1631,12 @@ function nlCalc(){
  const out={nw:[],chg:[],same:0,off:[]},inFile={};
  D.rows.forEach(r=>{const k=nlKey(r);inFile[k]=1;const e=Object.assign({name:r.name,hh:r.hh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c=ex[k];if(c){e.base=e.base||c.base;e.food=e.food||c.food}else{e.base=e.base||"meals";e.food=e.food||"meals"}
   if(!c){out.nw.push({k:k,r:r,e:e,sk:!!(D.skip||{})[k]});return}mag[String(c.agency)]=1;
-  const d=[];if(e.name&&String(c.name||"").trim()!==String(e.name).trim())d.push("name: "+(c.name||"—")+" → "+e.name);
-  if(c.base!==e.base)d.push("customer type: "+c.base+" → "+e.base);if(c.hh!==e.hh)d.push("household: "+c.hh+" → "+e.hh);
+  const d=[],cats={};if(e.name&&String(c.name||"").trim()!==String(e.name).trim()){d.push("name: "+(c.name||"—")+" → "+e.name);cats.name=1}
+  if(c.base!==e.base){d.push("customer type: "+c.base+" → "+e.base);cats.type=1}if(c.hh!==e.hh){d.push("household: "+c.hh+" → "+e.hh);cats.hh=1}
   const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
-  const fill=[ph,ce,nl,n2].filter(Boolean);
-  if(!c.active)d.push("switch ON (on the list)");
-  if(d.length||fill.length)out.chg.push({k:k,r:r,e:e,c:c,d:d,fill:fill,sk:!!(D.skip||{})[k]});else out.same++});
+  const fill=[ph,ce,nl,n2].filter(Boolean);if(fill.length)cats.fill=1;
+  if(!c.active){d.push("switch ON (on the list)");cats.on=1}
+  if(d.length||fill.length)out.chg.push({k:k,r:r,e:e,c:c,d:d,fill:fill,cats:cats,sk:!!(D.skip||{})[k]});else out.same++});
  out.ag=Object.keys(mag);
  cust.forEach(c=>{const k=nk(c.ref);if(c.active&&mag[String(c.agency)]&&!inFile[k])out.off.push({k:k,c:c,sk:!!(D.skip||{})[k]})});
  return out}
@@ -1663,7 +1663,7 @@ async function nlFiles(files){
    const res=toDbRows(keep);res.rows.forEach(r=>{const k=nlKey(r);if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
   const ag=[...new Set(rows.map(r=>r.agency))];
-  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="chg";
+  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="name";
   await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+". Nothing has been changed yet. Look it over below."}
  catch(e){NL.err=String((e&&e.message)||e)}
  NL.busy=false;render()}
@@ -1671,19 +1671,24 @@ function nlEdit(k,f,v){const D=NL.d;D.edit=D.edit||{};D.edit[k]=Object.assign({}
 function nlSkip(k,v){const D=NL.d;D.skip=D.skip||{};if(v)D.skip[k]=1;else delete D.skip[k];nlSave();render()}
 function nlTab(t){NL.tab=t;render()}
 async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";try{await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id})}catch(e){}render()}
-async function nlApprove(){
- const R=nlCalc();if(!R||NL.busy)return;const nw=R.nw.filter(x=>!x.sk),ch=R.chg.filter(x=>!x.sk),of=R.off.filter(x=>!x.sk);
- if(!confirm("Approve this list?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated (name, customer type, household; blank phone/cell/notes filled)\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
+const NL_CATS=[["nw","New customers"],["name","Names"],["type","Customer type"],["hh","Household"],["fill","Phone / cell / notes filled"],["on","Switched on"],["off","Not on the list"],["skd","Left out of the file"]];
+function nlRows(R,cat){return cat=="nw"?R.nw:cat=="off"?R.off:cat=="skd"?[]:R.chg.filter(x=>x.cats[cat])}
+async function nlApprove(cat){
+ cat=cat||"all";const R=nlCalc();if(!R||NL.busy)return;const live=a=>a.filter(x=>!x.sk);
+ const nw=cat=="all"||cat=="nw"?live(R.nw):[],of=cat=="all"||cat=="off"?live(R.off):[],ch=live(cat=="all"?R.chg:(cat=="nw"||cat=="off")?[]:R.chg.filter(x=>x.cats[cat]));
+ if(!nw.length&&!of.length&&!ch.length){NL.msg="Nothing to apply there.";render();return}
+ const lab=cat=="all"?"EVERYTHING in this list":(NL_CATS.find(c=>c[0]==cat)||[0,cat])[1];
+ if(!confirm("Approve "+lab+"?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated"+(cat=="all"?"":" ("+lab.toLowerCase()+" only)")+"\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
  NL.busy=true;NL.err="";render();
  try{const ags=[...new Set(nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
   const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true}));
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
-  const items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:x.e.name,hh:x.e.hh,base:x.e.base,food:"",phone:x.r.phone||"",cell:x.r.cell||"",nl:x.r.notes_labels||"",n2:x.r.note2||"",nt:x.r.notes||""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
+  const f=c=>cat=="all"||cat==c,items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:f("name")&&x.cats.name?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?x.r.phone||"":"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
-  NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});
-  NL.msg="Approved. "+nw.length+" new customers added, "+ch.length+" updated, "+of.length+" switched off.";await loadDB()}
- catch(e){NL.err="Stopped: "+dberr(e)+(/apply_list_draft|function/i.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")+" Nothing was deleted. Whatever was done is in History."}
+  NL.msg="Approved "+lab+": "+nw.length+" new, "+ch.length+" updated, "+of.length+" switched off.";
+  await loadDB();const R2=nlCalc();if(cat=="all"||(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});NL.msg+=" Everything in the draft is done."}}
+ catch(e){NL.err="Stopped: "+dberr(e)+(/apply_list_draft|function/i.test(String(e&&e.message))?" (Database update 044 has not been run yet.)":"")+" Nothing was deleted. Whatever was done is in History."}
  NL.busy=false;render()}
 function vNewList(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
@@ -1692,19 +1697,19 @@ function vNewList(){
  <input type="file" accept=".csv,text/csv" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
  if(!R)return up;
- const T=[["nw","New",R.nw],["chg","Changed",R.chg],["off","Not on the list",R.off],["skd","Left out of the file",(D.sk||[]).map(x=>({sk:true,x:x}))]],cnt=a=>a.filter(x=>!x.sk).length;
+ if(NL.tab=="chg")NL.tab="name";const T=NL_CATS.map(c=>[c[0],c[1],c[0]=="skd"?(D.sk||[]).map(x=>({sk:true,x:x})):nlRows(R,c[0])]),cnt=a=>a.filter(x=>!x.sk).length;
  const sel=(f,k,v,opts)=>`<select style="width:auto;margin:0" onchange="nlEdit('${H(k)}','${f}',this.value)">${opts.map(o=>`<option value="${o[0]}" ${o[0]==v?"selected":""}>${o[1]}</option>`).join("")}</select>`;
  const ed=x=>`<td><input value="${H(x.e.name||"")}" onchange="nlEdit('${H(x.k)}','name',this.value)" style="width:170px;margin:0"></td><td>${sel("base",x.k,x.e.base,[["meals","Meals"],["box","Box"]])}</td><td><input type="number" min="1" max="30" value="${x.e.hh}" onchange="nlEdit('${H(x.k)}','hh',this.value)" style="width:56px;margin:0"></td>`;
  const sk=x=>`<td><label class="note"><input type="checkbox" style="width:auto" ${x.sk?"checked":""} onchange="nlSkip('${H(x.k)}',this.checked)"> skip</label></td>`;
  const body=NL.tab=="nw"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th></th></tr>${R.nw.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}${sk(x)}</tr>`).join("")}`
-  :NL.tab=="chg"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>What changes</th><th></th></tr>${R.chg.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}<td class="note">${H(x.d.concat(x.fill.map(f=>"fills "+f)).join(" · "))}</td>${sk(x)}</tr>`).join("")}`
+  :NL.tab!="off"&&NL.tab!="skd"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>What changes</th><th></th></tr>${nlRows(R,NL.tab).slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}<td class="note">${H(x.d.concat(x.fill.map(f=>"fills "+f)).join(" · "))}</td>${sk(x)}</tr>`).join("")}`
   :NL.tab=="skd"?`<tr><th>Name</th><th>ID in file</th><th>HH</th><th>Phone</th><th>Cell</th><th>Why it was left out</th></tr>${(D.sk||[]).slice(0,300).map(y=>`<tr><td>${H(y.name||"")}</td><td>${H(y.ref||"—")}</td><td>${y.hh||""}</td><td>${H(y.phone||"")}</td><td>${H(y.cell||"")}</td><td class="note">${H(y.why)}</td></tr>`).join("")}`
   :`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th></th></tr>${R.off.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.c.ref)}</td><td>${H(x.c.name)}</td><td>${H(x.c.base=="box"?"Box":"Meals")}</td><td>${x.c.hh}</td>${sk(x)}</tr>`).join("")}`;
- const cur=(T.find(t=>t[0]==NL.tab)||T[1])[2];
+ const curT=T.find(t=>t[0]==NL.tab)||T[1],cur=curT[2],nCur=cnt(cur);
  return up+`<div class="card"><div class="kpis" style="margin-bottom:10px">${T.map(t=>`<div class="kpi" style="cursor:pointer;${NL.tab==t[0]?"outline:2px solid var(--pri,#3b4cca)":""}" onclick="nlTab('${t[0]}')"><b>${t[2].length.toLocaleString()}</b><span>${t[1]}${t[0]!="skd"&&t[2].length!=cnt(t[2])?" ("+cnt(t[2])+" will apply)":""}</span></div>`).join("")}<div class="kpi"><b>${R.same.toLocaleString()}</b><span>Same, no change</span></div></div>
  <p class="note">From ${(D.files||[]).map(H).join(", ")} · ${D.rows.length.toLocaleString()} customers · agencies matched: ${(R.ag||[]).map(H).join(", ")||"none"}. ${NL.tab=="off"?"These are active now but not in the file. Tick skip to keep someone on.":"Change a name, customer type or household here if the file is wrong. Tick skip to leave a customer out."}${cur.length>300?" Showing the first 300.":""}</p>
  <div class="wrap" style="max-height:60vh;overflow:auto"><table style="font-size:13px">${body}</table></div>
- <div class="bar" style="margin-top:12px"><button class="pri" onclick="nlApprove()" ${NL.busy?"disabled":""}>Approve this list</button><button onclick="nlDiscard()" ${NL.busy?"disabled":""}>Throw away draft</button></div></div>`}
+ <div class="bar" style="margin-top:12px">${NL.tab!="skd"?`<button class="pri" onclick="nlApprove('${NL.tab}')" ${NL.busy||!nCur?"disabled":""}>Approve ${H(curT[1].toLowerCase())} (${nCur.toLocaleString()})</button>`:""}<button onclick="nlApprove()" ${NL.busy?"disabled":""}>Approve everything</button><button onclick="nlDiscard()" ${NL.busy?"disabled":""}>Throw away draft</button></div></div>`}
 /* ---- settings: people and next-week switches ---- */
 const goOld=go;go=function(v,id){goOld(v,id);if(v=="settings")loadUsers()};
 async function loadUsers(){
