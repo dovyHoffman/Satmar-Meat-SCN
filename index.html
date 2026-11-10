@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b126">
+<meta name="build" content="b127">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -175,10 +175,10 @@ let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:
 
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Chat"],["raw","Menu · Raw"],["kitchen","Menu · Kitchen"],["meat","Menu · Meat"],["billing","Billing"],["history","History"],["import","Import"],["settings","Settings"]];
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Chat"],["raw","Menu · Raw"],["kitchen","Menu · Kitchen"],["meat","Menu · Meat"],["billing","Billing"],["history","History"],["import","Import"],["newlist","New list"],["settings","Settings"]];
 const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
-function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"):[]}
+function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"&&p!="newlist"):[]}
 const NAVHID={history:1,import:1,delivery_prev:1,chat:1,raw:1,meat:1,kitchen:1};
 const MTABS=[["menu","Menu"],["raw","Raw"],["kitchen","Kitchen"],["meat","Meat"]];
 const mTabsFor=u=>{const a=upages(u);return MTABS.filter(t=>a.indexOf(t[0])>=0)};
@@ -242,7 +242,7 @@ function render(){
  if(!nv.some(n=>n[0]==S.view)&&!inSet(u,S.view)&&!inMenu(u,S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
  const m=(S.view=="dashboard"&&u.role=="owner"?banner():"")+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
  if(S.loading&&!S.real&&u.role!="demo"&&({dashboard:1,customers:1,card:1,changes:1,delivery:1})[S.view]){app.innerHTML=m+`<div class="ldr"><img src="logo.png" alt=""><div class="spin"></div><b>Loading your customers</b><span>Just a moment…</span></div>`;return}
- app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(true),card:vCard,import:vImport,settings:vSettings,changes:vChanges,history:vHist,chat:vChatPage,menu:()=>mTabs()+vMenu(),raw:()=>mTabs()+vRawM("raw"),meat:()=>mTabs()+vRawM("meat"),kitchen:()=>mTabs()+vKitchen(),billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
+ app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(true),card:vCard,import:vImport,newlist:vNewList,settings:vSettings,changes:vChanges,history:vHist,chat:vChatPage,menu:()=>mTabs()+vMenu(),raw:()=>mTabs()+vRawM("raw"),meat:()=>mTabs()+vRawM("meat"),kitchen:()=>mTabs()+vKitchen(),billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
  if(keep&&keep.v==S.view)try{const el=keep.id?document.getElementById(keep.id):[...app.querySelectorAll("input,textarea")].find(x=>x.placeholder==keep.ph);if(el){el.focus();if(keep.s!=null)el.setSelectionRange(keep.s,keep.e)}}catch(e){}
 }
@@ -1620,6 +1620,73 @@ async function doImport(quiet){
   if(quiet)return;const n=I.rows.length;S.imp={ok:"Done. "+n.toLocaleString()+" customers were sent. Existing ones were not changed, only empty legal address, cell, email and label notes were filled ("+filled.toLocaleString()+")."};await loadDB()
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";if(quiet)throw e}
  render()}
+/* ===== New list (draft): upload, review, edit, approve ===== */
+const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"chg"};
+const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
+async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;NL.d=r.data&&r.data.payload&&r.data.payload.rows?r.data.payload:null;NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
+async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
+const nlKey=r=>r.agency+"|"+nk(r.agency_ref);
+function nlCalc(){
+ const D=NL.d;if(!D)return null;const ex={};cust.forEach(c=>ex[String(c.agency).toUpperCase()+"|"+nk(c.ref)]=c);
+ const out={nw:[],chg:[],same:0,off:[]},inFile={};
+ D.rows.forEach(r=>{const k=nlKey(r);inFile[k]=1;const e=Object.assign({name:r.name,hh:r.hh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c=ex[k];
+  if(!c){out.nw.push({k:k,r:r,e:e,sk:!!(D.skip||{})[k]});return}
+  const d=[];if(e.name&&String(c.name||"").trim()!==String(e.name).trim())d.push("name: "+(c.name||"—")+" → "+e.name);
+  if(c.base!==e.base)d.push("type: "+c.base+" → "+e.base);if(c.food!==e.food)d.push("food: "+c.food+" → "+e.food);if(c.hh!==e.hh)d.push("household: "+c.hh+" → "+e.hh);
+  const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
+  const fill=[ph,ce,nl,n2].filter(Boolean);
+  if(!c.active)d.push("switch ON (on the list)");
+  if(d.length||fill.length)out.chg.push({k:k,r:r,e:e,c:c,d:d,fill:fill,sk:!!(D.skip||{})[k]});else out.same++});
+ const ag={};(D.ag||[]).forEach(a=>ag[a]=1);
+ cust.forEach(c=>{const a=String(c.agency).toUpperCase(),k=a+"|"+nk(c.ref);if(c.active&&ag[a]&&!inFile[k])out.off.push({k:k,c:c,sk:!!(D.skip||{})[k]})});
+ return out}
+async function nlFiles(files){
+ if(!files||!files.length)return;NL.err="";NL.msg="";NL.busy=true;render();
+ try{const seen={},rows=[];let skipped=0;
+  for(const f of files){const t=await f.text(),res=toDbRows(csvToRecs(t));res.rows.forEach(r=>{const k=nlKey(r);if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
+  if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list?");
+  const ag=[...new Set(rows.map(r=>r.agency))];
+  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:skipped,uploaded:new Date().toISOString()};NL.tab="chg";
+  await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+". Nothing has been changed yet. Look it over below."}
+ catch(e){NL.err=String((e&&e.message)||e)}
+ NL.busy=false;render()}
+function nlEdit(k,f,v){const D=NL.d;D.edit=D.edit||{};D.edit[k]=Object.assign({},D.edit[k]||{});D.edit[k][f]=f=="hh"?Math.max(1,Math.min(30,parseInt(v)||1)):v;nlSave();render()}
+function nlSkip(k,v){const D=NL.d;D.skip=D.skip||{};if(v)D.skip[k]=1;else delete D.skip[k];nlSave();render()}
+function nlTab(t){NL.tab=t;render()}
+async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";try{await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id})}catch(e){}render()}
+async function nlApprove(){
+ const R=nlCalc();if(!R||NL.busy)return;const nw=R.nw.filter(x=>!x.sk),ch=R.chg.filter(x=>!x.sk),of=R.off.filter(x=>!x.sk);
+ if(!confirm("Approve this list?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated (name, type, food, household; blank phone/cell/notes filled)\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
+ NL.busy=true;NL.err="";render();
+ try{const ags=[...new Set(nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));
+  if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
+  const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true}));
+  for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
+  const items=ch.map(x=>({agency:x.r.agency,ref:x.r.agency_ref,name:x.e.name,hh:x.e.hh,base:x.e.base,food:x.e.food,phone:x.r.phone||"",cell:x.r.cell||"",nl:x.r.notes_labels||"",n2:x.r.note2||"",nt:x.r.notes||""})).concat(of.map(x=>({agency:String(x.c.agency).toUpperCase(),ref:x.c.ref,off:true})));
+  let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
+  NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});
+  NL.msg="Approved. "+nw.length+" new customers added, "+ch.length+" updated, "+of.length+" switched off.";await loadDB()}
+ catch(e){NL.err="Stopped: "+dberr(e)+(/apply_list_draft|function/i.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")+" Nothing was deleted. Whatever was done is in History."}
+ NL.busy=false;render()}
+function vNewList(){
+ if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
+ nlLoad();const R=nlCalc(),H=esc,D=NL.d;
+ const up=`<div class="card"><h2>New list (draft)</h2><p class="note">Upload the customer list file(s) for next week. The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, Meals/Box, food type and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
+ <input type="file" accept=".csv,text/csv" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
+ ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
+ if(!R)return up;
+ const T=[["nw","New",R.nw],["chg","Changed",R.chg],["off","Not on the list",R.off]],cnt=a=>a.filter(x=>!x.sk).length;
+ const sel=(f,k,v,opts)=>`<select style="width:auto;margin:0" onchange="nlEdit('${H(k)}','${f}',this.value)">${opts.map(o=>`<option value="${o[0]}" ${o[0]==v?"selected":""}>${o[1]}</option>`).join("")}</select>`;
+ const ed=x=>`<td><input value="${H(x.e.name||"")}" onchange="nlEdit('${H(x.k)}','name',this.value)" style="width:170px;margin:0"></td><td>${sel("base",x.k,x.e.base,[["meals","Meals"],["box","Box"]])}</td><td>${sel("food",x.k,x.e.food,NL_FOOD)}</td><td><input type="number" min="1" max="30" value="${x.e.hh}" onchange="nlEdit('${H(x.k)}','hh',this.value)" style="width:56px;margin:0"></td>`;
+ const sk=x=>`<td><label class="note"><input type="checkbox" style="width:auto" ${x.sk?"checked":""} onchange="nlSkip('${H(x.k)}',this.checked)"> skip</label></td>`;
+ const body=NL.tab=="nw"?`<tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th>HH</th><th></th></tr>${R.nw.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}${sk(x)}</tr>`).join("")}`
+  :NL.tab=="chg"?`<tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th>HH</th><th>What changes</th><th></th></tr>${R.chg.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}<td class="note">${H(x.d.concat(x.fill.map(f=>"fills "+f)).join(" · "))}</td>${sk(x)}</tr>`).join("")}`
+  :`<tr><th>ID</th><th>Name</th><th>Type</th><th>Food</th><th>HH</th><th></th></tr>${R.off.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.c.ref)}</td><td>${H(x.c.name)}</td><td>${H(x.c.base)}</td><td>${H(x.c.food)}</td><td>${x.c.hh}</td>${sk(x)}</tr>`).join("")}`;
+ const cur=T.find(t=>t[0]==NL.tab)[2];
+ return up+`<div class="card"><div class="kpis" style="margin-bottom:10px">${T.map(t=>`<div class="kpi" style="cursor:pointer;${NL.tab==t[0]?"outline:2px solid var(--pri,#3b4cca)":""}" onclick="nlTab('${t[0]}')"><b>${t[2].length.toLocaleString()}</b><span>${t[1]}${t[2].length!=cnt(t[2])?" ("+cnt(t[2])+" will apply)":""}</span></div>`).join("")}<div class="kpi"><b>${R.same.toLocaleString()}</b><span>Same, no change</span></div></div>
+ <p class="note">From ${(D.files||[]).map(H).join(", ")} · ${D.rows.length.toLocaleString()} customers · agencies in the file: ${(D.ag||[]).map(H).join(", ")}. ${NL.tab=="off"?"These are active now but not in the file. Tick skip to keep someone on.":"Change a name, type, food or household here if the file is wrong. Tick skip to leave a customer out."}${cur.length>300?" Showing the first 300.":""}</p>
+ <div class="wrap" style="max-height:60vh;overflow:auto"><table style="font-size:13px">${body}</table></div>
+ <div class="bar" style="margin-top:12px"><button class="pri" onclick="nlApprove()" ${NL.busy?"disabled":""}>Approve this list</button><button onclick="nlDiscard()" ${NL.busy?"disabled":""}>Throw away draft</button></div></div>`}
 /* ---- settings: people and next-week switches ---- */
 const goOld=go;go=function(v,id){goOld(v,id);if(v=="settings")loadUsers()};
 async function loadUsers(){
@@ -1637,7 +1704,7 @@ async function setOpt(k,v){
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S[k]=!!v;S.msg="Saved.";S.err=""}render()}
 function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
- const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
+ const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"&&p[0]!="newlist"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
  return `<div class="card"><h2>Changes for next week</h2>
  <p class="note">Anyone with access can add changes any time. Cut-off: every Sunday 7:00pm (New York time). Changes made before it start ${esc(nwk())}; changes made after it start one week later. This switches by itself.</p>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
