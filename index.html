@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b143">
+<meta name="build" content="b144">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1184,7 +1184,7 @@ const AREAL={lee:"Lee",bedford:"Bedford",bp:"BP",monsey_monroe:"Monsey/Monroe"};
 const dberr=e=>{const m=(e&&(e.message||e.error_description))||"error";return /not allowed|signups? not allowed|user not found/i.test(m)?"This email has not been invited. Ask the owner to invite it.":/rate limit|too many|seconds/i.test(m)?"Too many tries. Wait a minute and try again.":/invalid|expired|token/i.test(m)?"That code is wrong or has expired. Ask for a new one.":m};
 S.lg={step:"email",email:"",busy:false,mode:"pw"};
 function vLogin(){
- if(S.boot)return `<div class="card" style="max-width:380px;margin:40px auto"><b>Loading…</b></div>`;
+ if(S.boot)return `<div class="ldr"><img src="logo.png" alt=""><div class="spin"></div><b>Loading…</b></div>`;
  if(!sb)return `<div class="card" style="max-width:420px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2><p class="err">The login library could not be loaded. Check the internet connection and refresh.</p></div>`;
  const L=S.lg,err=S.err?`<p class="err">${esc(S.err)}</p>`:"";
  if(L.step=="code")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
@@ -1244,11 +1244,12 @@ async function afterLogin(){
  if(p.prefs)S.user.prefs=p.prefs
  const nv=navFor(S.user);S.view=(nv[0]||["customers"])[0];
  const pg=upages(S.user);
- let pDB=null;if(S.user.role=="owner"||pg.some(x=>["customers","dashboard","changes"].indexOf(x)>=0))pDB=loadDB();else{S.rerr="";render()}
+S.firstLoad=true;let pDB=null;if(S.user.role=="owner"||pg.some(x=>["customers","dashboard","changes"].indexOf(x)>=0))pDB=loadDB();else{S.rerr="";render()}
  if(S.user.role=="owner"||pg.indexOf("menu")>=0||pg.indexOf("customers")>=0)loadMenuDb();
  if(S.user.role=="owner"||pg.indexOf("billing")>=0)loadBillDb();
+ routeFromHash();
  if(pDB)await pDB;
- routeFromHash()}
+ S.firstLoad=false}
 async function boot(){
  if(!sb){render();return}
  S.boot=true;render();
@@ -1298,7 +1299,7 @@ async function loadDB(){
   try{const rq=await pReq;rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,ew:r.effective_week,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   zipIdxBuild();try{
   cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);c.rawPhone=c.phone;const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}})}finally{ZI=null}
-  S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
+  S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;if(!S.firstLoad)S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render();
  if(S.real){const byU={};cust.forEach(c=>byU[c.uuid]=c);
