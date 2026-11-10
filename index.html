@@ -132,7 +132,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b152">
+<meta name="build" content="b153">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2065,7 +2065,7 @@ const rwIsM=k=>rwMeatCode(k)||(RW.types[k]||{}).kind=="meat",rwMM=()=>RW.mode=="
 async function rwLoad(force){
  if(!sb||RW.loading||(RW.ok&&!force))return;RW.loading=true;RW.err="";
  try{const [w,t,l,i,c]=await Promise.all([fetchAll("raw_weeks","*",q=>q.order("week_date",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_box_types","*",q=>q.order("sort").order("code")),fetchAll("raw_items","*",q=>q.order("last_used",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_week_items","*",q=>q.order("id")),fetchAll("raw_week_counts","*",q=>q.order("week_id").order("code"))]);
-  RW.weeks=w;RW.types={};t.forEach(x=>RW.types[x.code]=x);RW.lib=l;RW.wi=i;RW.cnt=c;RW.ok=true}
+  RW.weeks=w;RW.types={};t.forEach(x=>RW.types[x.code]=x);RW.lib=l.filter(x=>!x.merged_into);RW.wi=i;RW.cnt=c;RW.ok=true}
  catch(e){RW.err="Could not load the Raw Menu ("+dberr(e)+")."}
  RW.loading=false;render()}
 function rwCalc(wid){
@@ -2106,6 +2106,25 @@ function rwLocStrip(w,codes){
  <div class="rwbxs" style="margin-top:8px">${rows.map(r=>`<div class="rwbx2"><span class="tag">${esc(r.k)}</span><div><b>Lee ${rwN(r.l.lee,0)}</b></div><div><b>Bedford ${rwN(r.l.bed,0)}</b></div><div class="note">total ${rwN(r.l.tot,0)}</div></div>`).join("")}</div>
  <button style="margin-top:8px" onclick="rwUseCounts(${w.id})">Use these totals as the box counts</button></div>`}
 async function rwUseCounts(wid){const codes=rwMeatCodes(rwCalc(wid)),cn=rwBoxNow();for(const k of codes){const l=rwLoc(cn,k);if(l)await rwCount(wid,k,"ordered",l.tot)}RW.msg="Box counts set from the customer list.";render()}
+RW.mg=false;RW.mgSel=[];RW.mgKeep=null;
+function rwMgTog(id){const a=RW.mgSel,i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);if(a.indexOf(RW.mgKeep)<0)RW.mgKeep=a[0]||null;render()}
+function rwMgPanel(){
+ if(!RW.mg)return "";const sel=RW.mgSel.map(id=>RW.lib.find(x=>x.id==id)).filter(Boolean);
+ if(sel.length<2)return `<div class="rwform"><b>Combine items</b><p class="note">Tick the items that are the same (use the search to find them). Ticked: ${sel.length}. Then pick the name to keep.</p></div>`;
+ return `<div class="rwform"><b>Combine ${sel.length} items into one</b><p class="note">Keep which name? All weeks that used the others will show this one.</p>${sel.map(x=>`<label class="ck" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="radio" name="mgk" ${RW.mgKeep==x.id?"checked":""} onclick="RW.mgKeep=${x.id}"> <span>${x.code?`<span class="tag">${esc(x.code)}</span> `:""}<b>${esc(x.name)}</b> <span class="note">${x.uses||0} week${x.uses==1?"":"s"}</span></span></label>`).join("")}<button class="pri rwbig" onclick="rwMerge()">Combine into one</button></div>`}
+async function rwMerge(){
+ const keep=RW.lib.find(x=>x.id==RW.mgKeep);if(!keep||RW.mgSel.length<2)return;const dupes=RW.mgSel.filter(id=>id!=keep.id),dl=RW.lib.filter(x=>dupes.indexOf(x.id)>=0);
+ if(!confirm("Combine "+RW.mgSel.length+" items into “"+keep.name+"”? The other spellings are hidden from the library, and every week that used them will show “"+keep.name+"”."))return;
+ const code=keep.code||(dl.find(x=>x.code)||{}).code||null;
+ try{
+  const a=await sb.from("raw_week_items").update({item_id:keep.id,name:keep.name}).in("item_id",dupes);if(a.error)throw a.error;
+  RW.wi.forEach(x=>{if(dupes.indexOf(x.item_id)>=0){x.item_id=keep.id;x.name=keep.name}});
+  const b=await sb.from("raw_items").update({merged_into:keep.id,code:null}).in("id",dupes);if(b.error)throw b.error;
+  const mine=RW.wi.filter(x=>x.item_id==keep.id),wks=[...new Set(mine.map(x=>x.week_id))],dates=wks.map(id=>(RW.weeks.find(w=>w.id==id)||{}).week_date).filter(Boolean).sort();
+  const patch={uses:wks.length};if(dates.length)patch.last_used=dates[dates.length-1];if(keep.case_price==null){const pp=dl.find(x=>x.case_price!=null);if(pp)patch.case_price=pp.case_price}if(code&&!keep.code)patch.code=code;
+  const c=await sb.from("raw_items").update(patch).eq("id",keep.id);if(c.error)throw c.error;
+  Object.assign(keep,patch);RW.lib=RW.lib.filter(x=>dupes.indexOf(x.id)<0);RW.mg=false;RW.mgSel=[];RW.mgKeep=null;RW.msg="Combined into “"+keep.name+"”.";RW.err="";render()}
+ catch(e){rwSaveErr(e)}}
 async function rwTblAdd(wid){const e=document.getElementById("rw_tq"),v=e?e.value.trim():"";if(!v)return;const q=rwNk(v),m=RW.lib.filter(x=>x.section=="meat"),hit=m.find(x=>rwNk(x.code||"")==q)||m.find(x=>rwNk(x.name)==q);
  if(hit)return rwAddItem(wid,hit.id,"meat");return rwAddItem(wid,null,"meat",v)}
 async function rwAddItem(wid,libId,section,name){
@@ -2243,8 +2262,8 @@ function rwLibView(msg){
  const vs=[...new Set(RW.lib.map(x=>x.vendor||""))].sort(),ns=[...new Set(RW.lib.map(x=>x.nutrient||""))].sort();
  return `<div class="card rwtop"><button onclick="RW.page='weeks';RW.msg='';render()">← Back</button><h2 style="margin:0">Item library</h2></div>${msg}<div class="card"><input class="rwsearch" placeholder="Search ${RW.lib.length} items" value="${esc(RW.libq)}" oninput="RW.libq=this.value;clearTimeout(RW.t);RW.t=setTimeout(()=>{render();const e=document.querySelector('.rwsearch');e&&(e.focus(),e.setSelectionRange(e.value.length,e.value.length))},250)">
  <div class="rwfld"><label>Category<select onchange="RW.ln=this.value;render()"><option value="">All categories</option>${opt(ns,RW.ln)}</select></label><label>Vendor<select onchange="RW.lv=this.value;render()"><option value="">All vendors</option>${opt(vs,RW.lv)}</select></label><label>Sort by<select onchange="RW.ls=this.value;render()">${[["recent","Last used"],["name","Name"],["category","Category"],["vendor","Vendor"],["uses","Most used"],["price","Case price"]].map(o=>`<option value="${o[0]}" ${(RW.ls||"recent")==o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></label></div>
- <p class="note">${all.length} item${all.length==1?"":"s"}${(RW.ln||RW.lv||RW.libq)?" match":""}.${all.length>80?" Showing the first 80; filter to narrow down.":""} ${(RW.ln||RW.lv)?`<button onclick="RW.ln='';RW.lv='';render()">Clear filters</button>`:""}</p></div>
- ${l.map(x=>{const open=RW.ex=="L"+x.id;return `<div class="card rwit${open?" open":""}"><div class="rwith" onclick="RW.ex=${open?"null":"'L"+x.id+"'"};render()"><div><b>${x.code?`<span class="tag">${esc(x.code)}</span> `:""}${esc(x.name)}</b><div class="note">${x.nutrient?`<span class="tag">${esc(x.nutrient)}</span> `:""}${esc(x.vendor||"no vendor")} · ${x.case_price!=null?rwMoney(x.case_price)+" / "+(x.units_per_case||"?")+" per case":"no price"}</div></div><div class="rwneed"><small>last used</small>${x.last_used?usD(x.last_used).replace(/\/\d{4}$/,""):"never"}<small>${x.uses||0} week${x.uses==1?"":"s"}</small></div></div>
+ ${rwMgPanel()}<button style="margin:8px 0" onclick="RW.mg=!RW.mg;RW.mgSel=[];RW.mgKeep=null;render()">${RW.mg?"Cancel combining":"Combine items that are the same"}</button><p class="note">${all.length} item${all.length==1?"":"s"}${(RW.ln||RW.lv||RW.libq)?" match":""}.${all.length>80?" Showing the first 80; filter to narrow down.":""} ${(RW.ln||RW.lv)?`<button onclick="RW.ln='';RW.lv='';render()">Clear filters</button>`:""}</p></div>
+ ${l.map(x=>{const open=RW.ex=="L"+x.id;return `<div class="card rwit${open?" open":""}"><div class="rwith" onclick="RW.ex=${open?"null":"'L"+x.id+"'"};render()">${RW.mg?`<input type="checkbox" ${RW.mgSel.indexOf(x.id)>=0?"checked":""} onclick="event.stopPropagation();rwMgTog(${x.id})" style="width:26px;height:26px;margin-right:12px;flex:none">`:""}<div style="flex:1"><b>${x.code?`<span class="tag">${esc(x.code)}</span> `:""}${esc(x.name)}</b><div class="note">${x.nutrient?`<span class="tag">${esc(x.nutrient)}</span> `:""}${esc(x.vendor||"no vendor")} · ${x.case_price!=null?rwMoney(x.case_price)+" / "+(x.units_per_case||"?")+" per case":"no price"}</div></div><div class="rwneed"><small>last used</small>${x.last_used?usD(x.last_used).replace(/\/\d{4}$/,""):"never"}<small>${x.uses||0} week${x.uses==1?"":"s"}</small></div></div>
  ${open?`<div class="rwbody"><div class="rwfld"><label>Vendor<input id="rl_v${x.id}" value="${esc(x.vendor)}"></label><label>Units per case<input id="rl_u${x.id}" type="number" inputmode="decimal" value="${x.units_per_case==null?"":x.units_per_case}"></label><label>Case price $<input id="rl_p${x.id}" type="number" inputmode="decimal" value="${x.case_price==null?"":x.case_price}"></label><label>Category<input id="rl_n${x.id}" value="${esc(x.nutrient)}"></label><label>Code<input id="rl_c${x.id}" value="${esc(x.code||"")}" placeholder="for example 102"></label></div><div class="rwres"><span class="note">Used in: ${RW.wi.filter(i=>i.item_id==x.id).map(i=>(RW.weeks.find(w=>w.id==i.week_id)||{}).label).filter(Boolean).slice(0,10).join(", ")||"no weeks"}</span><button class="pri" onclick="rwLibSave(${x.id})">Save</button></div></div>`:""}</div>`}).join("")}`}
 /* ---------- import from the Excel workbook ---------- */
 function rwLoadXlsx(){return new Promise((ok,no)=>{if(window.XLSX)return ok();const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("Could not load the Excel reader"));document.head.appendChild(s)})}
