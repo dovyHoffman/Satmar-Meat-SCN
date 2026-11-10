@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b137">
+<meta name="build" content="b138">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1625,6 +1625,7 @@ const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"swap"};
 const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
 async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;NL.d=r.data&&r.data.payload&&r.data.payload.rows?r.data.payload:null;NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
 async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
+const nlDg=v=>{let d=String(v||"").replace(/\D/g,"");if(d.length==11&&d[0]=="1")d=d.slice(1);return d};
 const nlNK=n=>String(n||"").toLowerCase().replace(/[^a-z]+/g," ").trim().split(" ").filter(Boolean).sort().join(" ");
 const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.name)+":"+(r.hh||""):nk(r.agency_ref);
 function nlCalc(){
@@ -1640,7 +1641,7 @@ function nlCalc(){
   const d=[],cats={};if(x.byName)d.push("matched by name (ID in file: "+(r.agency_ref||"none")+")");
   if(e.name&&String(c.name||"").trim()!==String(e.name).trim()){d.push("name: "+(c.name||"—")+" → "+e.name);if(nlNK(c.name)==nlNK(e.name))cats.swap=1;else cats.name=1}
   if(c.base!==e.base){d.push("customer type: "+c.base+" → "+e.base);cats.type=1}if(c.hh!==e.hh){d.push("household: "+c.hh+" → "+e.hh);cats.hh=1}
-  const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
+  const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell&&nlDg(r.cell).length==10&&nlDg(r.cell)!=nlDg(c.phone)&&!/0{7}|^(\d)\1{9}$/.test(nlDg(r.cell))?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
   const fill=[ph,ce,nl,n2].filter(Boolean);if(fill.length)cats.fill=1;
   if(!c.active){d.push("switch ON (on the list)");cats.on=1}
   if(Object.keys(cats).length)out.chg.push({k:k,r:r,e:e,c:c,d:d,fill:fill,cats:cats,sk:sk});else out.same++});
