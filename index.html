@@ -47,7 +47,7 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 .cg+.pnl,.pnl+.pnl{margin-top:14px}.cg .pnl{margin-top:0!important}
 .pnl h4{margin:0 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ac)}
 .pnl .g4{gap:2px 16px}
-.cstick{position:sticky;top:0;z-index:20;background:var(--card);margin:-4px -4px 10px;padding:4px 4px 2px;box-shadow:0 6px 8px -8px rgba(0,0,0,.35)}.cstick .card{margin-bottom:8px}.chd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px}
+.cstick{position:sticky;top:0;z-index:20;box-shadow:0 8px 10px -8px rgba(0,0,0,.35)}.cstick .card{margin-bottom:8px}.chd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px}
 .chd h2{margin:0;font-size:24px}
 .chd .sub{color:var(--mut);font-size:13.5px}
 .dlvrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0 14px;padding:8px 12px;border:1px solid var(--bd,#e3e6ea);border-radius:10px;background:color-mix(in srgb,var(--mut) 6%,transparent)}.dlvone{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;padding-right:14px;margin-right:4px;border-right:1px solid var(--bd,#e3e6ea)}.dlvone:last-child{border-right:0}.dlvrow b{font-size:13px;color:var(--mut);font-weight:600}
@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b146">
+<meta name="build" content="b147">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -384,8 +384,8 @@ function vCard(){
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card"><div class="cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2><span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}</div>
- <div class="cg">
+ return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2><span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}</div>
+ <div class="card"><div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
   <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
  </div>
