@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b142">
+<meta name="build" content="b143">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1233,17 +1233,21 @@ async function checkCode(){
  S.lg.busy=false;if(error){S.err=dberr(error);render();return}
  S.lg.step="email";await afterLogin();render()}
 async function afterLogin(){
- const {data:ud}=await sb.auth.getUser();const au=ud&&ud.user;if(!au){S.user=null;return}
- const {data:p,error}=await sb.from("profiles").select("id,email,name,role,pages,active").eq("id",au.id).maybeSingle();
+ let au=null;try{const {data:sd}=await sb.auth.getSession();au=sd&&sd.session&&sd.session.user}catch(e){}
+ if(!au){const {data:ud}=await sb.auth.getUser();au=ud&&ud.user}
+ if(!au){S.user=null;return}
+ let {data:p,error}=await sb.from("profiles").select("id,email,name,role,pages,active,prefs").eq("id",au.id).maybeSingle();
+ if(error){const r2=await sb.from("profiles").select("id,email,name,role,pages,active").eq("id",au.id).maybeSingle();p=r2.data;error=r2.error}
  if(error||!p){S.user=null;S.err="No profile was found for this email. Ask the owner.";await sb.auth.signOut();return}
  if(!p.active){S.user=null;S.err="This account is turned off. Ask the owner.";await sb.auth.signOut();return}
  S.user={id:p.id,name:p.name||p.email,email:p.email,role:p.role,pages:p.pages||[]};S.err="";
- try{const r=await sb.from("profiles").select("prefs").eq("id",au.id).maybeSingle();if(r&&r.data&&r.data.prefs)S.user.prefs=r.data.prefs}catch(e){}
+ if(p.prefs)S.user.prefs=p.prefs
  const nv=navFor(S.user);S.view=(nv[0]||["customers"])[0];
  const pg=upages(S.user);
- if(S.user.role=="owner"||pg.some(x=>["customers","dashboard","changes"].indexOf(x)>=0))await loadDB();else{S.rerr="";render()}
+ let pDB=null;if(S.user.role=="owner"||pg.some(x=>["customers","dashboard","changes"].indexOf(x)>=0))pDB=loadDB();else{S.rerr="";render()}
  if(S.user.role=="owner"||pg.indexOf("menu")>=0||pg.indexOf("customers")>=0)loadMenuDb();
  if(S.user.role=="owner"||pg.indexOf("billing")>=0)loadBillDb();
+ if(pDB)await pDB;
  routeFromHash()}
 async function boot(){
  if(!sb){render();return}
@@ -1256,8 +1260,8 @@ async function out(){ccClear();try{await sb.auth.signOut()}catch(e){}S.user=null
 async function fetchAll(table,cols,build){
  const out=[];for(let f=0;;f+=1000){let q=sb.from(table).select(cols).range(f,f+999);if(build)q=build(q);const {data,error}=await q;if(error)throw error;out.push(...data);if(data.length<1000)break}return out}
 async function fetchAllPar(table,cols,build){
- try{let cq=sb.from(table).select(cols.split(",")[0].split(":").pop(),{count:"exact",head:true});if(build)cq=build(cq);const {count,error}=await cq;if(error||count==null)throw error||new Error("no count");
-  const n=Math.ceil(count/1000)||1,jobs=[];for(let i=0;i<n;i++){let q=sb.from(table).select(cols).range(i*1000,i*1000+999);if(build)q=build(q);jobs.push(q.then(r=>{if(r.error)throw r.error;return r.data}))}
+ try{let q0=sb.from(table).select(cols,{count:"exact"}).range(0,999);if(build)q0=build(q0);const r0=await q0;if(r0.error||r0.count==null)throw r0.error||new Error("no count");
+  const n=Math.ceil(r0.count/1000)||1,jobs=[Promise.resolve(r0.data)];for(let i=1;i<n;i++){let q=sb.from(table).select(cols).range(i*1000,i*1000+999);if(build)q=build(q);jobs.push(q.then(r=>{if(r.error)throw r.error;return r.data}))}
   return (await Promise.all(jobs)).flat()}catch(e){return fetchAll(table,cols,build)}}
 const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
 const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock";
