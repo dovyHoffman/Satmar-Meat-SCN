@@ -1,1 +1,0 @@
-select json_agg(x) from (select id,name,merged_into,hidden,section,code,nutrient,case_price from raw_items where merged_into is not null or hidden or code is not null or nutrient<>'' and section='meat') x;
