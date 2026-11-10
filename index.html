@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b144">
+<meta name="build" content="b145">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1064,9 +1064,11 @@ async function invSetSave(){
 async function loadBillDb(){
  if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
  try{
-  const rpcAll=async(name,args)=>{const page=async a=>{const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;return r.data||[]},out=[],B=8;for(let a=0;;a+=1000*B){const ps=await Promise.all([...Array(B).keys()].map(i=>page(a+i*1000)));ps.forEach(q=>out.push(...q));if(ps[B-1].length<1000)break}return out};
+  const rpcAll=async(name,args)=>{const page=async a=>{const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;return r.data||[]},out=[],B=5;for(let a=0;;a+=1000*B){const ps=await Promise.all([...Array(B).keys()].map(i=>page(a+i*1000)));ps.forEach(q=>out.push(...q));if(ps[B-1].length<1000)break}return out};
+  const cache=await IDB.get(bkey()),sinceTs=new Date(Date.now()-22*864e5).toISOString();let useCache=!!(cache&&Array.isArray(cache.rows)&&Array.isArray(cache.imp)&&Date.now()-cache.t<7*864e5);
+  const getRows=async()=>{if(useCache){try{return await rpcAll("billing_rows_since",{since:sinceTs})}catch(e){useCache=false}}return rpcAll("billing_rows")};
   const pPay=loadPayDb(),pInv=invLoad(),since1=isoD(new Date(Date.now()-22*864e5)),since2=isoD(new Date(Date.now()-120*864e5));
-  const [pr,hp,rows,impR]=await Promise.all([sb.from("agency_prices").select("agency,box_price,meal_price"),sb.from("agency_hh_prices").select("agency,hh,price").then(r=>r,e=>({error:e})),rpcAll("billing_rows"),rpcAll("billing_import_rows_since",{since:since1}).then(d=>({d}),e=>({e}))]);
+  const [pr,hp,rows,impR]=await Promise.all([sb.from("agency_prices").select("agency,box_price,meal_price"),sb.from("agency_hh_prices").select("agency,hh,price").then(r=>r,e=>({error:e})),getRows(),rpcAll("billing_import_rows_since",{since:since1}).then(d=>({d}),e=>({e}))]);
   await pInv;if(pr.error)throw pr.error;
   try{if(!hp.error){Object.keys(HHP).forEach(k=>delete HHP[k]);(hp.data||[]).forEach(r=>{if(r.price!=null){(HHP[r.agency]=HHP[r.agency]||{})[r.hh]=Number(r.price)}})}}catch(e){}
   (pr.data||[]).forEach(r=>{PR[r.agency]={raw:r.box_price==null?null:Number(r.box_price),meals:r.meal_price==null?null:Number(r.meal_price)}});
@@ -1086,7 +1088,13 @@ async function loadBillDb(){
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}))};
   await proc(impR,rows.filter(x=>String(x.delivered_at)>=since1));
   BILL.loading=false;BILL.bg=true;render();
-  (async()=>{try{const r2=await rpcAll("billing_import_rows_since",{since:since2});await proc({d:r2},rows)}catch(e){BILL.impErr=dberr(e)}BILL.bg=false;render()})();
+  (async()=>{try{
+   const full=async()=>{const [fr,fi]=await Promise.all([rpcAll("billing_rows"),rpcAll("billing_import_rows_since",{since:since2})]);await proc({d:fi},fr);IDB.set(bkey(),{t:Date.now(),rows:fr,imp:fi})};
+   if(useCache&&!impR.e){const t0=Date.parse(sinceTs),mRows=cache.rows.filter(x=>Date.parse(x.delivered_at)<t0).concat(rows),mImp=cache.imp.filter(x=>String(x.tab_date)<since1).concat(impR.d||[]);
+    await proc({d:mImp},mRows);if(Date.now()-cache.t>864e5)await full()}
+   else if(!useCache){const fi=await rpcAll("billing_import_rows_since",{since:since2});await proc({d:fi},rows);IDB.set(bkey(),{t:Date.now(),rows:rows,imp:fi})}
+   else await full()
+  }catch(e){BILL.impErr=dberr(e)}BILL.bg=false;render()})();
   return;
  }catch(e){BILL.err="Billing could not be read ("+dberr(e)+")."}
  BILL.loading=false;render()}
@@ -1267,7 +1275,13 @@ async function fetchAllPar(table,cols,build){
 const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
 const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock";
 const ccKey=()=>"sm_cc_"+(S.user?S.user.id:"");
-function ccClear(){try{Object.keys(localStorage).filter(k=>k.indexOf("sm_cc_")==0).forEach(k=>localStorage.removeItem(k))}catch(e){}}
+const IDB={db:null,open(){return this.db||(this.db=new Promise((res,rej)=>{try{const q=indexedDB.open("sm_cache",1);q.onupgradeneeded=()=>q.result.createObjectStore("kv");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}catch(e){rej(e)}}))},
+ async get(k){try{const d=await this.open();return await new Promise(r=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch(e){return null}},
+ async set(k,v){try{const d=await this.open();await new Promise(r=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=()=>r();t.onerror=()=>r()})}catch(e){}},
+ async del(k){try{const d=await this.open();await new Promise(r=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").delete(k);t.oncomplete=()=>r();t.onerror=()=>r()})}catch(e){}}};
+const bkey=()=>"bill_"+(S.user?S.user.id:"");
+function billCacheDrop(){IDB.del(bkey())}
+function ccClear(){try{if(IDB.db)IDB.db.then(d=>d.close(),()=>{});IDB.db=null;indexedDB.deleteDatabase("sm_cache")}catch(e){}try{Object.keys(localStorage).filter(k=>k.indexOf("sm_cc_")==0).forEach(k=>localStorage.removeItem(k))}catch(e){}}
 async function custRows(){
  let cache=null;try{cache=JSON.parse(localStorage.getItem(ccKey())||"null")}catch(e){}
  const byName=(a,b)=>a.name<b.name?-1:a.name>b.name?1:(a.id<b.id?-1:a.id>b.id?1:0);
@@ -1391,7 +1405,7 @@ async function whSave(){
  const B=S.wh0;if(!B||!B.rows||B.busy)return;B.busy=true;B.done=0;B.err="";render();
  const t=new Date(),pd=n=>String(n).padStart(2,"0"),batch=""+t.getUTCFullYear()+pd(t.getUTCMonth()+1)+pd(t.getUTCDate())+pd(t.getUTCHours())+pd(t.getUTCMinutes())+pd(t.getUTCSeconds());
  try{for(let i=0;i<B.rows.length;i+=500){const r=await sb.rpc("save_week_history",{p:B.rows.slice(i,i+500).map(x=>Object.assign({b:batch},x))});if(r.error)throw r.error;B.done=Math.min(i+500,B.rows.length);render()}
-  S.wh0={ok:"Saved "+B.rows.length.toLocaleString()+" customer lines for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open any customer card: the weeks show under Past weeks."};S.wh={};S.whw=undefined;S.whw=undefined;
+  billCacheDrop();S.wh0={ok:"Saved "+B.rows.length.toLocaleString()+" customer lines for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open any customer card: the weeks show under Past weeks."};S.wh={};S.whw=undefined;S.whw=undefined;
  }catch(e){B.busy=false;B.err="Not saved: "+dberr(e)+(/save_week_history|function/i.test(String(e&&e.message))?" (The database update 027 has not been run yet.)":"")}
  render()}
 function podsOld(c){
@@ -1589,7 +1603,7 @@ async function bsSave(){
  const B=S.bs;if(!B||!B.lines||B.busy)return;B.busy=true;B.done=0;B.ok="";B.err="";render();
  const t=new Date(),pd=n=>String(n).padStart(2,"0"),batch=""+t.getUTCFullYear()+pd(t.getUTCMonth()+1)+pd(t.getUTCDate())+pd(t.getUTCHours())+pd(t.getUTCMinutes())+pd(t.getUTCSeconds());
  try{for(let i=0;i<B.lines.length;i+=500){const r=await sb.rpc("save_billing_import",{p:B.lines.slice(i,i+500).map(x=>({d:x.d,c:x.c,r:x.r,b:batch,i:x.i,n:x.n,k:x.k,f:x.f,h:x.h,e:x.e||0,l:x.l}))});if(r.error)throw r.error;B.done=Math.min(i+500,B.lines.length);render()}
-  S.bs={ok:"Saved "+B.lines.length.toLocaleString()+" delivered customers for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open Billing: these weeks now come from your sheet."};BILL.real=false;BILL.loading=false;loadBillDb()
+  billCacheDrop();S.bs={ok:"Saved "+B.lines.length.toLocaleString()+" delivered customers for "+B.weeks.length+" week"+(B.weeks.length==1?"":"s")+". Open Billing: these weeks now come from your sheet."};BILL.real=false;BILL.loading=false;loadBillDb()
  }catch(e){B.busy=false;B.err="Not saved: "+dberr(e)+(/save_billing_import|function/i.test(String(e&&e.message))?" (The database update 017 has not been run yet.)":"")}
  render()}
 async function omFile(f){
