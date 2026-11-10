@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b141">
+<meta name="build" content="b142">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1251,8 +1251,8 @@ async function boot(){
  try{const {data}=await sb.auth.getSession();if(data&&data.session){if(INVITED)setTimeout(()=>{if(!document.querySelector(".ov .mod"))openPw(true)},300);await afterLogin()}
   else if(/error_code=|error=access_denied/.test(String(location.hash)+String(location.search)))S.err="This invitation link has expired or was already used. Use \"Email me a sign-in link\" below, or ask the owner to send a new invitation."}catch(e){S.err=dberr(e)}
  S.boot=false;render();
- sb.auth.onAuthStateChange(ev=>{if(ev=="SIGNED_OUT"&&S.user){S.user=null;cust.length=0;render()}})}
-async function out(){try{await sb.auth.signOut()}catch(e){}S.user=null;S.err="";cust.length=0;S.real=false;S.podsLoaded=false;render()}
+ sb.auth.onAuthStateChange(ev=>{if(ev=="SIGNED_OUT"&&S.user){ccClear();S.user=null;cust.length=0;render()}})}
+async function out(){ccClear();try{await sb.auth.signOut()}catch(e){}S.user=null;S.err="";cust.length=0;S.real=false;S.podsLoaded=false;render()}
 async function fetchAll(table,cols,build){
  const out=[];for(let f=0;;f+=1000){let q=sb.from(table).select(cols).range(f,f+999);if(build)q=build(q);const {data,error}=await q;if(error)throw error;out.push(...data);if(data.length<1000)break}return out}
 async function fetchAllPar(table,cols,build){
@@ -1260,11 +1260,31 @@ async function fetchAllPar(table,cols,build){
   const n=Math.ceil(count/1000)||1,jobs=[];for(let i=0;i<n;i++){let q=sb.from(table).select(cols).range(i*1000,i*1000+999);if(build)q=build(q);jobs.push(q.then(r=>{if(r.error)throw r.error;return r.data}))}
   return (await Promise.all(jobs)).flat()}catch(e){return fetchAll(table,cols,build)}}
 const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
+const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock";
+const ccKey=()=>"sm_cc_"+(S.user?S.user.id:"");
+function ccClear(){try{Object.keys(localStorage).filter(k=>k.indexOf("sm_cc_")==0).forEach(k=>localStorage.removeItem(k))}catch(e){}}
+async function custRows(){
+ let cache=null;try{cache=JSON.parse(localStorage.getItem(ccKey())||"null")}catch(e){}
+ const byName=(a,b)=>a.name<b.name?-1:a.name>b.name?1:(a.id<b.id?-1:a.id>b.id?1:0);
+ const save=(rows,t)=>{try{localStorage.setItem(ccKey(),JSON.stringify({t:t,rows:rows}))}catch(e){try{localStorage.removeItem(ccKey())}catch(x){}}};
+ const maxT=rows=>rows.reduce((m,r)=>r.updated_at&&r.updated_at>m?r.updated_at:m,"");
+ if(cache&&cache.t&&Array.isArray(cache.rows)&&cache.rows.length){
+  try{
+   const d=await fetchAllPar("customers",CC_COLS+",updated_at",q=>q.gt("updated_at",cache.t).order("updated_at").order("id"));
+   if(!d.length){S.ccNote="saved copy";return cache.rows}
+   const m={};cache.rows.forEach(r=>m[r.id]=r);d.forEach(r=>m[r.id]=r);
+   const rows=Object.values(m).sort(byName);save(rows,maxT(rows)||cache.t);S.ccNote="saved copy + "+d.length+" changed";return rows}
+  catch(e){}
+ }
+ let rows;
+ try{rows=await fetchAllPar("customers",CC_COLS+",updated_at",q=>q.order("name").order("id"));save(rows,maxT(rows)||"");S.ccNote="full load"}
+ catch(e){rows=await fetchAllPar("customers",CC_COLS,q=>q.order("name").order("id"));S.ccNote="full load"}
+ return rows}
 async function loadDB(){
  S.loading=true;S.rerr="";render();
  try{
   const pSet=sb.from("app_settings").select("key,value").then(r=>r,e=>({data:null})),pReq=fetchAllPar("change_requests","id,customer_id,payload,requested_at,effective_week",q=>q.eq("status","pending")).catch(e=>[]);
-  const rows=await fetchAllPar("customers","id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock",q=>q.order("name").order("id"));
+  const rows=await custRows();
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
    cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
