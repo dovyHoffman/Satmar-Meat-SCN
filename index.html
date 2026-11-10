@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b136">
+<meta name="build" content="b137">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1659,7 +1659,7 @@ function nlParse(text){
  all.slice(hi+1).forEach(r=>{nrows++;const ref=g(r,c.id),name=g(r,c.name);if(!ref&&!name){const cells=r.map(x=>String(x==null?"":x).trim()).filter(Boolean);if(cells.length)blank.push(cells.slice(0,6).join(" | "));return}
   const noF=c.food<0&&c.type<0&&c.raw<0&&c.sup<0&&c.sh<0,ft=g(r,c.food),base=/box/i.test(ft)?"box":/meal/i.test(ft)?"meals":(/box/i.test(g(r,c.type))?"box":"meals"),nb=TT(g(r,c.nb)),
    food=base=="box"?(nb?"rawnb":"raw"):TT(g(r,c.raw))?(nb?"rawnb":"raw"):TT(g(r,c.sup))?"supper":TT(g(r,c.sh))?"shabbos":/supper/i.test(ft)?"supper":/shabbos/i.test(ft)?"shabbos":/raw/i.test(ft)?(nb?"rawnb":"raw"):"meals",
-   addr=g(r,c.addr),ph=g(r,c.num),pr=g(r,c.prim),ce=g(r,c.cellc),ag=g(r,c.co)||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase();
+   addr=g(r,c.addr),ph=g(r,c.num),pr=g(r,c.prim),ce=g(r,c.cellc),ag=g(r,c.co)||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase()||"UNK";
   recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:Math.round(Number(g(r,c.hh).replace(/[^0-9.]/g,""))||1),food:noF?undefined:food,base:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[]})});
  return {recs:recs,mode:"headers",blank:blank,nrows:nrows}}
 async function nlFiles(files){
