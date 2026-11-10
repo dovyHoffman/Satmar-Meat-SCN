@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b131">
+<meta name="build" content="b132">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1657,10 +1657,13 @@ function nlParse(text){
 async function nlFiles(files){
  if(!files||!files.length)return;NL.err="";NL.msg="";NL.busy=true;render();
  try{const seen={},rows=[];let skipped=0;
-  for(const f of files){const t=await f.text(),res=toDbRows(nlParse(t).recs);res.rows.forEach(r=>{const k=nlKey(r);if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
+  const sk=[],useen={};
+  for(const f of files){const t=await f.text(),recs=nlParse(t).recs,keep=[];
+   recs.forEach(r=>{const ref=String(r.ref||"").trim(),it={name:r.name,ref:ref,hh:r.hh,phone:r.phone,cell:r.cell,file:f.name};if(!ref){sk.push(Object.assign(it,{why:"no ID"}));return}const k=nk(ref);if(useen[k]){sk.push(Object.assign(it,{why:"ID used twice in the file"}));return}useen[k]=1;keep.push(r)});
+   const res=toDbRows(keep);res.rows.forEach(r=>{const k=nlKey(r);if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
   const ag=[...new Set(rows.map(r=>r.agency))];
-  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:skipped,uploaded:new Date().toISOString()};NL.tab="chg";
+  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="chg";
   await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+". Nothing has been changed yet. Look it over below."}
  catch(e){NL.err=String((e&&e.message)||e)}
  NL.busy=false;render()}
@@ -1689,15 +1692,16 @@ function vNewList(){
  <input type="file" accept=".csv,text/csv" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
  if(!R)return up;
- const T=[["nw","New",R.nw],["chg","Changed",R.chg],["off","Not on the list",R.off]],cnt=a=>a.filter(x=>!x.sk).length;
+ const T=[["nw","New",R.nw],["chg","Changed",R.chg],["off","Not on the list",R.off],["skd","Left out of the file",(D.sk||[]).map(x=>({sk:true,x:x}))]],cnt=a=>a.filter(x=>!x.sk).length;
  const sel=(f,k,v,opts)=>`<select style="width:auto;margin:0" onchange="nlEdit('${H(k)}','${f}',this.value)">${opts.map(o=>`<option value="${o[0]}" ${o[0]==v?"selected":""}>${o[1]}</option>`).join("")}</select>`;
  const ed=x=>`<td><input value="${H(x.e.name||"")}" onchange="nlEdit('${H(x.k)}','name',this.value)" style="width:170px;margin:0"></td><td>${sel("base",x.k,x.e.base,[["meals","Meals"],["box","Box"]])}</td><td><input type="number" min="1" max="30" value="${x.e.hh}" onchange="nlEdit('${H(x.k)}','hh',this.value)" style="width:56px;margin:0"></td>`;
  const sk=x=>`<td><label class="note"><input type="checkbox" style="width:auto" ${x.sk?"checked":""} onchange="nlSkip('${H(x.k)}',this.checked)"> skip</label></td>`;
  const body=NL.tab=="nw"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th></th></tr>${R.nw.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}${sk(x)}</tr>`).join("")}`
   :NL.tab=="chg"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>What changes</th><th></th></tr>${R.chg.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.r.agency_ref)}</td>${ed(x)}<td class="note">${H(x.d.concat(x.fill.map(f=>"fills "+f)).join(" · "))}</td>${sk(x)}</tr>`).join("")}`
+  :NL.tab=="skd"?`<tr><th>Name</th><th>ID in file</th><th>HH</th><th>Phone</th><th>Cell</th><th>Why it was left out</th></tr>${(D.sk||[]).slice(0,300).map(y=>`<tr><td>${H(y.name||"")}</td><td>${H(y.ref||"—")}</td><td>${y.hh||""}</td><td>${H(y.phone||"")}</td><td>${H(y.cell||"")}</td><td class="note">${H(y.why)}</td></tr>`).join("")}`
   :`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th></th></tr>${R.off.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.c.ref)}</td><td>${H(x.c.name)}</td><td>${H(x.c.base=="box"?"Box":"Meals")}</td><td>${x.c.hh}</td>${sk(x)}</tr>`).join("")}`;
- const cur=T.find(t=>t[0]==NL.tab)[2];
- return up+`<div class="card"><div class="kpis" style="margin-bottom:10px">${T.map(t=>`<div class="kpi" style="cursor:pointer;${NL.tab==t[0]?"outline:2px solid var(--pri,#3b4cca)":""}" onclick="nlTab('${t[0]}')"><b>${t[2].length.toLocaleString()}</b><span>${t[1]}${t[2].length!=cnt(t[2])?" ("+cnt(t[2])+" will apply)":""}</span></div>`).join("")}<div class="kpi"><b>${R.same.toLocaleString()}</b><span>Same, no change</span></div></div>
+ const cur=(T.find(t=>t[0]==NL.tab)||T[1])[2];
+ return up+`<div class="card"><div class="kpis" style="margin-bottom:10px">${T.map(t=>`<div class="kpi" style="cursor:pointer;${NL.tab==t[0]?"outline:2px solid var(--pri,#3b4cca)":""}" onclick="nlTab('${t[0]}')"><b>${t[2].length.toLocaleString()}</b><span>${t[1]}${t[0]!="skd"&&t[2].length!=cnt(t[2])?" ("+cnt(t[2])+" will apply)":""}</span></div>`).join("")}<div class="kpi"><b>${R.same.toLocaleString()}</b><span>Same, no change</span></div></div>
  <p class="note">From ${(D.files||[]).map(H).join(", ")} · ${D.rows.length.toLocaleString()} customers · agencies matched: ${(R.ag||[]).map(H).join(", ")||"none"}. ${NL.tab=="off"?"These are active now but not in the file. Tick skip to keep someone on.":"Change a name, customer type or household here if the file is wrong. Tick skip to leave a customer out."}${cur.length>300?" Showing the first 300.":""}</p>
  <div class="wrap" style="max-height:60vh;overflow:auto"><table style="font-size:13px">${body}</table></div>
  <div class="bar" style="margin-top:12px"><button class="pri" onclick="nlApprove()" ${NL.busy?"disabled":""}>Approve this list</button><button onclick="nlDiscard()" ${NL.busy?"disabled":""}>Throw away draft</button></div></div>`}
