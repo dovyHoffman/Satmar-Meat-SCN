@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b130">
+<meta name="build" content="b131">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1625,20 +1625,20 @@ const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"chg"};
 const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
 async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;NL.d=r.data&&r.data.payload&&r.data.payload.rows?r.data.payload:null;NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
 async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
-const nlKey=r=>r.agency+"|"+nk(r.agency_ref);
+const nlKey=r=>nk(r.agency_ref);
 function nlCalc(){
- const D=NL.d;if(!D)return null;const ex={};cust.forEach(c=>ex[String(c.agency).toUpperCase()+"|"+nk(c.ref)]=c);
+ const D=NL.d;if(!D)return null;const ex={},mag={};cust.forEach(c=>{const k=nk(c.ref);if(!ex[k]||(!ex[k].active&&c.active))ex[k]=c});
  const out={nw:[],chg:[],same:0,off:[]},inFile={};
  D.rows.forEach(r=>{const k=nlKey(r);inFile[k]=1;const e=Object.assign({name:r.name,hh:r.hh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c=ex[k];if(c){e.base=e.base||c.base;e.food=e.food||c.food}else{e.base=e.base||"meals";e.food=e.food||"meals"}
-  if(!c){out.nw.push({k:k,r:r,e:e,sk:!!(D.skip||{})[k]});return}
+  if(!c){out.nw.push({k:k,r:r,e:e,sk:!!(D.skip||{})[k]});return}mag[String(c.agency)]=1;
   const d=[];if(e.name&&String(c.name||"").trim()!==String(e.name).trim())d.push("name: "+(c.name||"—")+" → "+e.name);
   if(c.base!==e.base)d.push("customer type: "+c.base+" → "+e.base);if(c.hh!==e.hh)d.push("household: "+c.hh+" → "+e.hh);
   const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
   const fill=[ph,ce,nl,n2].filter(Boolean);
   if(!c.active)d.push("switch ON (on the list)");
   if(d.length||fill.length)out.chg.push({k:k,r:r,e:e,c:c,d:d,fill:fill,sk:!!(D.skip||{})[k]});else out.same++});
- const ag={};(D.ag||[]).forEach(a=>ag[a]=1);
- cust.forEach(c=>{const a=String(c.agency).toUpperCase(),k=a+"|"+nk(c.ref);if(c.active&&ag[a]&&!inFile[k])out.off.push({k:k,c:c,sk:!!(D.skip||{})[k]})});
+ out.ag=Object.keys(mag);
+ cust.forEach(c=>{const k=nk(c.ref);if(c.active&&mag[String(c.agency)]&&!inFile[k])out.off.push({k:k,c:c,sk:!!(D.skip||{})[k]})});
  return out}
 function nlParse(text){
  const all=parseCsv(text),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -1676,7 +1676,7 @@ async function nlApprove(){
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
   const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true}));
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
-  const items=ch.map(x=>({agency:x.r.agency,ref:x.r.agency_ref,name:x.e.name,hh:x.e.hh,base:x.e.base,food:"",phone:x.r.phone||"",cell:x.r.cell||"",nl:x.r.notes_labels||"",n2:x.r.note2||"",nt:x.r.notes||""})).concat(of.map(x=>({agency:String(x.c.agency).toUpperCase(),ref:x.c.ref,off:true})));
+  const items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:x.e.name,hh:x.e.hh,base:x.e.base,food:"",phone:x.r.phone||"",cell:x.r.cell||"",nl:x.r.notes_labels||"",n2:x.r.note2||"",nt:x.r.notes||""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
   NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});
   NL.msg="Approved. "+nw.length+" new customers added, "+ch.length+" updated, "+of.length+" switched off.";await loadDB()}
@@ -1698,7 +1698,7 @@ function vNewList(){
   :`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th></th></tr>${R.off.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45":""}"><td>${H(x.c.ref)}</td><td>${H(x.c.name)}</td><td>${H(x.c.base=="box"?"Box":"Meals")}</td><td>${x.c.hh}</td>${sk(x)}</tr>`).join("")}`;
  const cur=T.find(t=>t[0]==NL.tab)[2];
  return up+`<div class="card"><div class="kpis" style="margin-bottom:10px">${T.map(t=>`<div class="kpi" style="cursor:pointer;${NL.tab==t[0]?"outline:2px solid var(--pri,#3b4cca)":""}" onclick="nlTab('${t[0]}')"><b>${t[2].length.toLocaleString()}</b><span>${t[1]}${t[2].length!=cnt(t[2])?" ("+cnt(t[2])+" will apply)":""}</span></div>`).join("")}<div class="kpi"><b>${R.same.toLocaleString()}</b><span>Same, no change</span></div></div>
- <p class="note">From ${(D.files||[]).map(H).join(", ")} · ${D.rows.length.toLocaleString()} customers · agencies in the file: ${(D.ag||[]).map(H).join(", ")}. ${NL.tab=="off"?"These are active now but not in the file. Tick skip to keep someone on.":"Change a name, customer type or household here if the file is wrong. Tick skip to leave a customer out."}${cur.length>300?" Showing the first 300.":""}</p>
+ <p class="note">From ${(D.files||[]).map(H).join(", ")} · ${D.rows.length.toLocaleString()} customers · agencies matched: ${(R.ag||[]).map(H).join(", ")||"none"}. ${NL.tab=="off"?"These are active now but not in the file. Tick skip to keep someone on.":"Change a name, customer type or household here if the file is wrong. Tick skip to leave a customer out."}${cur.length>300?" Showing the first 300.":""}</p>
  <div class="wrap" style="max-height:60vh;overflow:auto"><table style="font-size:13px">${body}</table></div>
  <div class="bar" style="margin-top:12px"><button class="pri" onclick="nlApprove()" ${NL.busy?"disabled":""}>Approve this list</button><button onclick="nlDiscard()" ${NL.busy?"disabled":""}>Throw away draft</button></div></div>`}
 /* ---- settings: people and next-week switches ---- */
