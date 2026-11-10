@@ -1,1 +1,0 @@
-select json_agg(x order by x.name_key) from (select r.id, r.name, r.name_key, r.uses, r.last_used, r.case_price, r.nutrient, r.code from raw_items r where r.section='meat' and r.merged_into is null and not r.hidden) x;
