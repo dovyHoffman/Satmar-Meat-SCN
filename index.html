@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b147">
+<meta name="build" content="b148">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -318,7 +318,7 @@ const COLS=[
  {k:"phone",l:"Phone",on:1,v:c=>esc(c.phone),s:c=>c.phone},
  {k:"base",l:"Type",on:1,v:c=>c.base=="box"?"Box":"Meals",s:c=>c.base},
  {k:"hh",l:"HH",on:1,v:c=>c.hh,s:c=>+c.hh||0,num:1},
- {k:"chose",l:"Customer chose",on:1,v:c=>{const code=codesFor(c.food,c.hh,c.area);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area)+" "+optName(c.base,c.food)},
+ {k:"chose",l:"Customer chose",on:1,v:c=>{if(S.real&&c.active===false)return `<span class="note">–</span>`;const code=codesFor(c.food,c.hh,c.area);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area)+" "+optName(c.base,c.food)},
  {k:"deliv",l:"Delivery",on:1,v:c=>delTag(c,S.wkOff||0),s:c=>{const w=S.real?weekDel(c,S.wkOff||0):null;return w?(w.last?w.last.ts:0)+(w.state=="part"?0:0):(c.delivered?1:0)},num:1},
  {k:"agency",l:"Agency",v:c=>esc(c.agency),s:c=>c.agency},
  {k:"area",l:"Area",v:c=>esc(c.area),s:c=>c.area},
@@ -384,7 +384,7 @@ function vCard(){
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2><span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span><span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span></div>${dlv(c)}</div>
+ return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto">${c.active===false?"Not active":"Active"}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
   <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
@@ -1338,7 +1338,7 @@ function weekDel(c,off){off=off||0;const t0=weekStart()-off*7*864e5,t1=off?t0+7*
  const last=ps.slice().sort((a,b)=>b.ts-a.ts)[0];
  return {ps:ps,need:need,got:got,state:!ps.length?"none":got>=need?"full":"part",last:last}}
 function delTag(c,off){const w=weekDel(c,off);
- if(w.state=="none")return `<span class="ctag t-no">Not yet</span>`;
+ if(w.state=="none")return `<span class="ctag t-no">${S.real&&c.active===false&&!off?"Not active":"Not yet"}</span>`;
  if(w.state=="full")return `<span class="ctag t-ok">Delivered · ${esc(shortAt(w.last.at))}</span>`;
  return `<span class="ctag t-part" title="Scanovator shows ${w.got} of ${w.need} boxes delivered so far">${w.got} of ${w.need} boxes · ${esc(shortAt(w.last.at))}</span>`}
 
@@ -1433,6 +1433,7 @@ function pastReal(c){
  const NM={raw:"Raw",nb:"No beef",sup:"Suppers",sab:"Shabbos"},dash=v=>v&&v!="-"?esc(v):"";
  const cells=r=>{const h=r.h;
   if(h&&!h.in_list)return `<td colspan="4" style="vertical-align:top"><b>Not on the list</b></td>`;
+  if(!h&&+r.ws==weekStart())return c.active===false?`<td colspan="4" style="vertical-align:top"><b>Not on the list</b></td>`:`<td style="vertical-align:top">${esc(c.hh)||"–"}</td><td style="vertical-align:top">${c.base=="box"?"Box":"Meals"}</td><td style="vertical-align:top">${esc(optName(c.base,c.food))}<div class="note">On this week's list</div></td><td style="vertical-align:top">${esc(codesFor(c.food,c.hh,c.area))||"–"}</td>`;
   if(!h)return r.up&&whOk?`<td colspan="4" class="note" style="vertical-align:top">Not on the list</td>`:`<td colspan="4" class="note" style="vertical-align:top">${whOk?"No list saved for this week":""}</td>`;
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · "),req=dash(h.request),chg=[dash(h.change),dash(h.change_note)].filter(Boolean).join(" · ");
   return `<td style="vertical-align:top">${esc(h.hh)||"–"}</td><td style="vertical-align:top">${esc(h.food_type)||"–"}</td><td style="vertical-align:top">${esc(sel)||"–"}${req?`<div class="note">Request: ${req}</div>`:""}${chg?`<div class="note">Change: ${chg}</div>`:""}</td><td style="vertical-align:top">${esc(h.box_codes)||"–"}</td>`};
@@ -2598,7 +2599,7 @@ async function syncNow(){
 function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d.getTime()}   // last Saturday 00:00
 function dlv(c){
  const w=weekDel(c),ps=w.ps.slice().sort((a,b)=>a.ts-b.ts);
- if(!ps.length)return `<div class="dlvrow"><div class="dlvh"><b>Delivery this week</b><span class="ctag t-no">Not yet</span></div></div>`;
+ if(!ps.length)return `<div class="dlvrow"><div class="dlvh"><b>Delivery this week</b><span class="ctag t-no">${c.active===false?"Not active · not on this week's list":"Not yet"}</span></div></div>`;
  const head=w.state=="part"?`<span class="ctag t-part">${w.got} of ${w.need} boxes delivered</span>`:`<span class="ctag t-ok">${w.need>1?"All "+w.need+" boxes delivered":"Delivered"}</span>`;
  return `<div class="dlvrow ${w.state=="part"?"part":""}"><div class="dlvh"><b>Delivery this week${ps.length>1?" ("+ps.length+")":""}</b>${head}</div>`+ps.map(p=>{const has=p.links.length||(p.paths||[]).some(x=>x&&x!="-");
   return `<div class="dlv1">${letterChip(c,p)||'<span class="ctag t-ok">Delivered</span>'}<span class="dwho">${esc([p.drv,shortAt(p.at)].filter(Boolean).join(" · "))}</span>${has?`<button onclick="showPodO(${c.id},'${esc(p.oid)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}${/^https?:\/\//i.test(p.rec)?`<a href="${esc(p.rec)}" target="_blank" rel="noopener noreferrer">Receipt</a>`:""}</div>`}).join("")+`</div>`}
