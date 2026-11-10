@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b134">
+<meta name="build" content="b135">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1621,7 +1621,7 @@ async function doImport(quiet){
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";if(quiet)throw e}
  render()}
 /* ===== New list (draft): upload, review, edit, approve ===== */
-const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"name"};
+const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"swap"};
 const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
 async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;NL.d=r.data&&r.data.payload&&r.data.payload.rows?r.data.payload:null;NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
 async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
@@ -1638,7 +1638,7 @@ function nlCalc(){
    e.base=e.base||"meals";e.food=e.food||"meals";out.nw.push({k:k,r:r,e:e,sk:sk});return}
   e.base=e.base||c.base;e.food=e.food||c.food;mag[String(c.agency)]=1;
   const d=[],cats={};if(x.byName)d.push("matched by name (ID in file: "+(r.agency_ref||"none")+")");
-  if(e.name&&String(c.name||"").trim()!==String(e.name).trim()){d.push("name: "+(c.name||"—")+" → "+e.name);cats.name=1}
+  if(e.name&&String(c.name||"").trim()!==String(e.name).trim()){d.push("name: "+(c.name||"—")+" → "+e.name);if(nlNK(c.name)==nlNK(e.name))cats.swap=1;else cats.name=1}
   if(c.base!==e.base){d.push("customer type: "+c.base+" → "+e.base);cats.type=1}if(c.hh!==e.hh){d.push("household: "+c.hh+" → "+e.hh);cats.hh=1}
   const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
   const fill=[ph,ce,nl,n2].filter(Boolean);if(fill.length)cats.fill=1;
@@ -1670,7 +1670,7 @@ async function nlFiles(files){
    const res=toDbRows(keep);res.rows.forEach(r=>{const o=keep.find(q=>q.ref==r.agency_ref);if(o&&o.__t=="noId"){r.agency_ref="";r.noId=true;r.agency=""}else if(o&&o.__t=="dup"){r.agency_ref=o.__o;r.dup=true}const k=nlKey(r)+(r.dup||r.noId?":"+rows.length:"");if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
   const ag=[...new Set(rows.map(r=>r.agency))];
-  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="name";
+  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="swap";
   await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+". Nothing has been changed yet. Look it over below."}
  catch(e){NL.err=String((e&&e.message)||e)}
  NL.busy=false;render()}
@@ -1678,7 +1678,7 @@ function nlEdit(k,f,v){const D=NL.d;D.edit=D.edit||{};D.edit[k]=Object.assign({}
 function nlSkip(k,v){const D=NL.d;D.skip=D.skip||{};if(v)D.skip[k]=1;else delete D.skip[k];nlSave();render()}
 function nlTab(t){NL.tab=t;render()}
 async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";try{await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id})}catch(e){}render()}
-const NL_CATS=[["nw","New customers"],["name","Names"],["type","Customer type"],["hh","Household"],["fill","Phone / cell / notes filled"],["on","Switched on"],["off","Not on the list"],["skd","Left out of the file"]];
+const NL_CATS=[["nw","New customers"],["swap","Name: first/last swapped"],["name","Name: different name"],["type","Customer type"],["hh","Household"],["fill","Phone / cell / notes filled"],["on","Switched on"],["off","Not on the list"],["skd","Left out of the file"]];
 function nlRows(R,cat){return cat=="nw"?R.nw:cat=="off"?R.off:cat=="skd"?[]:R.chg.filter(x=>x.cats[cat])}
 async function nlApprove(cat){
  cat=cat||"all";const R=nlCalc();if(!R||NL.busy)return;const live=a=>a.filter(x=>!x.sk);
@@ -1691,7 +1691,7 @@ async function nlApprove(cat){
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
   const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true}));
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
-  const f=c=>cat=="all"||cat==c,items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:f("name")&&x.cats.name?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?x.r.phone||"":"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
+  const f=c=>cat=="all"||cat==c,items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?x.r.phone||"":"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
   NL.msg="Approved "+lab+": "+nw.length+" new, "+ch.length+" updated, "+of.length+" switched off.";
   await loadDB();const R2=nlCalc();if(cat=="all"||(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});NL.msg+=" Everything in the draft is done."}}
@@ -1704,7 +1704,7 @@ function vNewList(){
  <input type="file" accept=".csv,text/csv" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
  if(!R)return up;
- if(NL.tab=="chg")NL.tab="name";const T=NL_CATS.map(c=>[c[0],c[1],c[0]=="skd"?(R.skd||[]).map(x=>({sk:true,x:x})):nlRows(R,c[0])]),cnt=a=>a.filter(x=>!x.sk).length;
+ if(NL.tab=="chg"||NL.tab=="names")NL.tab="swap";const T=NL_CATS.map(c=>[c[0],c[1],c[0]=="skd"?(R.skd||[]).map(x=>({sk:true,x:x})):nlRows(R,c[0])]),cnt=a=>a.filter(x=>!x.sk).length;
  const sel=(f,k,v,opts)=>`<select style="width:auto;margin:0" onchange="nlEdit('${H(k)}','${f}',this.value)">${opts.map(o=>`<option value="${o[0]}" ${o[0]==v?"selected":""}>${o[1]}</option>`).join("")}</select>`;
  const ed=x=>`<td><input value="${H(x.e.name||"")}" onchange="nlEdit('${H(x.k)}','name',this.value)" style="width:170px;margin:0"></td><td>${sel("base",x.k,x.e.base,[["meals","Meals"],["box","Box"]])}</td><td><input type="number" min="1" max="30" value="${x.e.hh}" onchange="nlEdit('${H(x.k)}','hh',this.value)" style="width:56px;margin:0"></td>`;
  const sk=x=>`<td><label class="note"><input type="checkbox" style="width:auto" ${x.sk?"checked":""} onchange="nlSkip('${H(x.k)}',this.checked)"> skip</label></td>`;
