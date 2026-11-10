@@ -131,7 +131,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b138">
+<meta name="build" content="b139">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1273,7 +1273,7 @@ async function loadDB(){
   try{const {data}=await pSet;(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await pReq;rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,ew:r.effective_week,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
   zipIdxBuild();try{
-  cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}})}finally{ZI=null}
+  cust.forEach(c=>{const a0=c.a||{},A=cleanAddr({street:a0.st,apt:c.apt,city:a0.city,state:a0.state,zip:a0.zip});c._rawA=a0;c.a={st:A.street,city:A.city,state:A.state,zip:A.zip};c.apt=A.apt;c.addr=addrStr(c.a,c.apt);c.rawPhone=c.phone;const PH=cleanPhones(c.phone,c.cell);if(PH.length){c.phone=fmtPh(PH[0]);c.cell=PH[1]?fmtPh(PH[1]):(c.cell?"":"")}})}finally{ZI=null}
   S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render();
@@ -1641,7 +1641,8 @@ function nlCalc(){
   const d=[],cats={};if(x.byName)d.push("matched by name (ID in file: "+(r.agency_ref||"none")+")");
   if(e.name&&String(c.name||"").trim()!==String(e.name).trim()){d.push("name: "+(c.name||"—")+" → "+e.name);if(nlNK(c.name)==nlNK(e.name))cats.swap=1;else cats.name=1}
   if(c.base!==e.base){d.push("customer type: "+c.base+" → "+e.base);cats.type=1}if(c.hh!==e.hh){d.push("household: "+c.hh+" → "+e.hh);cats.hh=1}
-  const ph=String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=r.cell&&!c.cell&&nlDg(r.cell).length==10&&nlDg(r.cell)!=nlDg(c.phone)&&!/0{7}|^(\d)\1{9}$/.test(nlDg(r.cell))?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
+  const okN=v=>nlDg(v).length==10&&!/0{7}|^(\d)\1{9}$/.test(nlDg(v)),bad=!!c.rawPhone&&nlDg(c.rawPhone).length!=10,fp=bad?(okN(r.cell)?r.cell:(okN(r.phone)?r.phone:"")):"";x.fillPhone=fp;
+  const ph=fp?"phone "+fp+" (the saved one is broken: "+c.rawPhone+")":String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=!bad&&r.cell&&!c.cell&&nlDg(r.cell).length==10&&nlDg(r.cell)!=nlDg(c.phone)&&!/0{7}|^(\d)\1{9}$/.test(nlDg(r.cell))?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
   const fill=[ph,ce,nl,n2].filter(Boolean);if(fill.length)cats.fill=1;
   if(!c.active){d.push("switch ON (on the list)");cats.on=1}
   if(Object.keys(cats).length)out.chg.push({k:k,r:r,e:e,c:c,d:d,fill:fill,cats:cats,sk:sk});else out.same++});
@@ -1693,7 +1694,7 @@ async function nlApprove(cat){
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
   const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true}));
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
-  const f=c=>cat=="all"||cat==c,items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?x.r.phone||"":"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
+  const f=c=>cat=="all"||cat==c,items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?(x.fillPhone||x.r.phone||""):"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
   NL.msg="Approved "+lab+": "+nw.length+" new, "+ch.length+" updated, "+of.length+" switched off.";
   await loadDB();const R2=nlCalc();if(cat=="all"||(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});NL.msg+=" Everything in the draft is done."}}
