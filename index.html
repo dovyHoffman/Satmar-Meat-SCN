@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b163">
+<meta name="build" content="b164">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -803,7 +803,7 @@ const coMeta=c=>{const ce=invCo(c);return `<div class="note" style="white-space:
 function coInvoices(c){
  if(BILL.payErr)return "";
  const ivs=(BILL.inv||[]).filter(i=>i.company==c).slice().sort((a,b)=>String(b.inv_date).localeCompare(String(a.inv_date))||b.id-a.id),tot=ivs.filter(i=>!i.voided).reduce((t,i)=>t+Number(i.amount),0);
- return `<div class="card"><h2>Invoices · ${esc(invCo(c).name||coName(c))} <button class="pri" style="margin-left:10px" onclick="coListPdf('${c}','inv')">Download PDF</button></h2>${coMeta(c)}
+ return `<div class="card"><h2>Invoices · ${esc(invCo(c).name||coName(c))} <button style="margin-left:10px" onclick="coListPdf('${c}','inv',true)">Preview</button> <button class="pri" onclick="coListPdf('${c}','inv')">Download PDF</button></h2>${coMeta(c)}
  <div class="wrap"><table><tr><th>Date</th><th>Invoice no.</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr>
  <tr><td><input id="iv_dt_gnew" type="date" value="${TODAY()}" style="width:150px"></td><td><input id="iv_no_gnew" placeholder="Invoice no." style="width:130px"></td><td><input id="iv_nt_gnew" placeholder="Note" style="width:200px"></td><td style="text-align:right"><input id="iv_amt_gnew" inputmode="decimal" placeholder="0.00" style="width:120px;text-align:right"></td><td><button class="pri" onclick="invRowSave('gnew','${c}')">Add invoice</button></td></tr>
  ${ivs.slice(0,150).map(i=>`<tr style="${i.voided?"opacity:.5;text-decoration:line-through":""}"><td style="white-space:nowrap">${esc(i.inv_date)}</td><td>${esc(i.inv_no)}</td><td>${esc(i.note)}</td><td style="text-align:right;white-space:nowrap">${money2(Number(i.amount))}</td><td>${i.voided?'<span class="note">voided</span>':`<button onclick="invVoid(${i.id})">Void</button>`}</td></tr>`).join("")||'<tr><td colspan="5" class="no">No invoices saved yet.</td></tr>'}
@@ -812,14 +812,15 @@ function coInvoices(c){
 function coPayments(c){
  if(BILL.payErr)return "";
  const ps=BILL.pays.filter(p=>p.company==c),tot=ps.filter(p=>!p.voided).reduce((t,p)=>t+Number(p.amount),0),A=aging(c);
- return `<div class="card"><h2>Payments · ${esc(invCo(c).name||coName(c))} <button class="pri" style="margin-left:10px" onclick="coListPdf('${c}','pay')">Download PDF</button></h2><p class="note" style="margin:-4px 0 10px">Balance owed now: <b>${money2(A.total)}</b></p>
+ return `<div class="card"><h2>Payments · ${esc(invCo(c).name||coName(c))} <button style="margin-left:10px" onclick="coListPdf('${c}','pay',true)">Preview</button> <button class="pri" onclick="coListPdf('${c}','pay')">Download PDF</button></h2><p class="note" style="margin:-4px 0 10px">Balance owed now: <b>${money2(A.total)}</b></p>
  <div class="bar" style="align-items:flex-end;flex-wrap:wrap;gap:10px;margin:0 0 12px"><label>Date<br><input id="py_dt" type="date" value="${TODAY()}" style="width:160px"></label><label>Amount<br><input id="py_amt" inputmode="decimal" placeholder="0.00" style="width:130px"></label>
  <label>Type<br><select id="py_ty">${PTYPES.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join("")}</select></label><label>Check no. / reference<br><input id="py_ref" style="width:170px"></label><label>Note<br><input id="py_note" style="width:200px"></label><button class="pri" onclick="payAdd('${c}')">Add payment</button></div><span id="py_msg" class="note"></span>
  <div class="wrap"><table><tr><th>Date</th><th>Type</th><th>Reference</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr>
  ${ps.slice(0,150).map(p=>`<tr style="${p.voided?"opacity:.5;text-decoration:line-through":""}"><td style="white-space:nowrap">${esc(p.paid_on)}</td><td>${esc(ptName(p.ptype))}</td><td>${esc(p.ref)}</td><td>${esc(p.note)}</td><td style="text-align:right;white-space:nowrap">${money2(Number(p.amount))}</td><td>${p.voided?'<span class="note">voided</span>':`<button onclick="payVoid(${p.id})">Void</button>`}</td></tr>`).join("")||'<tr><td colspan="6" class="no">No payments yet.</td></tr>'}
  <tr><td colspan="4"><b>Total paid</b></td><td style="text-align:right"><b>${money2(tot)}</b></td><td></td></tr></table></div></div>`}
-async function coListPdf(c,kind){
+async function coListPdf(c,kind,view){
  const msg=t=>{S.msg=t;S.err="";render()};
+ const win=view?window.open("","_blank"):null;if(view&&!win){S.err="The preview was blocked by the browser. Allow pop-ups for this site, or use Download PDF.";S.msg="";render();return}
  try{
   await loadPdfLib();const lg=await invLogoData(),ce=invCo(c),nm=ce.name||coName(c),isI=kind=="inv",doc=new window.jspdf.jsPDF({unit:"pt",format:"letter"}),X0=40,X1=572,tx=(t,x,y,o)=>doc.text(String(t),x,y,o||{});
   const asc=(a,b)=>String(a).localeCompare(String(b)),title=isI?"Invoices":"Payments";
@@ -841,8 +842,9 @@ async function coListPdf(c,kind){
   doc.setDrawColor(17);doc.setLineWidth(1.4);doc.line(X0,y+6,X1,y+6);y+=28;doc.setFont("helvetica","bold");doc.setFontSize(13);tx(isI?"Total invoiced":"Total paid",X0+4,y);tx(money2(total),X1-8,y,{align:"right"});
   if(!isI){y+=22;doc.setFontSize(11);tx("Balance owed now",X0+4,y);tx(money2(aging(c).total),X1-8,y,{align:"right"})}
   doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(110);tx("Satmar Meats · 718-963-1100",X0,y+34);
-  doc.save(title+" - "+nm.replace(/[^A-Za-z0-9 ]/g,"")+" - "+TODAY()+".pdf");msg(title+" PDF downloaded.")
- }catch(e){S.err=String((e&&e.message)||e);S.msg="";render()}}
+  const fn=title+" - "+nm.replace(/[^A-Za-z0-9 ]/g,"")+" - "+TODAY()+".pdf";
+  if(view){win.location.href=doc.output("bloburl")}else{doc.save(fn);msg(title+" PDF downloaded.")}
+ }catch(e){if(win)win.close();S.err=String((e&&e.message)||e);S.msg="";render()}}
 function bCo(c){
  const B=S.b,W=BILL.weeks.filter(w=>w.a[c]);
  let h=coInvoices(c)+coPayments(c)+`<div class="card"><h2>${esc(coName(c))} · billing by week <button style="margin-left:10px" onclick="billStatement('${c}')">Statement</button></h2>${PR[c]&&(PR[c].raw==null||PR[c].meals==null)?`<p class="note">No price set for ${esc(c)} yet, so amounts show —. Add it on the Dashboard.</p>`:""}<div class="wrap"><table><tr><th>Week</th><th style="text-align:right">HH meals</th><th style="text-align:right">HH raw (box)</th><th style="text-align:right">Calculated</th><th>Invoice no.</th><th style="text-align:right">Invoiced</th></tr>
@@ -1512,7 +1514,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b163 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b164 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
