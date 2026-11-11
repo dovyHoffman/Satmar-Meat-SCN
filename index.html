@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b170">
+<meta name="build" content="b171">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -892,9 +892,11 @@ function aging(c){
  items.forEach(i=>{if(i.a<=0)return;const d=(now-i.t)/864e5;b[d<30?"cur":d<60?"d30":d<90?"d60":d<120?"d90":"d120"]+=i.a});
  if(rem>0)b.cur-=rem;
  return {b:b,total:AGEK.reduce((t,k)=>t+b[k[0]],0),paid:paid,charged:charged+AGEK.reduce((t,k)=>t+(ob?Number(ob[k[0]])||0:0),0),missing:missing,credit:rem>0?rem:0}}
+const mpNz=x=>String(x||"").toLowerCase().replace(/\s*\(\d+\)\s*$/,"").replace(/[^a-z0-9]/g,""),mpKey=(co,ref,wk)=>co+"|"+mpNz(ref)+"|"+wk;
+function applyMp(rows){const M=BILL.mp||{};if(!Object.keys(M).length)return;rows.forEach(r=>{if(r.receipt_url||(r.photo_urls||[]).length)return;const u=M[mpKey(r.agency,r.agency_ref,wkLab(wkKey(Date.parse(r.delivered_at))))];if(u)r.receipt_url=u})}
 async function loadPayDb(){
  try{const a=await sb.from("payments").select("id,company,paid_on,amount,ptype,ref,note,voided,created_at").order("paid_on",{ascending:false}).order("id",{ascending:false});if(a.error)throw a.error;
-  BILL.pays=a.data||[];try{const iv=await sb.from("invoices").select("id,company,inv_date,inv_no,amount,note,voided").order("inv_date",{ascending:true});BILL.inv=iv.error?[]:(iv.data||[])}catch(e){BILL.inv=[]};const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
+  BILL.pays=a.data||[];BILL.mp={};try{const mp=await sb.from("manual_pods").select("company,ref,week,url");(mp.data||[]).forEach(m=>{BILL.mp[mpKey(m.company,m.ref,m.week)]=m.url})}catch(e){}try{const iv=await sb.from("invoices").select("id,company,inv_date,inv_no,amount,note,voided").order("inv_date",{ascending:true});BILL.inv=iv.error?[]:(iv.data||[])}catch(e){BILL.inv=[]};const o=await sb.from("opening_balances").select("company,as_of,cur,d30,d60,d90,d120");if(o.error)throw o.error;
   BILL.open={};(o.data||[]).forEach(r=>{BILL.open[r.company]=r});BILL.payErr=""}
  catch(e){BILL.payErr="Payments could not be read ("+dberr(e)+")"+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?". The database update 012 has not been run yet.":".")}}
 const LOGO=new URL("logo.png",document.baseURI).href;
@@ -1091,12 +1093,14 @@ async function invOpen(c,k){
  <p class="note" style="margin:2px 0 8px">The names and emails are saved for ${esc(coName(c))}, so next week they are already filled in.</p>
  <div class="wrap"><table><tr><th style="text-align:right">Qty</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr>${M.lines.map(l=>`<tr><td style="text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td>${esc(l.desc)}</td><td style="text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:inM2(l.rate)}</td><td style="text-align:right">${l.amt==null?"—":inM2(l.amt)}</td></tr>`).join("")}<tr><td></td><td><b>Total</b></td><td></td><td style="text-align:right"><b>$${inM2(M.total)}</b></td></tr></table></div>
  ${M.missing?`<p class="err">No price is set for some lines. Set it on the Dashboard first.</p>`:""}
- ${block?`<p class="err">${esc(block)}</p>`:`<p class="note">All customers in this week have a POD ✓ · invoice #${esc(nxt)}${again?" · already created, sending again keeps the same number":""}</p>`}
+ ${block?`<p class="err">${esc(block)}</p>`:""}${gap.length||again||true?`<p><button id="iv_mp">Add / edit POD links by hand</button></p>`:""}
+ ${block?"":`<p class="note">All customers in this week have a POD ✓ · invoice #${esc(nxt)}${again?" · already created, sending again keeps the same number":""}</p>`}
  <div class="bar" style="flex-wrap:wrap"><button class="pri" id="iv_send" ${block?"disabled":""}>${again?"Send again":"Create &amp; send invoice"}</button><button id="iv_pv">Preview</button><button id="iv_dl" ${block?"disabled":""}>Download PDF</button><button data-x="1">Close</button></div>
  <p id="iv_msg" class="note"></p><div id="iv_hist" class="note"></div></div>`;
  document.body.appendChild(d);
  const hist=async()=>{try{const r=await sb.from("invoice_emails").select("sent_at,to_list,cc_list,ok,error,inv_no").eq("company",c).eq("week",k).order("sent_at",{ascending:false}).limit(5);const e=document.getElementById("iv_hist");if(e&&r.data&&r.data.length)e.innerHTML="<b>Sent before:</b><br>"+r.data.map(x=>esc(fdt(x.sent_at))+" · "+(x.ok?"sent":"<span style='color:#b42318'>failed</span>")+" to "+esc((x.to_list||[]).join(", "))+((x.cc_list||[]).length?" (cc "+esc(x.cc_list.join(", "))+")":"")).join("<br>")}catch(e){}};hist();
  const G=id=>document.getElementById(id);
+ G("iv_mp").onclick=()=>podManual(c,k,d);
  G("iv_pv").onclick=()=>{const r=invRead(c,k),M2=Object.assign(invModel(c,k,r),{});M2.co=Object.assign({},invCo(c),{name:r.name||coName(c),addr:r.addr,phone:r.phone});const u=URL.createObjectURL(new Blob([invPage(M2)],{type:"text/html"}));if(!window.open(u,"_blank"))invMsg("Allow pop-ups for this site to see the preview.",true)};
  G("iv_dl").onclick=async()=>{try{invMsg("Making the PDF…");const r=invRead(c,k),M2=invModel(c,k,r);M2.co=Object.assign({},invCo(c),{name:r.name||coName(c),addr:r.addr,phone:r.phone});(await invPdf(M2)).save(invFile(M2));invMsg("PDF downloaded ✓")}catch(e){invMsg(String(e.message||e),true)}};
  G("iv_send").onclick=async()=>{
@@ -1120,6 +1124,27 @@ async function invOpen(c,k){
    invMsg("Sent ✓ to "+to.join(", ")+(cc.length?" (cc "+cc.join(", ")+")":""));hist()}
   catch(e){invMsg(String(e.message||e),true)}
   b.disabled=false}}
+function podManual(c,k,parent){
+ const w=BILL.weeks.find(x=>x.k==k),all=billCust(c,k),gap=podGap(c,k),M=BILL.mp||{},have=all.filter(r=>M[mpKey(c,r.id,k)]),ids=new Set(gap.concat(have).map(r=>r.id)),list=all.filter(r=>ids.has(r.id));
+ const d=document.createElement("div");d.className="ov";d.style.zIndex=99999;d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ d.innerHTML=`<div class="mod" style="max-width:720px;max-height:90vh;overflow:auto"><b style="font-size:17px">POD links by hand · ${esc(coName(c))} · week ${esc(k)}</b>
+ <p class="note">Paste the link of the POD (receipt or picture) for a customer, then Save. Customers with no POD are listed first. A link you saved before can be changed or cleared here.</p>
+ ${list.length?`<div class="wrap"><table><tr><th>Customer</th><th>POD link</th></tr>${list.map((r,i)=>`<tr><td>${esc(r.name||"")}<br><span class="note">${esc(r.id)}</span></td><td><input id="mp_${i}" value="${esc(M[mpKey(c,r.id,k)]||"")}" placeholder="https://…" style="width:100%;min-width:260px"></td></tr>`).join("")}</table></div>`:`<p class="note">Every customer in this week already has a POD from the driver app. Use the search box on the week page to find one.</p>`}
+ <div class="bar"><button class="pri" id="mp_save" ${list.length?"":"disabled"}>Save</button><button data-x="1">Close</button></div><p id="mp_msg" class="note"></p></div>`;
+ document.body.appendChild(d);
+ const msg=(t,bad)=>{const e=document.getElementById("mp_msg");e.textContent=t;e.style.color=bad?"#b42318":"var(--ok)"};
+ document.getElementById("mp_save").onclick=async()=>{
+  const ch=[];for(let i=0;i<list.length;i++){const r=list[i],u=document.getElementById("mp_"+i).value.trim(),old=M[mpKey(c,r.id,k)]||"";if(u==old)continue;if(u&&!/^https?:\/\/\S+$/i.test(u)){msg("Check the link for "+(r.name||r.id)+": it must start with http:// or https://",true);return}ch.push({r:r,u:u,old:old})}
+  if(!ch.length){msg("Nothing changed.");return}
+  try{msg("Saving…");
+   for(const x of ch){const key=mpKey(c,x.r.id,k);
+    if(x.u){const {error}=await sb.from("manual_pods").upsert({company:c,ref:String(x.r.id).replace(/\s*\(\d+\)\s*$/,""),week:k,url:x.u,updated_at:new Date().toISOString()},{onConflict:"company,ref,week"});if(error)throw error}
+    else{const {error}=await sb.from("manual_pods").update({url:"",updated_at:new Date().toISOString()}).eq("company",c).eq("week",k).eq("ref",String(x.r.id).replace(/\s*\(\d+\)\s*$/,""));if(error)throw error}
+    if(x.u)M[key]=x.u;else delete M[key];BILL.mp=M;
+    const dl=x.r.dl,hit=x.old?dl.find(e=>e.receipt_url===x.old):null;
+    if(hit){hit.receipt_url=x.u}else if(x.u){const e=dl.find(e=>!e.receipt_url&&!(e.photo_urls||[]).length);if(e)e.receipt_url=x.u;else dl.push({order_id:"manual",delivered_at:new Date(w.t+3*864e5).toISOString(),agency:c,agency_ref:x.r.id,name:x.r.name,receipt_url:x.u,photo_urls:[],letters:""})}}
+   d.remove();parent.remove();render();invOpen(c,k)}
+  catch(e){msg("Not saved: "+dberr(e),true)}}}
 function podGap(c,k){return billCust(c,k).filter(r=>!(r.dl||[]).some(d=>/^https?:\/\//i.test(d.receipt_url||"")||(d.photo_urls||[]).some(u=>/^https?:\/\//i.test(u))))}
 async function invLastSave(){
  const m=document.getElementById("il_msg"),n=Math.round(Number(String(document.getElementById("il_n").value).replace(/[^0-9.]/g,"")));
@@ -1165,7 +1190,7 @@ async function loadBillDb(){
    rows2.forEach(r=>{const t=wkKey(Date.parse(r.delivered_at)).getTime();if(mx&&t>mx)ws[t]=1});
    await Promise.all(Object.keys(ws).filter(ts=>!BILL.hist[ts]).map(async ts=>{try{const a=[];for(let i=0;;i+=1000){const r=await sb.rpc("week_history_list",{w:isoD(new Date(+ts))}).range(i,i+999);if(r.error)throw r.error;a.push(...(r.data||[]));if(!r.data||r.data.length<1000)break}BILL.hist[ts]=a}catch(e){BILL.hist[ts]=[]}}))}
   BILL.rowsBase=rows2;BILL.impMax=imp.length?Math.max.apply(null,imp.map(x=>{const m=String(x.tab_date).split("-");return wkKey(new Date(+m[0],+m[1]-1,+m[2],12)).getTime()})):0;
-  BILL.rows=billListRows(rows2);BILL.weeks=buildWeeks(BILL.rows);BILL.real=true;BILL.det={};await pPay;
+  await pPay;BILL.rows=billListRows(rows2);applyMp(BILL.rows);BILL.weeks=buildWeeks(BILL.rows);BILL.real=true;BILL.det={};
   BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}))};
   await proc(impR,rows.filter(x=>String(x.delivered_at)>=since1));
   BILL.loading=false;BILL.bg=true;render();
@@ -1542,7 +1567,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b170 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b171 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
