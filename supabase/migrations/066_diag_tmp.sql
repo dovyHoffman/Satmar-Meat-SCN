@@ -1,1 +1,0 @@
-select json_build_object('r',(select json_agg(x) from (select agency_ref,name,hh,base,food from customers where agency='PT' order by random() limit 8) x),'n',(select count(*) from customers where agency='PT' and active)) as r;
