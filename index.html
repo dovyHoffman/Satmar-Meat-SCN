@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b171">
+<meta name="build" content="b172">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1003,12 +1003,16 @@ async function billXlsx(c,k){
  try{bmsg("Preparing…");const b=await billXlsxBuild(c,k);XLSX.writeFile(b.wb,b.name);bmsg("Excel downloaded ✓")}
  catch(e){bmsg("Could not make the Excel file: "+((e&&e.message)||e),true)}}
 async function billXlsxB64(c,k){
- await loadXlsx();const rows=billCust(c,k).filter(r=>!c||r.co==c),det=[["Name","ID","Home address","Phone","Cell","Mother's CIN","Type","Food","Household","Boxes billed","Amount","Delivered","POD (receipt)","POD (photo)"]];let tot=0;const nz=x=>String(x||"").toLowerCase().replace(/\s*\(\d+\)\s*$/,"").replace(/[^a-z0-9]/g,""),CM={};(typeof cust!="undefined"?cust:[]).forEach(u=>{CM[nz(u.ref)]=u});
- rows.forEach(r=>{const a=billAmt(r);if(a!=null)tot+=a;const L=r.dl.map(d=>d.receipt_url).filter(u=>/^https?:/i.test(u||"")),P=[].concat(...r.dl.map(d=>(d.photo_urls||[]).filter(u=>/^https?:/i.test(u||""))));
-  const u=CM[nz(r.id)]||{};det.push([r.name,r.id,u.legal||"",u.phone||"",u.cell||"",u.cin||"",r.base=="box"?"Box":"Meals",r.food||"",r.hh||"",r.base=="box"?r.boxes:"",a==null?"":Math.round(a*100)/100,r.dl.map(d=>fdt(d.delivered_at)).join("; "),L.join("\n"),P.join("\n")])});
+ await loadXlsx();const rows=billCust(c,k).filter(r=>!c||r.co==c),H=["Name","ID","Home address","Phone","Cell","Mother's CIN","Type","Food","Enhanced","Household addons","Amount","Delivery 1","Receipt 1","Photo 1","Delivery 2","Receipt 2","Photo 2"],det=[H];let tot=0;
+ const nz=x=>String(x||"").toLowerCase().replace(/\s*\(\d+\)\s*$/,"").replace(/[^a-z0-9]/g,""),CM={},ok=u=>/^https?:/i.test(u||"");(typeof cust!="undefined"?cust:[]).forEach(u=>{CM[nz(u.ref)]=u});
+ const links=[];
+ rows.forEach((r,n)=>{const a=billAmt(r);if(a!=null)tot+=a;const u=CM[nz(r.id)]||{},ds=r.dl.slice(0,2),cell=d=>d?[fdt(d.delivered_at),(ok(d.receipt_url)?d.receipt_url:""),((d.photo_urls||[]).find(ok)||"")]:["","",""];
+  const x=cell(ds[0]),y=cell(ds[1]);
+  det.push([r.name,r.id,u.legal||"",u.phone||"",u.cell||"",u.cin||"",r.base=="box"?"Box":"Meals",r.food||"",r.hh||"",r.base=="box"?r.boxes:"",a==null?"":Math.round(a*100)/100,x[0],x[1],x[2],y[0],y[1],y[2]]);
+  [[12,x[1]],[13,x[2]],[15,y[1]],[16,y[2]]].forEach(q=>{if(q[1])links.push([n+1,q[0],q[1]])})});
  det.push([],["Total","","","","","","","","","",Math.round(tot*100)/100]);
- const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(det);ws["!cols"]=[{wch:28},{wch:14},{wch:34},{wch:14},{wch:14},{wch:14},{wch:8},{wch:10},{wch:10},{wch:12},{wch:10},{wch:28},{wch:55},{wch:55}];
- rows.forEach((r,n)=>{const row=n+2;const L=r.dl.map(d=>d.receipt_url).find(u=>/^https?:/i.test(u||"")),P=[].concat(...r.dl.map(d=>(d.photo_urls||[]).filter(u=>/^https?:/i.test(u||""))))[0];if(L&&ws["M"+row])ws["M"+row].l={Target:L};if(P&&ws["N"+row])ws["N"+row].l={Target:P}});
+ const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(det);ws["!cols"]=[{wch:28},{wch:14},{wch:34},{wch:14},{wch:14},{wch:14},{wch:8},{wch:10},{wch:10},{wch:16},{wch:10},{wch:20},{wch:40},{wch:40},{wch:20},{wch:40},{wch:40}];
+ links.forEach(q=>{const a=XLSX.utils.encode_cell({r:q[0],c:q[1]});if(ws[a])ws[a].l={Target:q[2]}});
  XLSX.utils.book_append_sheet(wb,ws,"Customers");
  return {b64:XLSX.write(wb,{type:"base64",bookType:"xlsx"}),name:"Satmar-"+(c||"all")+"-week-"+k.replace("/","-")+"-customers-PODs.xlsx"}}
 function billInvoice(c,k,brief){
@@ -1567,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b171 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b172 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
