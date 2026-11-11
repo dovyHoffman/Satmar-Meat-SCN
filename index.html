@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b177">
+<meta name="build" content="b178">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1571,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b177 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b178 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
@@ -1829,31 +1829,60 @@ function nlCalc(){
  out.ag=Object.keys(mag);
  cust.forEach(c=>{if(c.active&&mag[String(c.agency)]&&!got[c.uuid])out.off.push({k:nk(c.ref),c:c,sk:!!(D.skip||{})[nk(c.ref)]})});
  return out}
-function nlParse(text,fname){
+function nlParse(text,fname,map){
  const all=parseCsv(text),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
- let hi=-1,H=[];for(let i=0;i<Math.min(all.length,15);i++){const h=all[i].map(hn);if(h.some(x=>x=="name"||x=="mothersname"||x=="customername"||x=="fullname"||x=="lastname")&&h.some(x=>/^(applicationid|appid|id|customerid|clientid|familyid|ref|cin)$/.test(x)||x.indexOf("applicationid")==0)){hi=i;H=h;break}}
+ let hi=-1,H=[];
+ if(map&&map.cols&&map.cols.id&&map.cols.name)for(let i=0;i<Math.min(all.length,15);i++){const h=all[i].map(hn);if(h.indexOf(map.cols.id)>=0&&h.indexOf(map.cols.name)>=0){hi=i;H=h;break}}
+ if(hi<0)for(let i=0;i<Math.min(all.length,15);i++){const h=all[i].map(hn);if(h.some(x=>x=="name"||x=="mothersname"||x=="customername"||x=="fullname"||x=="lastname")&&h.some(x=>/^(applicationid|appid|id|customerid|clientid|familyid|ref|cin)$/.test(x)||x.indexOf("applicationid")==0)){hi=i;H=h;break}}
  if(hi<0){if(all[0]&&all[0].some(x=>/not in list/i.test(x)))return {recs:csvToRecs(text),mode:"customer_data"};
-  const sample=(all[0]||[]).filter(Boolean).slice(0,12).join(" | ");throw new Error("I could not find the Name and ID columns. The first row of your file has: "+(sample||"nothing")+". Please send me this file so I can set it up.")}
+  const sample=(all[0]||[]).filter(Boolean).slice(0,12).join(" | ");const er=new Error("I could not find the Name and ID columns. The first row of your file has: "+(sample||"nothing")+".");er.code="nocols";throw er}
  const ix=(...n)=>{for(const x of n){const k=H.findIndex(h=>h==x||h.indexOf(x)==0);if(k>=0)return k}return -1},
   c={id:ix("applicationid","appid","customerid","clientid","familyid","id"),name:ix("name","mothersname","customername","fullname","lastname"),mp:ix("meatpreference"),num:ix("number"),prim:ix("primary","phone"),cellc:ix("cellphone","cell","mobile"),addr:ix("homeaddress","address"),hh:ix("totalhousehold","totalfamily","totalfam","totalmembers","household","family","members"),food:ix("foodtype","food"),loc:ix("location","area"),co:ix("company","agency"),type:ix("typeboxs","typebox","type"),nl:ix("notesonlabel","labelnotes"),n2:ix("note2","notes2","diet"),email:ix("email"),notes:ix("notes","deliveryinstructions"),nb:ix("nobeef"),raw:ix("raw"),sup:ix("suppers","supper"),sh:ix("shabbos"),off:ix("notinlist")},
   g=(r,k)=>k>=0?String(r[k]==null?"":r[k]).trim():"",recs=[];
+ if(map&&map.cols)Object.keys(map.cols).forEach(k=>{const j=H.indexOf(map.cols[k]);if(j>=0)c[k]=j});
  const blank=[];let nrows=0;
  all.slice(hi+1).forEach(r=>{nrows++;const ref=g(r,c.id),name=g(r,c.name);if(!ref&&!name){const cells=r.map(x=>String(x==null?"":x).trim()).filter(Boolean);if(cells.length)blank.push(cells.slice(0,6).join(" | "));return}
   const noF=c.food<0&&c.type<0&&c.raw<0&&c.sup<0&&c.sh<0,ft=g(r,c.food),base=/box/i.test(ft)?"box":/meal/i.test(ft)?"meals":(/box/i.test(g(r,c.type))?"box":"meals"),nb=TT(g(r,c.nb))||/no\s*beef/i.test(g(r,c.mp)),
    food=base=="box"?(nb?"rawnb":"raw"):TT(g(r,c.raw))?(nb?"rawnb":"raw"):TT(g(r,c.sup))?"supper":TT(g(r,c.sh))?"shabbos":/supper/i.test(ft)?"supper":/shabbos/i.test(ft)?"shabbos":/raw/i.test(ft)?(nb?"rawnb":"raw"):"meals",
-   addr=g(r,c.addr),ph=g(r,c.num),pr=g(r,c.prim),ce=g(r,c.cellc),ag=g(r,c.co)||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase()||((m=>m&&COS.indexOf(m.toUpperCase())>=0?m.toUpperCase():"")((String(fname||"").match(/^\s*([A-Za-z]{2,4})\b/)||[""])[1]))||"UNK";
+   addr=g(r,c.addr),ph=g(r,c.num),pr=g(r,c.prim),ce=g(r,c.cellc),ag=g(r,c.co)||(map&&map.ag)||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase()||((m=>m&&COS.indexOf(m.toUpperCase())>=0?m.toUpperCase():"")((String(fname||"").match(/^\s*([A-Za-z]{2,4})\b/)||[""])[1]))||"UNK";
   recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:Math.round(Number(g(r,c.hh).replace(/[^0-9.]/g,""))||1),food:noF?undefined:food,base:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[]})});
  return {recs:recs,mode:"headers",blank:blank,nrows:nrows}}
+async function nlMapsLoad(){NL.maps={};try{const r=await sb.from("app_settings").select("value").eq("key","list_maps").maybeSingle();if(r.data&&r.data.value)NL.maps=r.data.value}catch(e){}}
+function nlSig(t){const all=parseCsv(t),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");for(let i=0;i<Math.min(all.length,15);i++){const c=all[i].map(hn).filter(Boolean);if(c.length>=3)return c.join("|").slice(0,400)}return ""}
+const NL_MF=[["id","ID (Application ID / Family ID)",1],["name","Name",1],["hh","Household size (total members)"],["addr","Address"],["prim","Phone"],["cellc","Cell"],["food","Food type, or Box / Meals"],["notes","Notes (delivery instructions)"],["n2","Note 2"],["email","Email"],["co","Company (if the file has a column)"]];
+const NL_GUESS={id:/(^|\b)(family|application|customer|client)?\s*id\b|^id$|ref/i,name:/last\s*name|^name|mother|customer name|family name/i,hh:/member|household|family size|total fam|people/i,addr:/address/i,prim:/phone|primary/i,cellc:/cell|mobile/i,food:/food|diet|type/i,notes:/instruction|^notes?$/i,n2:/note\s*2/i,email:/mail/i,co:/company|agency/i};
+function nlMapRow(){const A=NL.mapAsk,it=A.items[A.i];return parseCsv(it.text)[A.hrow-1]||[]}
+function nlMapSet(k,v){NL.mapAsk.sel[k]=v;render()}
+function nlMapH(v){const A=NL.mapAsk;A.hrow=Math.max(1,Math.min(15,parseInt(v)||1));A.sel={};render()}
+function nlMapView(){
+ const A=NL.mapAsk,it=A.items[A.i],all=parseCsv(it.text),row=nlMapRow(),H=esc;
+ const opts=row.map((x,i)=>[i,String(x||"").trim()]).filter(o=>o[1]);
+ NL_MF.forEach(f=>{if(A.sel[f[0]]==null){const m=opts.find(o=>NL_GUESS[f[0]].test(o[1]));A.sel[f[0]]=m?String(m[0]):""}});
+ return `<div class="card" style="border-color:#e5a100"><h2>Set up this file · ${H(it.file)}</h2><p class="note">I don't know this company's column names yet. Tell me once which column is which. It is remembered, so the next file in this layout loads by itself. (${A.i+1} of ${A.items.length})</p>
+ <div class="wrap" style="max-height:200px;overflow:auto"><table style="font-size:12px;white-space:nowrap">${all.slice(0,8).map((r,i)=>`<tr style="${i==A.hrow-1?"background:#fff4d6;font-weight:600":""}"><td class="note">${i+1}</td>${r.slice(0,14).map(c=>`<td>${H(String(c||"").slice(0,24))}</td>`).join("")}</tr>`).join("")}</table></div>
+ <div class="rwfld" style="margin-top:8px"><label>The row with the column names is row<input type="number" min="1" max="15" value="${A.hrow}" onchange="nlMapH(this.value)" style="width:70px"></label><label>Company code for every customer in this file<select onchange="NL.mapAsk.ag=this.value"><option value="">From a Company column / the ID</option>${COS.map(c=>`<option value="${c}" ${A.ag==c?"selected":""}>${H(coName(c))}</option>`).join("")}</select></label></div>
+ <div class="rwfld">${NL_MF.map(f=>`<label>${f[1]}${f[2]?" *":""}<select onchange="nlMapSet('${f[0]}',this.value)"><option value="">— none —</option>${opts.map(o=>`<option value="${o[0]}" ${String(A.sel[f[0]])==String(o[0])?"selected":""}>${H(o[1])}</option>`).join("")}</select></label>`).join("")}</div>
+ <p id="nm_msg" class="err"></p><div class="bar"><button class="pri" onclick="nlMapSave()">Use these columns</button><button onclick="NL.mapAsk=null;render()">Cancel</button></div></div>`}
+async function nlMapSave(){
+ const A=NL.mapAsk,it=A.items[A.i],row=nlMapRow(),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,""),cols={};
+ NL_MF.forEach(f=>{const v=A.sel[f[0]];if(v!==""&&v!=null&&row[+v]!=null)cols[f[0]]=hn(row[+v])});
+ if(!cols.id||!cols.name){document.getElementById("nm_msg").textContent="Choose the ID column and the Name column.";return}
+ const sg=nlSig(it.text);if(!sg){document.getElementById("nm_msg").textContent="This file looks empty.";return}
+ NL.maps[sg]={cols:cols,ag:A.ag||""};try{await sb.from("app_settings").upsert({key:"list_maps",value:NL.maps,updated_at:new Date().toISOString()})}catch(e){}
+ const fs=A.files;NL.mapAsk=null;await nlFiles(fs)}
 async function nlFiles(files){
  if(!files||!files.length)return;NL.err="";NL.msg="";NL.busy=true;render();
  try{const seen={},rows=[];let skipped=0;
   const sk=[],useen={};
-  const units=[];let lastErr=null;
-  for(const f of files){if(/\.xlsx?$/i.test(f.name)){await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let ok=0;
-    for(const sn of wb.SheetNames){const t=XLSX.utils.sheet_to_csv(wb.Sheets[sn]);try{nlParse(t,f.name);units.push({name:f.name+" · "+sn,text:t});ok++}catch(e){lastErr=e}}
-    if(!ok)throw new Error("No sheet in "+f.name+" has the Name and ID columns. "+((lastErr&&lastErr.message)||""))}
-   else units.push({name:f.name,text:await f.text()})}
-  for(const f of units){const t=f.text,pr=nlParse(t,f.name),recs=pr.recs,keep=[];(pr.blank||[]).forEach(b=>sk.push({name:b,ref:"",why:"no name and no ID in the file (row has other data)",blankRow:1}));
+  if(!NL.maps)await nlMapsLoad();
+  const units=[],pend=[];
+  const addUnit=(name,t)=>{const sg=nlSig(t),mp=sg&&NL.maps[sg];try{const pr=nlParse(t,name,mp);units.push({name:name,text:t,pr:pr});return true}catch(e){if(e&&e.code=="nocols")return false;throw e}};
+  for(const f of files){if(/\.xlsx?$/i.test(f.name)){await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let ok=0,best=null;
+    for(const sn of wb.SheetNames){const t=XLSX.utils.sheet_to_csv(wb.Sheets[sn]);if(!best||t.length>best.length)best=t;if(addUnit(f.name+" · "+sn,t))ok++}
+    if(!ok)pend.push({file:f.name,text:best||""})}
+   else{const t=await f.text();if(!addUnit(f.name,t))pend.push({file:f.name,text:t})}}
+  if(pend.length){NL.mapAsk={items:pend,i:0,hrow:1,sel:{},ag:"",files:[...files]};NL.busy=false;render();return}
+  for(const f of units){const t=f.text,pr=f.pr,recs=pr.recs,keep=[];(pr.blank||[]).forEach(b=>sk.push({name:b,ref:"",why:"no name and no ID in the file (row has other data)",blankRow:1}));
    recs.forEach((r,i)=>{const ref=String(r.ref||"").trim(),tag=f.name+"#"+i;if(!ref){r.ref="NOID"+(sk.length+keep.length);r.__t="noId";keep.push(r);sk.push({name:r.name,ref:"",why:"no ID"});return}const k=nk(ref);if(useen[k]){r.__o=ref;r.ref=ref+"~dup"+(sk.length+keep.length);r.__t="dup";keep.push(r);sk.push({name:r.name,ref:ref,why:"ID used twice"});return}useen[k]=1;keep.push(r)});
    const res=toDbRows(keep);res.rows.forEach(r=>{const o=keep.find(q=>q.ref==r.agency_ref);if(o&&o.__t=="noId"){r.agency_ref="";r.noId=true;r.agency=""}else if(o&&o.__t=="dup"){r.agency_ref=o.__o;r.dup=true}const k=nlKey(r)+(r.dup||r.noId?":"+rows.length:"");if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
@@ -2005,7 +2034,7 @@ function nlPreview(){
  <div class="wrap" style="max-height:70vh;overflow:auto"><table style="font-size:12px;white-space:nowrap"><tr>${th.map(t=>`<th>${t}</th>`).join("")}</tr>${body}</table></div>${rows.length>1500?`<p class="note">Showing the first 1,500 of ${rows.length.toLocaleString()}.</p>`:`<p class="note">${rows.length.toLocaleString()} rows.</p>`}</div>`}
 function vNewList(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
- nlLoad();nlDupCalc();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button></div>`;
+ nlLoad();nlDupCalc();if(NL.mapAsk)return nlMapView();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button></div>`;
  if(NL.view=="prod")return nb+nlProdView();if(NL.view=="prev")return nb+nlPreview();if(NL.view=="dups")return nb+nlDupView();return nb+vNewList0()}
 function vNewList0(){
  if(!S.user||S.user.role!="owner")return "";
