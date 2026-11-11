@@ -166,6 +166,7 @@ Deno.serve(async (req) => {
       if (bad.length) return json({ ok: false, error: "These do not look like email addresses: " + bad.join(", ") });
       if (to.length + cc.length > 20) return json({ ok: false, error: "Too many addresses." });
       const subject = String(body.subject || "Invoice").slice(0, 200), html = String(body.html || "").slice(0, 400000), text = String(body.text || "").slice(0, 20000);
+      const xl = String(body.xlsx_b64 || ""), xlName = String(body.xlsx_name || "Billing.xlsx").replace(/[^A-Za-z0-9._ -]/g, "_").slice(0, 80);
       const pdf = String(body.pdf_b64 || ""), fname = String(body.filename || "Invoice.pdf").replace(/[^A-Za-z0-9._ -]/g, "_").slice(0, 80);
       if (pdf.length > 6_000_000) return json({ ok: false, error: "The attachment is too large." });
       const fromAddr = Deno.env.get("SMTP_USER") || Deno.env.get("INVOICE_FROM") || "";
@@ -175,7 +176,7 @@ Deno.serve(async (req) => {
         if (Deno.env.get("RESEND_API_KEY")) {
           const r = await fetch("https://api.resend.com/emails", {
             method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("RESEND_API_KEY"), "content-type": "application/json" },
-            body: JSON.stringify({ from: fromName + " <" + (Deno.env.get("INVOICE_FROM") || fromAddr) + ">", to, cc, subject, html, text, attachments: pdf ? [{ filename: fname, content: pdf }] : [] }),
+            body: JSON.stringify({ from: fromName + " <" + (Deno.env.get("INVOICE_FROM") || fromAddr) + ">", to, cc, subject, html, text, attachments: [...(pdf ? [{ filename: fname, content: pdf }] : []), ...(xl ? [{ filename: xlName, content: xl }] : [])] }),
           });
           if (!r.ok) throw new Error("Mail service said: " + (await r.text()).slice(0, 200));
           sent = true;
@@ -183,7 +184,7 @@ Deno.serve(async (req) => {
           if (!Deno.env.get("SMTP_USER") || !Deno.env.get("SMTP_PASS")) return json({ ok: false, error: "Email sending is not switched on yet: the mailbox password has not been added in Supabase (Edge Functions → Secrets: SMTP_USER and SMTP_PASS)." });
           const nm = (await import("npm:nodemailer@6.9.14")).default;
           const tr = nm.createTransport({ host: Deno.env.get("SMTP_HOST") || "smtp.office365.com", port: Number(Deno.env.get("SMTP_PORT") || 587), secure: false, requireTLS: true, auth: { user: Deno.env.get("SMTP_USER"), pass: Deno.env.get("SMTP_PASS") }, connectionTimeout: 15000, socketTimeout: 30000 });
-          await tr.sendMail({ from: '"' + fromName + '" <' + fromAddr + '>', to: to.join(", "), cc: cc.join(", ") || undefined, subject, html, text, attachments: pdf ? [{ filename: fname, content: pdf, encoding: "base64" }] : [] });
+          await tr.sendMail({ from: '"' + fromName + '" <' + fromAddr + '>', to: to.join(", "), cc: cc.join(", ") || undefined, subject, html, text, attachments: [...(pdf ? [{ filename: fname, content: pdf, encoding: "base64" }] : []), ...(xl ? [{ filename: xlName, content: xl, encoding: "base64" }] : [])] });
           sent = true;
         }
       } catch (e) { err = String((e as Error).message || e).slice(0, 300); }
