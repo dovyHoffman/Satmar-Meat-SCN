@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b207">
+<meta name="build" content="b208">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2043,12 +2043,12 @@ function nlDupLeave(i){const D=NL.d,g=NL.dg[i];if(!g)return;D.dupOk=D.dupOk||{};
 function nlDupUndo(i){const D=NL.d,g=NL.dgDone[i];if(!g)return;delete D.dupOk[g.gid];nlSave();render()}
 const NL_TY=[["raw","Box · Raw","box"],["rawnb","Box · Raw (no beef)","box"],["meals","Meals","meals"],["supper","Supper","meals"],["shabbos","Shabbos","meals"]];
 function nlMergeName(names){
- const u=[];names.map(n=>String(n||"").trim()).filter(Boolean).forEach(n=>{if(!u.some(x=>x.toLowerCase()==n.toLowerCase()))u.push(n)});
+ const u=[];names.map(n=>String(n||"").replace(/\s+/g," ").trim()).filter(Boolean).forEach(n=>{if(!u.some(x=>x.toLowerCase()==n.toLowerCase()))u.push(n)});
  if(u.length<2)return u[0]||"";
- const sp=u.map(n=>n.split(/\s+/));
- if(sp.every(t=>t.length>=2&&!/,/.test(t.join(" ")))){const sn=sp[0][sp[0].length-1].toLowerCase();
-  if(sp.every(t=>t[t.length-1].toLowerCase()==sn))return u[0]+", "+sp.slice(1).map(t=>t.slice(0,-1).join(" ")).join(", ")}
- return u.join(", ")}
+ const P=u.map(n=>{if(n.includes(",")){const i=n.indexOf(",");return{l:n.slice(0,i).trim(),f:n.slice(i+1).replace(/,/g," ").replace(/\s+/g," ").trim()}}
+  const t=n.split(" ");return t.length<2?{l:n,f:""}:{l:t[t.length-1],f:t.slice(0,-1).join(" ")}});
+ const g=[];P.forEach(p=>{let x=g.find(y=>y.l.toLowerCase()==p.l.toLowerCase());if(!x){x={l:p.l,f:[]};g.push(x)}if(p.f&&!x.f.some(z=>z.toLowerCase()==p.f.toLowerCase()))x.f.push(p.f)});
+ return g.map(x=>x.f.length?x.l+", "+x.f.join(" & "):x.l).join(" & ")}
 function nlDupMerge(i){const g=NL.dg[i];if(!g)return;const es=g.rows.map(nlEff),hh=es.reduce((t,e)=>t+(Number(e.hh)||1),0);let b=0;es.forEach((e,j)=>{if((Number(e.hh)||1)>(Number(es[b].hh)||1))b=j});
  const dv=es[b].base=="box"?"box":"meals",d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  d.innerHTML=`<div class="mod" style="max-width:520px"><b style="font-size:17px">Merge into one customer</b>
