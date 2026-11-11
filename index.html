@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b180">
+<meta name="build" content="b181">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1571,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b180 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b181 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
@@ -1871,7 +1871,9 @@ async function nlMapSave(){
  NL.maps[sg]={cols:cols,ag:A.ag||""};try{await sb.from("app_settings").upsert({key:"list_maps",value:NL.maps,updated_at:new Date().toISOString()})}catch(e){}
  const fs=A.files;NL.mapAsk=null;await nlFiles(fs)}
 async function nlFiles(files){
- if(!files||!files.length)return;NL.err="";NL.msg="";NL.busy=true;render();
+ if(!files||!files.length)return;NL.err="";NL.msg="";
+ if(NL.d&&NL.d.files&&NL.d.files.length){const nf=[...files].filter(f=>NL.d.files.indexOf(f.name)<0);if(!nf.length){NL.msg="That file is already in the draft: "+[...files].map(f=>f.name).join(", ")+". Throw the draft away first if you want to start over.";render();return}files=nf}
+ NL.busy=true;render();
  try{const seen={},rows=[];let skipped=0;
   const sk=[],useen={};
   if(!NL.maps)await nlMapsLoad();
@@ -1887,8 +1889,10 @@ async function nlFiles(files){
    const res=toDbRows(keep);res.rows.forEach(r=>{const o=keep.find(q=>q.ref==r.agency_ref);if(o&&o.__t=="noId"){r.agency_ref="";r.noId=true;r.agency=""}else if(o&&o.__t=="dup"){r.agency_ref=o.__o;r.dup=true}const k=nlKey(r)+(r.dup||r.noId?":"+rows.length:"");if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
   const ag=[...new Set(rows.map(r=>r.agency))];
-  NL.d={rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="swap";
-  await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+". Nothing has been changed yet. Look it over below."}
+  const old=NL.d&&NL.d.rows&&NL.d.rows.length?NL.d:null;
+  if(old){const ids=new Set(old.rows.filter(r=>!r.noId&&r.agency_ref).map(r=>nk(r.agency_ref)));rows.forEach(r=>{if(!r.noId&&r.agency_ref&&!r.dup&&ids.has(nk(r.agency_ref))){r.dup=true;sk.push({name:r.name,ref:r.agency_ref,why:"ID used twice (in two files)"})}})}
+  NL.d=old?{rows:old.rows.concat(rows),ag:[...new Set((old.ag||[]).concat(ag))],skip:old.skip||{},edit:old.edit||{},files:(old.files||[]).concat([...files].map(f=>f.name)),skipped:(old.sk||[]).concat(sk).length,sk:(old.sk||[]).concat(sk),mlog:old.mlog||[],dupOk:old.dupOk||{},uploaded:new Date().toISOString()}:{rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="swap";
+  await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+(old?" and added to the draft ("+NL.d.rows.length.toLocaleString()+" in all). The same ID in two files is shown under Duplicates.":"")+". Nothing has been changed yet. Look it over below."}
  catch(e){NL.err=String((e&&e.message)||e)}
  NL.busy=false;render()}
 function nlEdit(k,f,v){const D=NL.d;D.edit=D.edit||{};D.edit[k]=Object.assign({},D.edit[k]||{});D.edit[k][f]=f=="hh"?Math.max(1,Math.min(30,parseInt(v)||1)):v;nlSave();render()}
