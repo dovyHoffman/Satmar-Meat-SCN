@@ -132,7 +132,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b155">
+<meta name="build" content="b156">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1319,7 +1319,7 @@ async function loadDB(){
  S.loading=false;render();
  if(S.real){const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-42*864e5).toISOString();S.dSince=since;S.dOld={};
-   const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.gte("delivered_at",since).order("delivered_at",{ascending:false,nullsFirst:false}).order("order_id",{ascending:true});let ds;try{ds=await fetchAllPar("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAllPar("deliveries",dcols,dord)}
+   const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.or("delivered_at.gte."+since+",and(delivered_at.is.null,synced_at.gte."+since+")").order("delivered_at",{ascending:false,nullsFirst:false}).order("order_id",{ascending:true});let ds;try{ds=await fetchAllPar("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAllPar("deliveries",dcols,dord)}
    ds.forEach(d=>{const c=byU[d.customer_id];if(!c)return;c.pods.push({oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null})});cust.forEach(c=>{c.weeks=c.pods.map(p=>({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p}))});S.podsLoaded=true}catch(e){S.podsLoaded=false;S.podsErr="could not be read ("+dberr(e)+")."}
  render()}}
 function banner(){
@@ -1411,7 +1411,7 @@ async function whSave(){
  render()}
 function podsOld(c){
  if(!S.real||!sb||!S.dSince||!c.uuid)return;S.dOld=S.dOld||{};if(S.dOld[c.id]!==undefined)return;S.dOld[c.id]=null;
- sb.from("deliveries").select("order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths,snap").eq("customer_id",c.uuid).lt("delivered_at",S.dSince).order("delivered_at",{ascending:false}).then(r=>{
+ sb.from("deliveries").select("order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths,snap").eq("customer_id",c.uuid).or("delivered_at.lt."+S.dSince+",and(delivered_at.is.null,synced_at.lt."+S.dSince+")").order("delivered_at",{ascending:false,nullsFirst:false}).then(r=>{
   if(r.error){S.dOld[c.id]={err:1};return}
   (r.data||[]).forEach(d=>{if(c.pods.some(p=>p.oid==d.order_id))return;const p={oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null};c.pods.push(p);c.weeks.push({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p})});
   S.dOld[c.id]=true;if(S.view=="card"&&S.sel==c.id)render()},()=>{S.dOld[c.id]={err:1}})}
