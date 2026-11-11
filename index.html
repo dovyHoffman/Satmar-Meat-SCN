@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b172">
+<meta name="build" content="b173">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1571,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b172 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b173 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
@@ -1880,8 +1880,48 @@ async function nlApprove(cat){
   await loadDB();const R2=nlCalc();if(cat=="all"||(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});NL.msg+=" Everything in the draft is done."}}
  catch(e){NL.err="Stopped: "+dberr(e)+(/apply_list_draft|function/i.test(String(e&&e.message))?" (Database update 044 has not been run yet.)":"")+" Nothing was deleted. Whatever was done is in History."}
  NL.busy=false;render()}
+/* ---- New list · Production: how many boxes the kitchen starts from the list, the customers' settings and their changes for next week ---- */
+function nlProj(useDraft){
+ const P=new Map(),removed=[],added=[];let R=null;
+ cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area},why:[]}));
+ if(useDraft&&NL.d){R=nlCalc();
+  if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
+    if(x.cats.type||x.cats.hh){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base;o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>/^(customer type|household)/.test(t)).join(", "))}});
+   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
+   R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
+ let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n)return;nreq++;
+  if(n.food=="mid"){o.p.area="Middleton";o.why.push("customer asked: move to Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;o.why.push("customer asked: "+(F[n.food]||n.food))}
+  if(n.area){o.p.area=n.area;o.why.push("customer asked: area "+n.area)}
+  if(n.a||n.addr)o.why.push("customer asked: new address")});
+ return {P:P,removed:removed,added:added,R:R,nreq:nreq}}
+function nlProdView(){
+ const H=esc,useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),list=[...J.P.values()];
+ const cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
+ const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
+ now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area}));list.forEach(o=>add(cn,o.p));
+ const ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0),sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0);
+ const tile=l=>{const isMN=l.indexOf("MN")==0,t=sum(cn[l])+ex(l),was=sum(cx[l])+ex(l),d=t-was,mx=Math.max(1,...AR.map(a=>cn[l][a]||0));
+  return `<div class="bx" style="--c:${LC[l]}"><div class="bh"><div class="lt">${l}</div><div><div class="big">${t}</div><div class="note">${LD[l]}</div>${d?`<div class="note" style="color:${d>0?"var(--ok)":"#b42318"}"><b>${d>0?"+":""}${d}</b> vs now (${was})</div>`:""}</div></div>${(isMN?[]:AR).map(a=>`<div class="br"><span>${a}</span><div class="tr"><i style="width:${Math.round((cn[l][a]||0)/mx*100)}%"></i></div><b>${cn[l][a]||0}</b></div>`).join("")}${cn[l]["?"]?`<div class="br"><span>No area</span><div class="tr"></div><b>${cn[l]["?"]}</b></div>`:""}</div>`};
+ const box=list.filter(o=>o.p.base=="box").length,hhs=list.reduce((t,o)=>t+(o.p.hh||0),0),nowBox=now.filter(c=>c.base=="box").length;
+ const kp=(l,v,sub)=>`<div class="kpi"><span class="note">${l}</span><b>${v}</b>${sub?`<span class="note">${sub}</span>`:""}</div>`,dl=(a,b)=>a==b?"":" ("+(a>b?"+":"")+(a-b)+")";
+ const fk=["meals","supper","shabbos","raw","rawnb"],hhn=[...Array(10).keys()].map(i=>i+1);
+ const chg=list.filter(o=>o.why.length).sort((a,b)=>String(a.c.name).localeCompare(String(b.c.name))),sh=chg.slice(0,300);
+ const lc=(food,hh,area)=>Number.isInteger(hh)&&hh>=1?codesFor(food,hh,area):"—";
+ return `<div class="card"><h2>Production · what to make ready</h2>
+ <p class="note">What the kitchen starts from: <b>active customers</b> with their settings on the Customers page, plus the changes customers asked for <b>next week</b>${NL.d?", plus the uploaded new list":""}. It is calculated live. Nothing is changed here.</p>
+ ${NL.d?`<label class="note"><input type="checkbox" style="width:auto" ${useDraft?"checked":""} onchange="NL.useDraft=this.checked;render()"> Include the uploaded new list (new customers, household and type changes, customers left out of the file)</label>`:`<p class="note">No new list is uploaded, so this is the current list with the customers' changes for next week.</p>`}
+ <div class="kpis">${kp("Families",list.length.toLocaleString(),dl(list.length,now.length).trim())}${kp("Households (people)",hhs.toLocaleString(),dl(hhs,now.reduce((t,c)=>t+c.hh,0)).trim())}${kp("Box",box,dl(box,nowBox).trim())}${kp("Meals",list.length-box,dl(list.length-box,now.length-nowBox).trim())}${kp("Customer changes applied",J.nreq)}${kp("New customers (list)",J.added.length)}${kp("Taken off (list)",J.removed.length)}</div>
+ ${list.some(o=>o.p.area=="?")?`<p class="note">New customers have no area yet, so they are counted in each box total but not in an area bar.</p>`:""}</div>
+ <div class="card"><h2>Boxes to prepare</h2>${boxGroups(tile)}<p class="note">The big number is how many boxes of that letter to start. The green or red number is the difference from the list as it is today. Manual extras from the Dashboard are included.</p></div>
+ <div class="card"><h2>Food type × household (next week)</h2><div class="wrap"><table><tr><th>Type</th>${hhn.map(n=>`<th>${n}</th>`).join("")}<th>Total</th></tr>${fk.map(f=>`<tr><td><span class="ctag ${fcls({food:f,base:f=="raw"||f=="rawnb"?"box":"meals"})}">${F[f]}</span></td>${hhn.map(n=>`<td>${list.filter(o=>o.p.food==f&&o.p.hh==n).length||""}</td>`).join("")}<td><b>${list.filter(o=>o.p.food==f).length}</b></td></tr>`).join("")}</table></div></div>
+ <div class="card"><h2>What changes from today (${chg.length})</h2>${chg.length?`<div class="wrap" style="max-height:50vh;overflow:auto"><table style="font-size:13px"><tr><th>Customer</th><th>ID</th><th>Now</th><th>Next week</th><th>Why</th></tr>${sh.map(o=>{const c=o.c,was=o.isNew?"—":lc(c.food,c.hh,c.area),nx=lc(o.p.food,o.p.hh,o.p.area);return `<tr><td>${H(c.name||"")}</td><td>${H(c.ref||"")}</td><td>${H(was)}</td><td><b>${H(nx)}</b></td><td class="note">${H(o.why.join(" · "))}</td></tr>`}).join("")}</table></div>${chg.length>300?`<p class="note">Showing the first 300.</p>`:""}`:`<p class="note">No changes: next week is the same as now.</p>`}
+ ${J.removed.length?`<p class="note"><b>Taken off by the new list:</b> ${J.removed.slice(0,40).map(o=>H(o.c.name||o.c.ref)).join(", ")}${J.removed.length>40?" and "+(J.removed.length-40)+" more":""}</p>`:""}</div>`}
 function vNewList(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
+ nlLoad();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button></div>`;
+ if(NL.view=="prod")return nb+nlProdView();return nb+vNewList0()}
+function vNewList0(){
+ if(!S.user||S.user.role!="owner")return "";
  nlLoad();const R=nlCalc(),H=esc,D=NL.d;
  const up=`<div class="card"><h2>New list (draft)</h2><p class="note">Upload the customer list file(s) for next week. The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
  <input type="file" accept=".csv,text/csv" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
