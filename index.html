@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b166">
+<meta name="build" content="b167">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1080,8 +1080,8 @@ async function invPersist(c,r){await invSave(c,{name:r.name||coName(c),addr:r.ad
 function invMsg(t,bad){const e=document.getElementById("iv_msg");if(e){e.textContent=t;e.style.color=bad?"#b42318":"var(--ok)"}}
 async function invOpen(c,k){
  const ce=invCo(c);let M=invModel(c,k);if(!M){bmsg("Nothing to invoice for this week.",true);return}
- const gap=podGap(c,k),dup=(BILL.inv||[]).find(i=>i.company==c&&!i.voided&&i.note==="Week "+k),nxt=INV.last==null?"":String(INV.last+1);
- const block=INV.last==null?"Set the last QuickBooks invoice number first: Settings → Invoice numbers.":dup?"An invoice for this week already exists (#"+(dup.inv_no||"")+"). Void it on the company page first if you need to make it again.":gap.length?gap.length+" customer"+(gap.length>1?"s":"")+" in this week have no POD yet, so the invoice cannot be created: "+gap.slice(0,12).map(r=>r.name||r.agency_ref||"?").join(", ")+(gap.length>12?" and "+(gap.length-12)+" more":"")+".":"";
+ const gap=podGap(c,k),dup=(BILL.inv||[]).find(i=>i.company==c&&!i.voided&&i.note==="Week "+k),again=!!dup,nxt=again?String(dup.inv_no||""):INV.last==null?"":String(INV.last+1);
+ const block=!again&&INV.last==null?"Set the last QuickBooks invoice number first: Settings → Invoice numbers.":gap.length?gap.length+" customer"+(gap.length>1?"s":"")+" in this week have no POD yet, so the invoice cannot be created: "+gap.slice(0,12).map(r=>r.name||r.agency_ref||"?").join(", ")+(gap.length>12?" and "+(gap.length-12)+" more":"")+".":"";
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  const lines=()=>invModel(c,k,{no:document.getElementById("iv_no").value.trim(),date:document.getElementById("iv_dt").value||undefined});
  d.innerHTML=`<div class="mod" style="max-width:720px;max-height:92vh;overflow:auto"><b style="font-size:17px">Invoice · ${esc(coName(c))} · week of ${esc(M.range)}</b>
@@ -1091,8 +1091,8 @@ async function invOpen(c,k){
  <p class="note" style="margin:2px 0 8px">The names and emails are saved for ${esc(coName(c))}, so next week they are already filled in.</p>
  <div class="wrap"><table><tr><th style="text-align:right">Qty</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr>${M.lines.map(l=>`<tr><td style="text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td>${esc(l.desc)}</td><td style="text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:inM2(l.rate)}</td><td style="text-align:right">${l.amt==null?"—":inM2(l.amt)}</td></tr>`).join("")}<tr><td></td><td><b>Total</b></td><td></td><td style="text-align:right"><b>$${inM2(M.total)}</b></td></tr></table></div>
  ${M.missing?`<p class="err">No price is set for some lines. Set it on the Dashboard first.</p>`:""}
- ${block?`<p class="err">${esc(block)}</p>`:`<p class="note">All customers in this week have a POD ✓ · invoice #${esc(nxt)}</p>`}
- <div class="bar" style="flex-wrap:wrap"><button class="pri" id="iv_send" ${block?"disabled":""}>Create &amp; send invoice</button><button id="iv_pv">Preview</button><button id="iv_dl" ${block?"disabled":""}>Download PDF</button><button data-x="1">Close</button></div>
+ ${block?`<p class="err">${esc(block)}</p>`:`<p class="note">All customers in this week have a POD ✓ · invoice #${esc(nxt)}${again?" · already created, sending again keeps the same number":""}</p>`}
+ <div class="bar" style="flex-wrap:wrap"><button class="pri" id="iv_send" ${block?"disabled":""}>${again?"Send again":"Create &amp; send invoice"}</button><button id="iv_pv">Preview</button><button id="iv_dl" ${block?"disabled":""}>Download PDF</button><button data-x="1">Close</button></div>
  <p id="iv_msg" class="note"></p><div id="iv_hist" class="note"></div></div>`;
  document.body.appendChild(d);
  const hist=async()=>{try{const r=await sb.from("invoice_emails").select("sent_at,to_list,cc_list,ok,error,inv_no").eq("company",c).eq("week",k).order("sent_at",{ascending:false}).limit(5);const e=document.getElementById("iv_hist");if(e&&r.data&&r.data.length)e.innerHTML="<b>Sent before:</b><br>"+r.data.map(x=>esc(fdt(x.sent_at))+" · "+(x.ok?"sent":"<span style='color:#b42318'>failed</span>")+" to "+esc((x.to_list||[]).join(", "))+((x.cc_list||[]).length?" (cc "+esc(x.cc_list.join(", "))+")":"")).join("<br>")}catch(e){}};hist();
@@ -1106,7 +1106,7 @@ async function invOpen(c,k){
   if(!r.no){invMsg("Type the invoice number first.",true);return}
   const M2=invModel(c,k,r);M2.co=Object.assign({},invCo(c),{name:r.name||coName(c),addr:r.addr,phone:r.phone});
   if(M2.missing){invMsg("Some lines have no price yet.",true);return}
-  if(!confirm("Send invoice "+r.no+" ($"+inM2(M2.total)+") to "+to.join(", ")+(cc.length?" and cc "+cc.join(", "):"")+"?"))return;
+  if(!confirm((again?"Send again invoice ":"Send invoice ")+r.no+" ($"+inM2(M2.total)+") to "+to.join(", ")+(cc.length?" and cc "+cc.join(", "):"")+"?"))return;
   const b=G("iv_send");b.disabled=true;
   try{invMsg("Saving and sending…");await invPersist(c,r);
    const doc=await invPdf(M2),pdf=doc.output("datauristring").split(",")[1],xl=await billXlsxB64(c,k),subj="Invoice "+r.no+" · Satmar Meat · week of "+M2.range;
@@ -1116,7 +1116,7 @@ async function invOpen(c,k){
    const res=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"sendinvoice",to,cc,subject:subj,html,text,pdf_b64:pdf,filename:invFile(M2),xlsx_b64:xl.b64,xlsx_name:xl.name,company:c,week:k,inv_no:r.no,amount:M2.total})});
    const j=await res.json().catch(()=>({}));
    if(!j.ok)throw new Error(j.error||("Not sent ("+res.status+")"));
-   try{const ins=await sb.from("invoices").insert({company:c,inv_date:r.date||M2.iso,inv_no:r.no,amount:M2.total,note:"Week "+k});if(ins.error)throw ins.error;await sb.from("app_settings").upsert({key:"invoice_last",value:{n:Number(r.no)},updated_at:new Date().toISOString()});INV.last=Number(r.no);await loadPayDb();G("iv_no").value=""}catch(e2){invMsg("Sent, but the invoice was not saved in the list: "+dberr(e2),true);b.disabled=true;return}
+   if(!again)try{const ins=await sb.from("invoices").insert({company:c,inv_date:r.date||M2.iso,inv_no:r.no,amount:M2.total,note:"Week "+k});if(ins.error)throw ins.error;await sb.from("app_settings").upsert({key:"invoice_last",value:{n:Number(r.no)},updated_at:new Date().toISOString()});INV.last=Number(r.no);await loadPayDb();G("iv_no").value=""}catch(e2){invMsg("Sent, but the invoice was not saved in the list: "+dberr(e2),true);b.disabled=true;return}
    invMsg("Sent ✓ to "+to.join(", ")+(cc.length?" (cc "+cc.join(", ")+")":""));hist()}
   catch(e){invMsg(String(e.message||e),true)}
   b.disabled=false}}
@@ -1542,7 +1542,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b166 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b167 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
