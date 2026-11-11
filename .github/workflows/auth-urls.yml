@@ -1,0 +1,32 @@
+# Adds office.satmarmeat.com to Supabase Auth redirect URLs (keeps all existing ones). mode=read only prints; mode=apply changes.
+name: Supabase auth URLs
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "read or apply"
+        required: true
+        default: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          T1: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          T2: ${{ secrets.SUPABASE_DB_TOKEN }}
+          MODE: ${{ github.event.inputs.mode }}
+        run: |
+          U=https://api.supabase.com/v1/projects/znszotxuhkxgbszhyqcp/config/auth
+          for T in "$T1" "$T2"; do
+            code=$(curl -sS -o cur.json -w "%{http_code}" "$U" -H "Authorization: Bearer $T")
+            echo "GET $code"; [ "$code" = 200 ] && break
+          done
+          [ "$code" = 200 ] || exit 1
+          echo "site_url: $(jq -r .site_url cur.json)"; echo "allow: $(jq -r .uri_allow_list cur.json)"
+          [ "$MODE" = apply ] || exit 0
+          NEW=https://office.satmarmeat.com
+          jq --arg n "$NEW" '{uri_allow_list: ((.uri_allow_list // "") | split(",") | map(select(length>0)) + [$n, $n+"/"] | unique | join(",")), site_url: $n}' cur.json > patch.json
+          code=$(curl -sS -o out.json -w "%{http_code}" -X PATCH "$U" -H "Authorization: Bearer $T" -H "Content-Type: application/json" --data @patch.json)
+          echo "PATCH $code"
+          [ "$code" -lt 300 ]
+          curl -sS "$U" -H "Authorization: Bearer $T" | jq '{site_url, uri_allow_list}'
