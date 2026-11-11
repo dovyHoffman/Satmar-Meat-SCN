@@ -132,7 +132,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b158">
+<meta name="build" content="b159">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1416,7 +1416,10 @@ function podsOld(c){
   if(r.error){S.dOld[c.id]={err:1};return}
   (r.data||[]).forEach(d=>{if(c.pods.some(p=>p.oid==d.order_id))return;const p={oid:d.order_id,k:d.week_label,food:"",drv:d.driver||"",at:fdate(d.delivered_at),ts:d.delivered_at?Date.parse(d.delivered_at):0,rec:d.receipt_url||"",links:(d.photo_urls||[]),paths:(d.photo_paths||[]),snap:d.snap||null};c.pods.push(p);c.weeks.push({w:p.k,on:true,got:"",req:"",pod:false,real:true,_p:p})});
   S.dOld[c.id]=true;if(S.view=="card"&&S.sel==c.id)render()},()=>{S.dOld[c.id]={err:1}})}
-function whLoad(c){podsOld(c);
+function billHist(c){
+ if(!S.real||!sb||!c.ref)return;S.bhl=S.bhl||{};if(S.bhl[c.id]!==undefined)return;S.bhl[c.id]=null;
+ sb.rpc("customer_billing_history",{p_ref:c.ref}).then(r=>{if(r.error){S.bhl[c.id]={err:1};return}c.bh=r.data||[];S.bhl[c.id]=true;if(S.view=="card"&&S.sel==c.id)render()},()=>{S.bhl[c.id]={err:1}})}
+function whLoad(c){podsOld(c);billHist(c);
  S.wh=S.wh||{};if(S.wh[c.ref]!==undefined||!sb)return;S.wh[c.ref]=null;
  sb.rpc("week_history_for",{p:c.ref}).then(r=>{S.wh[c.ref]=r.error?{err:dberr(r.error)}:(r.data||[]);if(S.view=="card"&&S.sel==c.id)render()},e=>{S.wh[c.ref]={err:dberr(e)};if(S.view=="card"&&S.sel==c.id)render()})}
 function whWeeks(){
@@ -1426,6 +1429,7 @@ function pastReal(c){
  whLoad(c);whWeeks();const WH=(S.wh||{})[c.ref],whOk=Array.isArray(WH),WW=Array.isArray(S.whw)?S.whw:[];
  const wk=new Map(),mk=ws=>{const k=+ws;if(!wk.has(k))wk.set(k,{ws:ws,list:[],h:null,up:false});return wk.get(k)};
  (c.pods||[]).forEach(p=>{const t=podTime(p);if(!t)return;mk(wkStartOf(t)).list.push(p)});
+ (c.bh||[]).forEach(b=>{const m=String(b.tab_date).split("-"),r=mk(wkStartOf(new Date(+m[0],+m[1]-1,+m[2],12)));(r.bh=r.bh||[]).push(b)});
  const dd=x=>{const m=String(x).split("-");return wkStartOf(new Date(+m[0],+m[1]-1,+m[2],12))};
  WW.forEach(w=>{mk(dd(w)).up=true});
  if(whOk)WH.forEach(h=>{const r=mk(dd(h.week_start));r.h=h;r.up=true});
@@ -1436,11 +1440,12 @@ function pastReal(c){
  const cells=r=>{const h=r.h;
   if(h&&!h.in_list)return `<td colspan="4" style="vertical-align:top"><b>Not on the list</b></td>`;
   if(!h&&+r.ws==weekStart())return c.active===false?`<td colspan="4" style="vertical-align:top"><b>Not on the list</b></td>`:`<td style="vertical-align:top">${esc(c.hh)||"–"}</td><td style="vertical-align:top">${c.base=="box"?"Box":"Meals"}</td><td style="vertical-align:top">${esc(optName(c.base,c.food))}<div class="note">On this week's list</div></td><td style="vertical-align:top">${esc(codesFor(c.food,c.hh,c.area))||"–"}</td>`;
+  if(!h&&r.bh&&!r.list.length){const b=r.bh[0];return `<td style="vertical-align:top">${esc(b.hh)||"–"}</td><td style="vertical-align:top">${b.base=="box"?"Box":"Meals"}</td><td style="vertical-align:top">${esc(optName(b.base,b.food)||b.food)||"–"}<div class="note">From the billing sheet</div></td><td style="vertical-align:top">–</td>`}
   if(!h)return r.up&&whOk?`<td colspan="4" class="note" style="vertical-align:top">Not on the list</td>`:`<td colspan="4" class="note" style="vertical-align:top">${whOk?"No list saved for this week":""}</td>`;
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · "),req=dash(h.request),chg=[dash(h.change),dash(h.change_note)].filter(Boolean).join(" · ");
   return `<td style="vertical-align:top">${esc(h.hh)||"–"}</td><td style="vertical-align:top">${esc(h.food_type)||"–"}</td><td style="vertical-align:top">${esc(sel)||"–"}${req?`<div class="note">Request: ${req}</div>`:""}${chg?`<div class="note">Change: ${chg}</div>`:""}</td><td style="vertical-align:top">${esc(h.box_codes)||"–"}</td>`};
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b158 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="wrap"><table><tr><th>Week</th><th>HH</th><th>Type</th><th>Selection</th><th>Box code</th><th>Delivered by · when · POD</th></tr>
- ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b></td>${cells(r)}<td style="white-space:normal;vertical-align:top">${r.list.map(line).join("")||((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):""))}</td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No past weeks found.</td></tr>"}</table></div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b159 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="wrap"><table><tr><th>Week</th><th>HH</th><th>Type</th><th>Selection</th><th>Box code</th><th>Delivered by · when · POD</th></tr>
+ ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));return `<tr><td style="white-space:nowrap;vertical-align:top"><b>${fm(r.ws)} – ${fm(e)}</b></td>${cells(r)}<td style="white-space:normal;vertical-align:top">${r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const L=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${L.length?L.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")))}</td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No past weeks found.</td></tr>"}</table></div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
 function showRealPod(id,lab){const c=cust.find(x=>x.id==id),p=podFor(c,lab);if(p)showPodP(c,p)}
