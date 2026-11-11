@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b175">
+<meta name="build" content="b176">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1571,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b175 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b176 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
@@ -1899,6 +1899,47 @@ function nlProj(useDraft){
   if(n.area){o.p.area=n.area;o.why.push("customer asked: area "+n.area)}
   if(n.a||n.addr)o.why.push("customer asked: new address")});
  return {P:P,removed:removed,added:added,R:R,nreq:nreq}}
+const PROD_GROUPS={kitchen:{name:"Kitchen",letters:["H","F","E","3"]},raw:{name:"Raw production",letters:["A","B","F"]}};
+function prodCounts(){
+ const useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
+ const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
+ now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area}));[...J.P.values()].forEach(o=>add(cn,o.p));
+ const sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0);
+ return {cn:cn,cx:cx,sum:sum,ex:ex,useDraft:useDraft}}
+function prodWeekLabel(){const s=new Date(wkKey(Date.now()).getTime()+7*864e5),a=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2),b=new Date(s.getFullYear(),s.getMonth(),s.getDate()+8),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
+async function prodMailOpen(g){
+ const G=PROD_GROUPS[g],d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ let sv={};try{const r=await sb.from("app_settings").select("value").eq("key","prod_emails").maybeSingle();sv=(r.data&&r.data.value)||{}}catch(e){}
+ const cur=sv[g]||{},C=prodCounts(),wk=prodWeekLabel();
+ d.innerHTML=`<div class="mod" style="max-width:640px;max-height:92vh;overflow:auto"><b style="font-size:17px">Email · ${esc(G.name)} · boxes ${G.letters.join(" ")}</b>
+ <p class="note">Week of ${esc(wk)}</p>
+ <div class="wrap"><table><tr><th>Box</th><th style="text-align:right">To make</th></tr>${G.letters.map(l=>`<tr><td><b>${l}</b> <span class="note">${esc(LD[l]||"")}</span></td><td style="text-align:right"><b>${C.sum(C.cn[l])+C.ex(l)}</b></td></tr>`).join("")}</table></div>
+ <p><b>Is this an estimate or the final number?</b></p>
+ <div class="bar"><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="pm_k" value="ESTIMATE" style="width:auto"> Estimate</label><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="pm_k" value="FINAL" style="width:auto"> Final</label></div>
+ <div class="rwfld"><label>Send to (emails, separated by comma)<input id="pm_to" value="${esc(cur.to||"")}" placeholder="name@company.com"></label><label>CC<input id="pm_cc" value="${esc(cur.cc||"")}" placeholder="optional"></label></div>
+ <div class="bar"><button class="pri" id="pm_send">Send email</button><button data-x="1">Close</button></div><p id="pm_msg" class="note"></p></div>`;
+ document.body.appendChild(d);
+ const G2=id=>document.getElementById(id),msg=(t,bad)=>{G2("pm_msg").textContent=t;G2("pm_msg").style.color=bad?"#b42318":"var(--ok)"};
+ G2("pm_send").onclick=async()=>{
+  const kd=document.querySelector('input[name="pm_k"]:checked');if(!kd){msg("Choose Estimate or Final first.",true);return}
+  const kind=kd.value,to=inMail(G2("pm_to").value),cc=inMail(G2("pm_cc").value);if(!to.length){msg("Add at least one email address.",true);return}
+  if(!confirm("Send the "+kind+" "+G.name+" numbers to "+to.join(", ")+"?"))return;
+  const rows=G.letters.map(l=>{const t=C.sum(C.cn[l])+C.ex(l),was=C.sum(C.cx[l])+C.ex(l);return {l:l,t:t,was:was,ar:AR.map(a=>[a,C.cn[l][a]||0])}}),when=new Date().toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+  const head=kind=="ESTIMATE"?"ESTIMATE – numbers can still change":"FINAL numbers",subj=kind+" · "+G.name+" · week of "+wk;
+  const html=`<div style="font:14px Arial,sans-serif;color:#111;max-width:640px"><p style="font-size:18px;margin:0 0 6px"><b style="color:${kind=="ESTIMATE"?"#b45309":"#15803d"}">${head}</b></p><p>${esc(G.name)} · week of ${esc(wk)}<br><span style="color:#666">Sent ${esc(when)}${C.useDraft?" · includes the new customer list":""} · based on the customer list and the changes customers asked for.</span></p>
+   <table style="border-collapse:collapse;width:100%"><tr style="background:#f3f4f6"><th style="text-align:left;padding:6px;border:1px solid #ddd">Box</th><th style="text-align:right;padding:6px;border:1px solid #ddd">To make</th><th style="text-align:right;padding:6px;border:1px solid #ddd">Last list</th><th style="text-align:left;padding:6px;border:1px solid #ddd">By area</th></tr>
+   ${rows.map(r=>`<tr><td style="padding:6px;border:1px solid #ddd"><b>${esc(r.l)}</b> ${esc(LD[r.l]||"")}</td><td style="text-align:right;padding:6px;border:1px solid #ddd;font-size:18px"><b>${r.t}</b></td><td style="text-align:right;padding:6px;border:1px solid #ddd">${r.was}</td><td style="padding:6px;border:1px solid #ddd">${r.ar.filter(a=>a[1]).map(a=>esc(a[0])+": "+a[1]).join(" · ")}</td></tr>`).join("")}</table>
+   ${kind=="ESTIMATE"?`<p style="color:#b45309"><b>This is an estimate.</b> A final number will be sent later.</p>`:""}<p>Satmar Meat<br>718-963-1100</p></div>`;
+  const text=head+"\n"+G.name+" · week of "+wk+"\n\n"+rows.map(r=>"Box "+r.l+": "+r.t+" (last list "+r.was+")").join("\n")+(kind=="ESTIMATE"?"\n\nThis is an estimate.":"")+"\n\nSatmar Meat 718-963-1100";
+  const b=G2("pm_send");b.disabled=true;
+  try{msg("Sending…");
+   const nx=Object.assign({},sv);nx[g]={to:G2("pm_to").value.trim(),cc:G2("pm_cc").value.trim()};try{await sb.from("app_settings").upsert({key:"prod_emails",value:nx,updated_at:new Date().toISOString()})}catch(e){}
+   const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
+   const res=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"sendinvoice",to,cc,subject:subj,html,text,company:"PRODUCTION",week:wk,inv_no:g+" "+kind})});
+   const j=await res.json().catch(()=>({}));if(!j.ok)throw new Error(j.error||("Not sent ("+res.status+")"));
+   msg("Sent ✓ "+kind+" to "+to.join(", "))}
+  catch(e){msg(String((e&&e.message)||e),true)}
+  b.disabled=false}}
 function nlProdView(){
  const H=esc,useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),list=[...J.P.values()];
  const cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
@@ -1918,6 +1959,7 @@ function nlProdView(){
  <div class="kpis">${kp("Families",list.length.toLocaleString(),dl(list.length,now.length).trim())}${kp("Households (people)",hhs.toLocaleString(),dl(hhs,now.reduce((t,c)=>t+c.hh,0)).trim())}${kp("Box",box,dl(box,nowBox).trim())}${kp("Meals",list.length-box,dl(list.length-box,now.length-nowBox).trim())}${kp("Customer changes applied",J.nreq)}${kp("New customers (list)",J.added.length)}${kp("Taken off (list)",J.removed.length)}</div>
  ${list.some(o=>o.p.area=="?")?`<p class="note">New customers have no area yet, so they are counted in each box total but not in an area bar.</p>`:""}</div>
  <div class="card"><h2>Boxes to prepare</h2>${boxGroups(tile)}<p class="note">The big number is how many boxes of that letter to start. The green or red number is the difference from the list as it is today. Manual extras from the Dashboard are included.</p></div>
+ <div class="card"><h2>Send the numbers by email</h2><p class="note">Each button asks you first if it is an <b>estimate</b> or the <b>final</b> numbers, and the email says so at the top.</p><div class="bar"><button class="pri" onclick="prodMailOpen('kitchen')">Email Kitchen · H F E 3</button><button class="pri" onclick="prodMailOpen('raw')">Email Raw production · A B F</button></div></div>
  <div class="card"><h2>Food type × household (next week)</h2><div class="wrap"><table><tr><th>Type</th>${hhn.map(n=>`<th>${n}</th>`).join("")}<th>Total</th></tr>${fk.map(f=>`<tr><td><span class="ctag ${fcls({food:f,base:f=="raw"||f=="rawnb"?"box":"meals"})}">${F[f]}</span></td>${hhn.map(n=>`<td>${list.filter(o=>o.p.food==f&&o.p.hh==n).length||""}</td>`).join("")}<td><b>${list.filter(o=>o.p.food==f).length}</b></td></tr>`).join("")}</table></div></div>
  <div class="card"><h2>What changes from today (${chg.length})</h2>${chg.length?`<div class="wrap" style="max-height:50vh;overflow:auto"><table style="font-size:13px"><tr><th>Customer</th><th>ID</th><th>Now</th><th>Next week</th><th>Why</th></tr>${sh.map(o=>{const c=o.c,was=o.isNew?"—":lc(c.food,c.hh,c.area),nx=lc(o.p.food,o.p.hh,o.p.area);return `<tr><td>${H(c.name||"")}</td><td>${H(c.ref||"")}</td><td>${H(was)}</td><td><b>${H(nx)}</b></td><td class="note">${H(o.why.join(" · "))}</td></tr>`}).join("")}</table></div>${chg.length>300?`<p class="note">Showing the first 300.</p>`:""}`:`<p class="note">No changes: next week is the same as now.</p>`}
  ${J.removed.length?`<p class="note"><b>Taken off by the new list:</b> ${J.removed.slice(0,40).map(o=>H(o.c.name||o.c.ref)).join(", ")}${J.removed.length>40?" and "+(J.removed.length-40)+" more":""}</p>`:""}</div>`}
