@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b205">
+<meta name="build" content="b206">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1571,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b205 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b206 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
@@ -2032,7 +2032,7 @@ function nlDupCalc(){
  const D=NL.d;NL.dg=[];NL.dk={};NL.dgDone=[];if(!D||!D.rows)return;
  const sk=D.skip||{},rows=D.rows.map(r=>({r:r,k:nlKey(r)})).filter(x=>!sk[x.k]),par=rows.map((_,i)=>i),f=i=>{while(par[i]!=i){par[i]=par[par[i]];i=par[i]}return i},idx={},why=rows.map(()=>({}));
  const okP=v=>{const d=nlDg(v);return d.length==10&&!/0{7}|^(\d)\1{9}$/.test(d)?d:""},nzA=r=>{const t=String(r.street||"").toLowerCase().replace(/[^a-z0-9]/g,"");return t.length>5?t+String(r.apt||"").toLowerCase().replace(/[^a-z0-9]/g,"")+String(r.zip||"").slice(0,5):""};
- rows.forEach((x,i)=>{const r=x.r,ks=[];if(r.agency_ref&&!r.noId)ks.push(["id","i:"+nk(r.agency_ref)]);[r.phone,r.cell].forEach(v=>{const d=okP(v);if(d)ks.push(["phone","p:"+d])});const a=nzA(r);if(a)ks.push(["address","a:"+a]);
+ rows.forEach((x,i)=>{const r=x.r,ks=[],AG=String(r.agency||"").toUpperCase()+"|";if(r.agency_ref&&!r.noId)ks.push(["id","i:"+AG+nk(r.agency_ref)]);[r.phone,r.cell].forEach(v=>{const d=okP(v);if(d)ks.push(["phone","p:"+AG+d])});const a=nzA(r);if(a)ks.push(["address","a:"+AG+a]);
   new Set(ks.map(q=>q[1])).forEach(()=>{});ks.forEach(q=>{if(idx[q[1]]==null)idx[q[1]]=i;else{const j=idx[q[1]],a2=f(i),b2=f(j);if(a2!=b2)par[a2]=b2;why[i][q[0]]=1;why[j][q[0]]=1}})});
  const gs={};rows.forEach((x,i)=>{const g=f(i);(gs[g]=gs[g]||[]).push(i)});
  Object.keys(gs).forEach(g=>{const m=gs[g];if(m.length<2)return;const rs=m.map(i=>rows[i]),rsn={};m.forEach(i=>Object.keys(why[i]).forEach(w=>rsn[w]=1));const gid=rs.map(x=>x.k).sort().join("|"),done=(D.dupOk||{})[gid];
@@ -2064,7 +2064,7 @@ function nlDupMergeDo(i,hh,base,food,nm){const D=NL.d,g=NL.dg[i];if(!g)return;
 function nlMergeUndo(i){const D=NL.d,m=(D.mlog||[])[i];if(!m)return;if(m.prev)D.edit[m.k]=m.prev;else delete D.edit[m.k];m.o.forEach(k=>delete D.skip[k]);D.mlog.splice(i,1);nlSave();render()}
 function nlDupView(){
  const H=esc,D=NL.d;if(!D)return `<div class="card"><h2>Duplicates</h2><p class="note">Upload the new list first.</p></div>`;
- const box=(g,i,done)=>`<div class="card" style="border-color:${done?"var(--bd,#ddd)":"#e5484d"}"><b style="color:${done?"inherit":"#b42318"}">${g.why.map(w=>nlWhy[w]).join(" + ")}</b>
+ const box=(g,i,done)=>`<div class="card" style="border-color:${done?"var(--bd,#ddd)":"#e5484d"}"><b style="color:${done?"inherit":"#b42318"}"><span class="ctag">${H(g.rows[0].r.agency||"")}</span> ${g.why.map(w=>nlWhy[w]).join(" + ")}</b>
  <div class="wrap"><table style="font-size:13px"><tr><th>ID</th><th>Name</th><th>Type</th><th>HH</th><th>Phone</th><th>Cell</th><th>Address</th><th></th></tr>${g.rows.map(x=>{const e=nlEff(x),r=x.r;return `<tr style="${done?"":"background:#fde8e8"}"><td><span class="ctag">${H(r.agency||"")}</span> ${H(r.agency_ref||"no ID")}</td><td>${H(e.name||"")}</td><td>${e.base=="box"?"Box":"Meals"}</td><td>${H(e.hh)}</td><td>${H(r.phone||"")}</td><td>${H(r.cell||"")}</td><td>${H([r.street,r.apt,r.city,r.zip].filter(Boolean).join(", "))}</td><td>${done?"":`<button onclick="nlSkip('${H(x.k)}',true)">Delete this one</button>`}</td></tr>`}).join("")}</table></div>
  ${done?`<div class="bar"><button onclick="nlDupUndo(${i})">Review again</button></div>`:`<div class="bar"><button class="pri" onclick="nlDupMerge(${i})">Merge into one…</button><button onclick="nlDupLeave(${i})">Leave as it is</button></div>`}</div>`;
  const ml=D.mlog||[];
