@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b173">
+<meta name="build" content="b174">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1571,7 +1571,7 @@ function pastReal(c){
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
  const dlv=r=>r.list.map(line).join("")||(r.bh&&r.bh.length?r.bh.map(b=>{const Lk=(b.links||[]).filter(u=>/^https?:\/\//i.test(u));return `<div class="dlvl"><span class="ctag" style="--c:#2a7">Delivered</span> <span class="note">${esc(b.company)} · billing sheet</span> ${Lk.length?Lk.map((u,i)=>LNK(u,i==0?"Receipt":"Photo "+i)).join(" "):'<span class="note">no links</span>'}</div>`}).join(""):((r.h&&!r.h.in_list)||(!r.h&&r.up&&whOk)||(!r.h&&+r.ws==weekStart()&&c.active===false)?'<span class="ctag t-no">Not active</span>':(r.up?(+r.ws<new Date(2026,9,3).getTime()?'<span class="note">no delivery data</span>':'<span class="note">not delivered</span>'):"")));
- return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b173 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
+ return `<div class="card"><h2>Past weeks <span class="note" style="font-weight:400">· b174 · ${(c.pods||[]).length} deliveries loaded</span></h2><div class="pwl">
  ${rows.map(r=>{const e=new Date(r.ws);e.setDate(e.getDate()+6);r.list.sort((a,b)=>podTime(a)-podTime(b));const cur=+r.ws==weekStart();return `<div class="pw${cur?" cur":""}"><div class="pwh"><b>${fm(r.ws)} – ${fm(e)}</b>${cur?'<span class="ctag t-ok">This week</span>':""}</div><div class="pwm">${menu(r)}</div><div class="pwd">${dlv(r)}</div></div>`}).join("")||'<p class="note">No past weeks found.</p>'}</div>${WH===null?'<p class="note">Loading the weekly history…</p>':(WH&&WH.err?`<p class="err">The weekly history could not be read: ${esc(WH.err)}</p>`:(whOk&&!WH.length&&!WW.length?'<p class="note">No weekly history saved yet. The owner can upload the SCN Sheet under Import, last card.</p>':""))}</div>`}
 function podNote(){return ""}
 function podPics(c,w){const p=podFor(c,w.w);if(!p)return "";return (p.links.length||(p.paths||[]).some(x=>x&&x!="-"))?`<button onclick="showRealPod(${c.id},'${esc(w.w)}')">View photo${p.links.length>1?"s ("+p.links.length+")":""}</button>`:'<span class="note">no photo yet</span>'}
@@ -1848,7 +1848,12 @@ async function nlFiles(files){
  if(!files||!files.length)return;NL.err="";NL.msg="";NL.busy=true;render();
  try{const seen={},rows=[];let skipped=0;
   const sk=[],useen={};
-  for(const f of files){const t=await f.text(),pr=nlParse(t),recs=pr.recs,keep=[];(pr.blank||[]).forEach(b=>sk.push({name:b,ref:"",why:"no name and no ID in the file (row has other data)",blankRow:1}));
+  const units=[];let lastErr=null;
+  for(const f of files){if(/\.xlsx?$/i.test(f.name)){await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let ok=0;
+    for(const sn of wb.SheetNames){const t=XLSX.utils.sheet_to_csv(wb.Sheets[sn]);try{nlParse(t);units.push({name:f.name+" · "+sn,text:t});ok++}catch(e){lastErr=e}}
+    if(!ok)throw new Error("No sheet in "+f.name+" has the Name and ID columns. "+((lastErr&&lastErr.message)||""))}
+   else units.push({name:f.name,text:await f.text()})}
+  for(const f of units){const t=f.text,pr=nlParse(t),recs=pr.recs,keep=[];(pr.blank||[]).forEach(b=>sk.push({name:b,ref:"",why:"no name and no ID in the file (row has other data)",blankRow:1}));
    recs.forEach((r,i)=>{const ref=String(r.ref||"").trim(),tag=f.name+"#"+i;if(!ref){r.ref="NOID"+(sk.length+keep.length);r.__t="noId";keep.push(r);sk.push({name:r.name,ref:"",why:"no ID"});return}const k=nk(ref);if(useen[k]){r.__o=ref;r.ref=ref+"~dup"+(sk.length+keep.length);r.__t="dup";keep.push(r);sk.push({name:r.name,ref:ref,why:"ID used twice"});return}useen[k]=1;keep.push(r)});
    const res=toDbRows(keep);res.rows.forEach(r=>{const o=keep.find(q=>q.ref==r.agency_ref);if(o&&o.__t=="noId"){r.agency_ref="";r.noId=true;r.agency=""}else if(o&&o.__t=="dup"){r.agency_ref=o.__o;r.dup=true}const k=nlKey(r)+(r.dup||r.noId?":"+rows.length:"");if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
@@ -1923,8 +1928,8 @@ function vNewList(){
 function vNewList0(){
  if(!S.user||S.user.role!="owner")return "";
  nlLoad();const R=nlCalc(),H=esc,D=NL.d;
- const up=`<div class="card"><h2>New list (draft)</h2><p class="note">Upload the customer list file(s) for next week. The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
- <input type="file" accept=".csv,text/csv" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
+ const up=`<div class="card"><h2>New list (draft)</h2><p class="note">Upload the customer list file(s) for next week (Excel .xlsx or .csv). The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
+ <input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
  if(!R)return up;
  if(NL.tab=="chg"||NL.tab=="names")NL.tab="swap";const T=NL_CATS.map(c=>[c[0],c[1],c[0]=="skd"?(R.skd||[]).map(x=>({sk:true,x:x})):nlRows(R,c[0])]),cnt=a=>a.filter(x=>!x.sk).length;
