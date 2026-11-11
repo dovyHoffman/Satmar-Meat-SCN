@@ -1,4 +1,0 @@
-select json_build_object(
- 'bp',(select json_agg(x) from (select (coalesce(array_length(d.photo_urls,1),0)>0) has_photo,(coalesce(array_length(d.photo_paths,1),0)>0) has_path,(coalesce(d.receipt_url,'')<>'') has_receipt,(d.delivered_at is not null) has_dt,count(*) n from deliveries d join customers c on c.id=d.customer_id where c.area::text='bp' group by 1,2,3,4 order by 5 desc) x),
- 'lee',(select json_agg(x) from (select (coalesce(array_length(d.photo_urls,1),0)>0) has_photo,(coalesce(array_length(d.photo_paths,1),0)>0) has_path,(coalesce(d.receipt_url,'')<>'') has_receipt,(d.delivered_at is not null) has_dt,count(*) n from deliveries d join customers c on c.id=d.customer_id where c.area::text='lee' group by 1,2,3,4 order by 5 desc) x),
- 'bp_receipt_sample',(select json_agg(left(receipt_url,70)) from (select d.receipt_url from deliveries d join customers c on c.id=d.customer_id where c.area::text='bp' and coalesce(d.receipt_url,'')<>'' limit 3) z)) r;
