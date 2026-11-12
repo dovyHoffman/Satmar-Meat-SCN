@@ -139,6 +139,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, path: p || "", info: p ? "" : photoInfo });
     }
     if (!me.owner) return json({ error: "not allowed" }, 403);
+    // ---- mode "probe": owner only, read only. Sends the given extra search fields to Scanovator to learn what it accepts (e.g. a date filter without phones). Returns counts and field names only. ----
+    if (body.mode === "probe") {
+      const r = await fetch(API, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, page: 1, limit: 5, ...(body.q || {}) }) });
+      const j = await r.json().catch(() => ({}));
+      const d = Array.isArray(j.data) ? j.data : [];
+      return json({ ok: true, status: r.status, message: String(j.message || "").slice(0, 200), errors: JSON.stringify(j.errors || {}).slice(0, 400), n: d.length, pagination: j.pagination || null, created: d.map((o: any) => o.createdAtIso), delivered: d.map((o: any) => o.actually_delivered), keys: d[0] ? Object.keys(d[0]).join(",") : "" });
+    }
     // ---- mode "lookup": owner only. Shows the raw Scanovator orders (all simple fields) for a few phone numbers. Read only. ----
     if (body.mode === "lookup") {
       const ph = body.raw ? (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => String(x)).slice(0, 5) : (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => digits(x)).filter((x: string) => x.length === 10).slice(0, 5);
