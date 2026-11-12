@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b214">
+<meta name="build" content="b215">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2155,7 +2155,7 @@ async function setOpt(k,v){
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S[k]=!!v;S.msg="Saved.";S.err=""}render()}
 function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
- const pg=PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"&&p[0]!="newlist"),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
+ const pg=(o=>PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"&&p[0]!="newlist").sort((x,y)=>(o.indexOf(x[0])<0?99:o.indexOf(x[0]))-(o.indexOf(y[0])<0?99:o.indexOf(y[0]))))(["dashboard","customers","changes","delivery","delivery_prev","menu","raw","kitchen","meat","chat","billing"]),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
  return `<div class="card"><h2>Changes for next week</h2>
  <p class="note">Anyone with access can add changes any time. Cut-off: every Sunday 7:00pm (New York time). Changes made before it start ${esc(nwk())}; changes made after it start one week later. This switches by itself.</p>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
