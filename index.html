@@ -139,7 +139,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b220">
+<meta name="build" content="b221">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2084,8 +2084,12 @@ function nlMergeUndo(i){const D=NL.d,m=(D.mlog||[])[i];if(!m)return;if(m.prev)D.
 function nlDupView(){
  const H=esc,D=NL.d;if(!D)return `<div class="card"><h2>Duplicates</h2><p class="note">Upload the new list first.</p></div>`;
  const exA={};cust.forEach(c=>{const k=nk(c.ref);if(!exA[k]||(!exA[k].active&&c.active))exA[k]=c});
- const nz=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,""),dAddr=r=>{const c=!r.noId&&r.agency_ref?exA[nk(r.agency_ref)]:null;if(!c)return "";const mine=nz([r.street,r.apt,r.city,r.zip].filter(Boolean).join("")),o=[];
-  const da=c.addr||"",hm=c.legal||"";if(da&&nz(da)!=mine&&!nz(da).startsWith(mine)&&!mine.startsWith(nz(da)))o.push("Delivery address on file: "+da);if(hm&&nz(hm)!=nz(da)&&nz(hm)!=mine&&!nz(hm).startsWith(mine)&&!mine.startsWith(nz(hm)))o.push("Home address on file: "+hm);
+ const SA={street:"st",avenue:"ave",road:"rd",boulevard:"blvd",place:"pl",drive:"dr",court:"ct",lane:"ln",parkway:"pkwy",terrace:"ter",east:"e",west:"w",north:"n",south:"s"},
+  nz=v=>String(v||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean).map(w=>SA[w]||w).join(""),
+  nap=v=>String(v||"").toLowerCase().replace(/\b(apt|apartment|unit|fl|floor|ste|suite|rm|room|bldg)\b/g," ").replace(/[^a-z0-9]/g,""),
+  sameA=(a,r)=>{const na=nz(a),ns=nz(r.street);if(!ns)return true;if(!na.includes(ns))return false;const ap=nap(r.apt);return !ap||nap(a).includes(ap)},
+  dAddr=r=>{const c=!r.noId&&r.agency_ref?exA[nk(r.agency_ref)]:null;if(!c)return "";const o=[],da=c.addr||"",hm=c.legal||"";
+  if(da&&!sameA(da,r))o.push("Delivery address on file: "+da);if(hm&&!sameA(hm,r)&&!(da&&nz(hm)==nz(da)&&!sameA(da,r)&&false))o.push("Home address on file: "+hm);
   return o.length?`<div class="note" style="margin-top:3px;color:#8a5a00">${o.map(H).join("<br>")}</div>`:""};
  const box=(g,i,done)=>`<div class="card" style="border-color:${done?"var(--bd,#ddd)":"#e5484d"}"><b style="color:${done?"inherit":"#b42318"}"><span class="ctag">${H(g.rows[0].r.agency||"")}</span> ${g.why.map(w=>nlWhy[w]).join(" + ")}</b>
  <div class="wrap"><table style="font-size:13px"><tr><th>ID</th><th>Name</th><th>Type</th><th>HH</th><th>Phone</th><th>Cell</th><th>Address</th><th></th></tr>${g.rows.map(x=>{const e=nlEff(x),r=x.r;return `<tr style="${done?"":"background:#fde8e8"}"><td><span class="ctag">${H(r.agency||"")}</span> ${H(r.agency_ref||"no ID")}</td><td>${H(e.name||"")}</td><td>${e.base=="box"?"Box":"Meals"}</td><td>${H(e.hh)}</td><td>${H(r.phone||"")}</td><td>${H(r.cell||"")}</td><td>${H([r.street,r.apt,r.city,r.zip].filter(Boolean).join(", "))}${dAddr(r)}</td><td>${done?"":`<button onclick="nlSkip('${H(x.k)}',true)">Delete this one</button>`}</td></tr>`}).join("")}</table></div>
