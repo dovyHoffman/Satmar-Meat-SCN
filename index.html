@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b269">
+<meta name="build" content="b270">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2017,14 +2017,22 @@ async function nlApprove(cat){
  NL.busy=false;render()}
 /* ---- New list · Production: how many boxes the kitchen starts from the list, the customers' settings and their changes for next week ---- */
 const nlDD=()=>S.view=="newlist"?NL.d:NL.W.next;
-function nlProj(useDraft){const w=NL.ws;if(S.view!="newlist")NL.ws="next";try{return nlProj0(useDraft)}finally{NL.ws=w}}
+function nlProj(useDraft){const w=NL.ws;if(S.view!="newlist")NL.ws="next";try{return NL.ws=="next"?nlProjNext(useDraft):nlProj0(useDraft)}finally{NL.ws=w}}
+/* New week numbers: companies already uploaded use the new list; every other company keeps last week's list (the Week tab), so the kitchen always has full numbers */
+function nlProjNext(useDraft){
+ if(!NL.W.cur)return nlProj0(useDraft);
+ NL.ws="cur";const A=nlProj0(true);NL.ws="next";
+ if(!NL.W.next)return A;
+ const B=nlProj0(true),UA=a=>String(a||"").toUpperCase(),up=new Set(NL.W.next.rows.map(r=>UA(r.agency))),P=new Map(),ag=o=>UA(o.c&&o.c.agency);
+ A.P.forEach((o,k)=>{if(!up.has(ag(o)))P.set(k,o)});B.P.forEach((o,k)=>{if(up.has(ag(o)))P.set(k,o)});
+ return {P:P,removed:A.removed.filter(o=>!up.has(ag(o))).concat(B.removed.filter(o=>up.has(ag(o)))),added:A.added.filter(o=>!up.has(ag(o))).concat(B.added.filter(o=>up.has(ag(o)))),R:B.R,nreq:B.nreq}}
 function nlProj0(useDraft){
  const P=new Map(),removed=[],added=[];let R=null;
  cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area,mid:c.mid},why:[]}));
  if(useDraft&&NL.d){R=nlCalc();
   if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area,mid:x.c.mid},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
     if(x.cats.type||x.cats.hh){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base;o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>/^(customer type|household)/.test(t)).join(", "))}});
-   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
+   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
    R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
  let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n)return;nreq++;
   if(n.food=="mid"){o.p.mid=true;o.why.push("customer asked: Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;if(o.p.mid){o.p.mid=false;o.why.push("customer asked: "+(F[n.food]||n.food)+" (leaves Middleton)")}else o.why.push("customer asked: "+(F[n.food]||n.food))}
@@ -2244,8 +2252,8 @@ function nlPreview(){
  <div class="wrap pvw" style="max-height:70vh;overflow:auto"><table class="pvt" style="font-size:12px;white-space:nowrap"><thead><tr>${hd}</tr></thead><tbody>${sh.map(x=>x.html).join("")}</tbody></table></div>${items.length>1500?`<p class="note">Showing the first 1,500 of ${items.length.toLocaleString()}.</p>`:`<p class="note">${items.length.toLocaleString()} rows.</p>`}</div>`}
 function nlWsBar(){const k=NL.ws,b=(w,t,sub)=>`<button class="${k==w?"pri":""}" style="padding:10px 18px;font-size:15px" onclick="nlWs('${w}')">${t}${sub?`<div style="font-size:11px;font-weight:400;opacity:.85">${sub}</div>`:""}</button>`;
  return `<div class="bar" style="margin-bottom:10px;gap:10px">${b("next","➕ New week",NL.W.next?"in progress":"upload next week's list")}${b("cur","Week "+((NL.W.cur&&NL.W.cur.label)||nlMon(0)),NL.W.cur?"this week · approved":"no list saved")}</div>${k=="cur"?`<p class="note" style="margin:-4px 0 8px">This is the list you already approved for this week. It is kept here with all its tabs. For next week's list, press <b>New week</b>.</p>`:`<p class="note" style="margin:-4px 0 8px">Upload next week's list here. When everything is approved it moves into its own <b>Week</b> tab and this page is empty again for the following week.</p>`}`}
-function nlCoStrip(){const D=NL.d,UA=a=>String(a||"").toUpperCase(),up=new Set((D&&D.rows||[]).map(r=>UA(r.agency))),act={},rows={};cust.filter(c=>c.active).forEach(c=>{const a=UA(c.agency);act[a]=(act[a]||0)+1});(D&&D.rows||[]).forEach(r=>{const a=UA(r.agency);rows[a]=(rows[a]||0)+1});
- const ags=[...new Set(Object.keys(act).concat([...up]))].sort(),card=a=>up.has(a)?`<div style="padding:8px 12px;border:2px solid #1a7f37;border-radius:10px;background:#eaf7ee;min-width:140px"><b>${esc(a)}</b> <span style="color:#1a7f37;font-weight:700">✓ NEW LIST</span><div class="note">${(rows[a]||0).toLocaleString()} customers in the new file</div></div>`:`<div style="padding:8px 12px;border:2px solid #b8bfcc;border-radius:10px;background:#f3f4f7;min-width:140px"><b>${esc(a)}</b> <span style="color:#667085;font-weight:700">LAST WEEK</span><div class="note">${(act[a]||0).toLocaleString()} customers (not uploaded yet)</div></div>`;
+function nlCoStrip(){const D=NL.d,UA=a=>String(a||"").toUpperCase(),up=new Set((D&&D.rows||[]).map(r=>UA(r.agency))),act={},rows={},lw={};((NL.W.cur&&NL.W.cur.rows)||[]).forEach(r=>{const a=UA(r.agency);lw[a]=(lw[a]||0)+1});cust.filter(c=>c.active).forEach(c=>{const a=UA(c.agency);act[a]=(act[a]||0)+1});(D&&D.rows||[]).forEach(r=>{const a=UA(r.agency);rows[a]=(rows[a]||0)+1});
+ const ags=[...new Set(Object.keys(act).concat([...up]))].sort(),card=a=>up.has(a)?`<div style="padding:8px 12px;border:2px solid #1a7f37;border-radius:10px;background:#eaf7ee;min-width:140px"><b>${esc(a)}</b> <span style="color:#1a7f37;font-weight:700">✓ NEW LIST</span><div class="note">${(rows[a]||0).toLocaleString()} customers in the new file</div></div>`:`<div style="padding:8px 12px;border:2px solid #b8bfcc;border-radius:10px;background:#f3f4f7;min-width:140px"><b>${esc(a)}</b> <span style="color:#667085;font-weight:700">LAST WEEK</span><div class="note">${(lw[a]||act[a]||0).toLocaleString()} customers (not uploaded yet)</div></div>`;
  return `<div class="card"><div style="font-weight:700;margin-bottom:6px">Kitchen numbers right now</div><p class="note" style="margin:0 0 8px">Companies you have uploaded show the <b>new list</b>. The other companies still show <b>last week's list</b>, so the kitchen always has the full numbers. Each time you upload a company, its numbers switch to the new list.</p><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${ags.map(card).join("")}</div><input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<span class="note"> Working…</span>`:""}</div>`}
 function nlWs(w){NL.ws=w;NL.view=w=="next"?"prod":"draft";NL.tab="all";NL.co="";NL.msg="";NL.err="";NL.dsel={};nlSave();render()}
 function vNewList(){if(!S.user||S.user.role!="owner")return vNewList1();return nlWsBar()+(NL.ws=="next"?nlCoStrip():"")+vNewList1()}
