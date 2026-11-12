@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b246">
+<meta name="build" content="b247">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -299,7 +299,7 @@ async function loadReal(){
  }catch(e){S.rerr=errMsg(e)}
  S.loading=false;render()}
 const SCN_ID="1ywt0YPqc2KmyI6f9Bz-HJpkJ8BccxgBMWmUm-Zn8cFg",WK_FALLBACK=["Week 10/24-10/31","Week 10/17-10/24","Week 10/10-10/17","Week 10/3-10/9"];
-const nk=v=>String(v==null?"":v).toLowerCase().replace(/[\s\-]+/g,"");
+const nk=v=>String(v==null?"":v).toLowerCase().replace(/[\s\-]+/g,"").replace(/^([a-z]+)0+(\d+)$/,"$1$2");/* LT00001 = LT1 */
 async function gvS(mcp,range){const r=await mcp.callTool("Google Sheets","get_values",{spreadsheetId:SCN_ID,range:range},{cache:false});let p=r.payload;if(typeof p==="string"){try{p=JSON.parse(p)}catch(x){p=null}}return p&&Array.isArray(p.values)?p.values:[]}
 async function loadHist(mcp){
  let tabs=[];
