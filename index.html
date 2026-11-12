@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b242">
+<meta name="build" content="b243">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1946,7 +1946,7 @@ async function nlFiles(files){
   {/* two cases: the SAME agency and the SAME ID in two files, one Meals and one Box = one family (never across agencies) */
    const grp={},byRef={};units.forEach((f,ui)=>f.pr.recs.forEach(r=>{const ref=String(r.ref||"").trim();if(!ref)return;const A=String(r.agency||"").toUpperCase(),g=A+"|"+nk(ref);(grp[g]=grp[g]||[]).push({ui:ui,r:r});(byRef[nk(ref)]=byRef[nk(ref)]||{})[A]=1}));
    Object.keys(byRef).forEach(k=>{if(Object.keys(byRef[k]).length>1)Object.keys(byRef[k]).forEach(A=>(grp[A+"|"+k]||[]).forEach(q=>q.r.ak=1))});
-   Object.keys(grp).forEach(g=>{const m=grp[g];if(m.length!=2||m[0].ui==m[1].ui)return;const a=m[0].r,b=m[1].r;if(!a.base||!b.base||a.base==b.base)return;
+   Object.keys(grp).forEach(g=>{const m=grp[g];if(m.length!=2)return;const a=m[0].r,b=m[1].r;if(!a.base||!b.base||a.base==b.base)return;
     const q=nlMk2(a,b,units[m[0].ui].name,units[m[1].ui].name),me=a===q.m?a:b,ot=me===a?b:a;me.cases=q.cases;me.hh=q.hh;me.enh=q.enh;me.base="meals";me.food=q.food;ot.__c2=1})}
   for(const f of units){const t=f.text,pr=f.pr,recs=pr.recs,keep=[];(pr.blank||[]).forEach(b=>sk.push({name:b,ref:"",why:"no name and no ID in the file (row has other data)",blankRow:1}));
    recs.forEach((r,i)=>{if(r.__c2)return;const ref=String(r.ref||"").trim(),tag=f.name+"#"+i;if(!ref){r.ref="NOID"+(sk.length+keep.length);r.__t="noId";keep.push(r);sk.push({name:r.name,ref:"",why:"no ID"});return}const k=String(r.agency||"").toUpperCase()+"|"+nk(ref);if(useen[k]){r.__o=ref;r.ref=ref+"~dup"+(sk.length+keep.length);r.__t="dup";keep.push(r);sk.push({name:r.name,ref:ref,why:"ID used twice"});return}useen[k]=1;keep.push(r)});
