@@ -297,6 +297,54 @@ Deno.serve(async (req) => {
     // two customers with the same ID text (e.g. bare numbers in different agencies) are never guessed: they are skipped
     for (const c of cust) { const k = idKey(c.agency_ref); if (!k) continue; if (byId.has(k)) ambiguous.add(k); else byId.set(k, c); }
     for (const k of ambiguous) byId.delete(k);
+
+    // ---- mode "byorder": for every order in the uploaded Scanovator export (order_map), ask Scanovator for THAT order number: delivery time, driver, receipt, pictures ----
+    if (body.mode === "byorder") {
+      const BATCH = 30;
+      const { data: allMap, error: me } = await sb.from("order_map").select("order_id,app_id,letters").order("order_id").range(offset, offset + BATCH - 1);
+      if (me) throw me;
+      const map = allMap || [];
+      const { count: total } = await sb.from("order_map").select("order_id", { count: "exact", head: true });
+      const ids = map.map((m: any) => String(m.order_id));
+      const have = new Map<string, any>();
+      if (ids.length) { const { data: ex } = await sb.from("deliveries").select("order_id,photo_paths,snap,delivered_at,customer_id").in("order_id", ids); (ex || []).forEach((x: any) => have.set(String(x.order_id), x)); }
+      let saved = 0, undelivered = 0, nocust = 0, failed = 0, skippedDone = 0;
+      const rows: any[] = [];
+      const one = async (m: any) => {
+        const oid = String(m.order_id);
+        const h = have.get(oid);
+        if (h && h.delivered_at && h.customer_id) { skippedDone++; return; }
+        for (let t = 0; t < 3; t++) {
+          try {
+            const r = await fetch(API, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, order_id: oid, page: 1, limit: 5 }) });
+            if (r.status === 429 || r.status >= 500) { await wait(1500 * (t + 1)); continue; }
+            const j = await r.json().catch(() => ({}));
+            const o = (j.data || []).find((x: any) => String(x.order_id) === oid) || (j.data || [])[0];
+            if (!o) { failed++; return; }
+            const c = byId.get(idKey(m.app_id));
+            if (!c) { nocust++; return; }
+            const delivered = nyIso(o.actually_delivered);
+            if (!delivered) { undelivered++; return; }
+            const letters = m.letters ? String(m.letters).split(/[^A-Za-z0-9]+/).filter(Boolean).map((x: string) => x.toUpperCase()).join(" ") : "";
+            const urls = (o.photos || []).map(String).filter(Boolean).map(https);
+            const row: any = {
+              order_id: oid, customer_id: c.id, week_label: label(delivered),
+              driver: String(o.driver_name || o.driver_string || ""), delivered_at: delivered, route_started: nyIso(o.route_started),
+              receipt_url: o.receipt_url ? https(o.receipt_url) : "", photo_urls: urls, synced_at: new Date().toISOString(),
+              photo_paths: ((h && h.photo_paths) || []).slice(0, urls.length),
+              snap: h && h.snap ? h.snap : { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: letters ? letters.split(" ").length : (Number(o.total_boxes) || 0), ...(letters ? { letters } : {}) },
+            };
+            rows.push(row);
+            return;
+          } catch { await wait(1000 * (t + 1)); }
+        }
+        failed++;
+      };
+      for (let i = 0; i < map.length; i += 6) await Promise.all(map.slice(i, i + 6).map(one));
+      if (rows.length) { const { error: e2 } = await sb.from("deliveries").upsert(rows, { onConflict: "order_id" }); if (e2) throw e2; saved = rows.length; }
+      const next = offset + BATCH < (total || 0) ? offset + BATCH : null;
+      return json({ ok: true, mode: "byorder", offset, next, total, saved, undelivered, nocust, failed, skipped_done: skippedDone });
+    }
     const byPhone = new Map<string, any[]>();
     for (const c of cust) {
       // the main phone AND the second (cell) number: an order may carry either one
