@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b284">
+<meta name="build" content="b285">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1833,7 +1833,7 @@ const nlNK=n=>String(n||"").toLowerCase().replace(/[^a-z]+/g," ").trim().split("
 const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.name)+":"+(r.hh||""):r.ak?"a:"+String(r.agency||"").toUpperCase()+":"+nk(r.agency_ref):nk(r.agency_ref);
 /* two cases of one family (same agency, same ID, one Meals + one Box): production counts ONE Meals family, household = both added */
 function nlMk2(a,b,fa,fb){const m=a.base=="meals"?a:b,x=m===a?b:a,fm=m===a?fa:fb,fx=m===a?fb:fa,c=q=>({base:q.base,food:q.food,hh:q.hh,enh:q.enh});
- return {m:m,cases:[Object.assign(c(m),{file:fm}),Object.assign(c(x),{file:fx})],hh:(m.hh&&x.hh)?m.hh+x.hh:undefined,enh:(m.enh==null&&x.enh==null)?undefined:(m.enh||0)+(x.enh||0),food:m.food||"meals"}}
+ return {m:m,cases:[Object.assign(c(m),{file:fm}),Object.assign(c(x),{file:fx})],hh:((m.hh||m.enh)&&(x.hh||x.enh))?(m.hh||m.enh)+(x.hh||x.enh):undefined,enh:(m.enh==null&&x.enh==null)?undefined:(m.enh||0)+(x.enh||0),food:m.food||"meals"}}
 function nlCalc(){
  const D=NL.d;if(!D)return null;const ex={},exN={},mag={},got={},exAg={};
  cust.forEach(c=>{const k=nk(c.ref);exAg[String(c.agency||"").toUpperCase()+"|"+k]=c;if(!ex[k]||(!ex[k].active&&c.active))ex[k]=c;const n=nlNK(c.name);if(n)(exN[n]=exN[n]||[]).push(c)});
@@ -1881,6 +1881,7 @@ function nlParse(text,fname,map){
   const num=k=>{const v=Number(String(r[k]==null?"":r[k]).replace(/[^0-9.]/g,""));return isFinite(v)?v:0},MX=(c.mealsIdx||c.boxIdx)?(()=>{const m=(c.mealsIdx||[]).reduce((t,k)=>t+num(k),0),x=(c.boxIdx||[]).reduce((t,k)=>t+num(k),0);return (m+x)>0?{hh:Math.round(m+x),base:m>0?"meals":"box",food:m>0?"meals":(nb?"rawnb":"raw")}:null})():null;
   const FB=noF0&&FT?{raw:["box","raw"],rawnb:["box","rawnb"],supper:["meals","supper"],shabbos:["meals","shabbos"],meals:["meals","meals"]}[FT]:null;if(FB&&FT=="raw"&&nb)FB[1]="rawnb";
   recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:MX?MX.hh:(hhv(g(r,c.hh))||undefined),enh:MX?undefined:(c.enh>=0&&g(r,c.enh)!==""?(Math.round(Number(g(r,c.enh).replace(/[^0-9.]/g,"")))||0):enhv(g(r,c.hh))),food:MX?MX.food:FB?FB[1]:noF?undefined:food,base:MX?MX.base:FB?FB[0]:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[],raw:{h:all[hi],v:r,f:fname||""}})});
+ recs.forEach(q=>{if(!q.hh&&q.enh>0)q.hh=q.enh});/* total family = Enhanced + HH add-on; a blank add-on counts as 0 */
  return {recs:recs,mode:"headers",blank:blank,nrows:nrows}}
 async function nlMapsLoad(){NL.maps={};try{const r=await sb.from("app_settings").select("value").eq("key","list_maps").maybeSingle();if(r.data&&r.data.value)NL.maps=r.data.value}catch(e){}}
 function nlSig(t){const all=parseCsv(t),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");for(let i=0;i<Math.min(all.length,15);i++){const c=all[i].map(hn).filter(Boolean);if(c.length>=3)return c.join("|").slice(0,400)}return ""}
