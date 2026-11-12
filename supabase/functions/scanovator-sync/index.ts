@@ -301,10 +301,13 @@ Deno.serve(async (req) => {
     // ---- mode "byorder": for every order in the uploaded Scanovator export (order_map), ask Scanovator for THAT order number: delivery time, driver, receipt, pictures ----
     if (body.mode === "byorder") {
       const BATCH = 30;
-      const { data: allMap, error: me } = await sb.from("order_map").select("order_id,app_id,letters").order("order_id").range(offset, offset + BATCH - 1);
+      const since = body.since ? String(body.since) : "";   // only orders saved from the export after this time (e.g. today's upload)
+      let q1 = sb.from("order_map").select("order_id,app_id,letters").order("order_id"); if (since) q1 = q1.gte("updated_at", since);
+      const { data: allMap, error: me } = await q1.range(offset, offset + BATCH - 1);
       if (me) throw me;
       const map = allMap || [];
-      const { count: total } = await sb.from("order_map").select("order_id", { count: "exact", head: true });
+      let q2 = sb.from("order_map").select("order_id", { count: "exact", head: true }); if (since) q2 = q2.gte("updated_at", since);
+      const { count: total } = await q2;
       const ids = map.map((m: any) => String(m.order_id));
       const have = new Map<string, any>();
       if (ids.length) { const { data: ex } = await sb.from("deliveries").select("order_id,photo_paths,snap,delivered_at,customer_id").in("order_id", ids); (ex || []).forEach((x: any) => have.set(String(x.order_id), x)); }
