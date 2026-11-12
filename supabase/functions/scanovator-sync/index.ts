@@ -310,7 +310,18 @@ Deno.serve(async (req) => {
     const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
     const since = Date.now() - daysBack * 864e5;
     let seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
-    const loose = body.loose === true;   // owner ticked "also match by name + phone"
+    const loose = body.loose === true;
+    const word = body.word === true;
+    const wkStart = (() => {   // last Saturday 00:00 New York (the delivery week starts Saturday)
+      const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+      const g = (t: string) => parts.find((x) => x.type === t)!.value;
+      const back = ({ Sat: 0, Sun: 1, Mon: 2, Tue: 3, Wed: 4, Thu: 5, Fri: 6 } as Record<string, number>)[g("weekday")];
+      const d = new Date(Date.UTC(Number(g("year")), Number(g("month")) - 1, Number(g("day")) - back, 12));
+      return new Date(nyIso(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} 00:00:00`)!).getTime();
+    })();
+    const thisWeek = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() >= wkStart; };
+    const haveWeek = new Set<string>();   // customers that already have a delivery this week
+    if (word) { for (let f = 0; ; f += 1000) { const { data } = await sb.from("deliveries").select("customer_id").gte("delivered_at", new Date(wkStart).toISOString()).not("customer_id", "is", null).range(f, f + 999); (data || []).forEach((x: any) => haveWeek.add(x.customer_id)); if ((data || []).length < 1000) break; } }   // owner ticked "also match by name + phone"
     const words = (t: unknown) => String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter(Boolean).sort().join(" ");
     const last10 = (v: unknown) => digits(v).slice(-10);
     // strict: the phone AND every word of the name must agree, and exactly ONE customer may fit
@@ -361,6 +372,16 @@ Deno.serve(async (req) => {
           if (mp && idKey(mp.app_id)) { const hit = byId.get(idKey(mp.app_id)); if (hit) { c = hit; viaId++; } }
           if (!c) for (const f of [o.customercode, o.online_order_id]) { const hit = byId.get(idKey(f)); if (hit && idKey(f)) { c = hit; viaId++; break; } }
                     if (!c && loose) { const h = byNamePhone(o); if (h) { c = h; viaName++; } }
+          // phone + at least one shared name word, ONE customer only, and ONLY for deliveries of this week to customers that have no delivery yet this week
+          if (!c && word && thisWeek(o)) {
+            const ow = new Set(words(`${o.fname || ""} ${o.lname || ""}`).split(" ").filter((w) => w.length > 1));
+            const hits = new Map<string, any>();
+            for (const ph of [o.phone, o.cell1, o.cell2]) for (const cc of byPhone.get(last10(ph)) || []) {
+              if (haveWeek.has(cc.id)) continue;
+              if (words(cc.name).split(" ").some((w) => w.length > 1 && ow.has(w))) hits.set(cc.id, cc);
+            }
+            if (hits.size === 1) { c = [...hits.values()][0]; viaName++; }
+          }
           if (!c && diagN < 40) { diagN++; const fl: [string, string][] = []; flat(o, "", fl);
             const PII = /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/;
             for (const [pa, va] of fl) {
