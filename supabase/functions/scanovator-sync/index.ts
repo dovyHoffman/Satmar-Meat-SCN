@@ -326,7 +326,7 @@ Deno.serve(async (req) => {
             if (!o) { failed++; return; }
             const c = byId.get(idKey(m.app_id));
             if (!c) { nocust++; return; }
-            const delivered = nyIso(o.actually_delivered);
+            const delivered = nyIso(o.actually_delivered) || ((o.photos || []).length && o.createdAtIso ? new Date(o.createdAtIso).toISOString() : null);   // pictures but no time: counts as delivered (shown at the order's creation time)
             if (!delivered) { undelivered++; return; }
             const letters = m.letters ? String(m.letters).split(/[^A-Za-z0-9]+/).filter(Boolean).map((x: string) => x.toUpperCase()).join(" ") : "";
             const urls = (o.photos || []).map(String).filter(Boolean).map(https);
@@ -452,7 +452,8 @@ Deno.serve(async (req) => {
             else if ([o.phone, o.cell1, o.cell2].some((p: any) => byPhone.has(last10(p)))) diag.phone_only++; else diag.nothing++;
           }
           if (!c) { noMatch++; unmatched.push(String(o.order_id)); if (examples.length < 3) examples.push(String(o.customercode || o.online_order_id || "(none)").slice(0, 20)); continue; }  // only match by customer ID
-          const delivered = nyIso(o.actually_delivered);
+          // an order with pictures but no delivery time (driver took the picture without completing the stop, e.g. BP) counts as delivered; the time shown is when the order was created
+          const delivered = nyIso(o.actually_delivered) || ((o.photos || []).length && o.createdAtIso ? new Date(o.createdAtIso).toISOString() : null);
           // "Case description" (Scanovator column AI) holds the box letters of this delivery, e.g. "B" or "A,S"
           let caseRaw: any = null, caseKey = "";
           for (const [k, v] of Object.entries(o)) { if (/case/i.test(k) && v !== null && v !== undefined && typeof v !== "object" && String(v).trim()) { caseRaw = v; caseKey = k; break; } }
