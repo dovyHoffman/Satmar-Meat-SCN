@@ -139,11 +139,12 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 <style>.cfz{position:sticky;top:0;z-index:15;background:var(--card);margin:-16px -16px 8px;padding:14px 16px 4px;border-radius:12px 12px 0 0;box-shadow:0 6px 8px -8px rgba(20,30,70,.35)}
 .cfz .kpis{display:flex;flex-wrap:wrap;gap:8px}.cfz .kpi.click{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--ln);border-top:1px solid var(--ln);border-radius:999px;padding:8px 16px;cursor:pointer;background:#f4f5fa;transition:all .12s}
 .cfz .kpi.click:hover{background:#eaecf8;border-color:#c5cbe8}.cfz .kpi.click.on{background:var(--ac);border-color:var(--ac);box-shadow:0 2px 8px rgba(59,79,216,.35)}.cfz .kpi.click.on .note{color:#fff;font-weight:600}.cfz .kpi.click.on b{color:#fff!important}
-.cfz .kpi.click .note{font-size:13px;font-weight:600;color:var(--tx)}.cfz .kpi.click b{display:inline;font-size:16px}</style>
+.cfz .kpi.click .note{font-size:13px;font-weight:600;color:var(--tx)}.cfz .kpi.click b{display:inline;font-size:16px}.pvt th{position:sticky;top:0;z-index:3;background:#f3f4f8;box-shadow:0 1px 0 #d9dce6}
+</style>
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b235">
+<meta name="build" content="b236">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2112,17 +2113,28 @@ function nlDupView(){
  ${NL.dg.map((g,i)=>box(g,i,false)).join("")||`<div class="card"><p class="msg">No duplicates left to review ✓</p></div>`}
  ${ml.length?`<div class="card"><h2>Merged (${ml.length})</h2>${ml.map((m,i)=>`<p class="note">${H(m.names.join("  +  "))} <button onclick="nlMergeUndo(${i})">Undo</button></p>`).join("")}</div>`:""}
  ${NL.dgDone.length?`<div class="card"><h2>Left as they are (${NL.dgDone.length})</h2>${NL.dgDone.map((g,i)=>box(g,i,true)).join("")}</div>`:""}`}
+function nlPvSort(i){const p=NL.pv||(NL.pv={c:-1,d:1});if(p.c===i)p.d=-p.d;else{p.c=i;p.d=1}render()}
 function nlPreview(){
  const H=esc,D=NL.d;if(!D)return `<div class="card"><h2>Preview</h2><p class="note">Upload the new list first.</p></div>`;
  const ex={};cust.forEach(c=>{const k=nk(c.ref);if(!ex[k]||(!ex[k].active&&c.active))ex[k]=c});
  const ids={};D.rows.forEach(r=>{if(r.agency_ref&&!r.noId){const k=String(r.agency||"")+"|"+nk(r.agency_ref);ids[k]=(ids[k]||0)+1}});
- const rows=D.rows.map(r=>({r:r,k:nlKey(r)})),sk=D.skip||{},sh=rows.slice(0,1500);
- const th=["Application ID","last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cell1","Total Family","Type","Company","Notes","Notes 2","Matched?"];
- const body=sh.map(x=>{const r=x.r,e=nlEff(x),nm=String(e.name||"").trim(),sp=nm.indexOf(" "),idD=r.agency_ref&&!r.noId&&ids[String(r.agency||"")+"|"+nk(r.agency_ref)]>1,oth=((NL.dk&&NL.dk[x.k])||(NL.dy&&NL.dy[x.k]))&&!idD,c=r.noId||r.dup?null:ex[nk(r.agency_ref)],skp=!!sk[x.k];
-  const st=r.noId?"No ID":c?"✓ "+H(c.name||"")+(c.active?"":" (off now)"):"New";
-  return `<tr style="${skp?"opacity:.4;text-decoration:line-through;":""}${idD?"background:#fbc9c9;":oth?"background:#fdeccb;":""}"><td>${H(r.agency_ref||"")}</td><td>${H(sp<0?nm:nm.slice(0,sp))}</td><td>${H(sp<0?"":nm.slice(sp+1))}</td><td>${H(r.street||"")}</td><td>${H(r.apt||"")}</td><td>${H(r.city||"")}</td><td>${H(r.state||"")}</td><td>${H(r.zip||"")}</td><td>${H(r.phone||"")}</td><td>${H(r.cell||"")}</td><td>${H(e.hh)}</td><td>${e.base=="box"?"Box":"Meals"}</td><td>${H(r.agency||"")}</td><td>${H(r.notes||"")}</td><td>${H(r.note2||"")}</td><td class="note">${st}${idD?" · <b style='color:#b42318'>duplicate ID</b>":oth?" · duplicate phone/address":""}</td></tr>`}).join("");
- return `<div class="card"><h2>Preview · like your Google sheet</h2><p class="note">The uploaded list in the Customer_data columns, with your edits, merges and deletes applied. <span style="background:#fbc9c9;padding:1px 6px">Red</span> = the same ID twice. <span style="background:#fdeccb;padding:1px 6px">Orange</span> = same phone or address. Crossed out = left out. The last column says if the ID matches a customer you already have.</p>
- <div class="wrap" style="max-height:70vh;overflow:auto"><table style="font-size:12px;white-space:nowrap"><tr>${th.map(t=>`<th>${t}</th>`).join("")}</tr>${body}</table></div>${rows.length>1500?`<p class="note">Showing the first 1,500 of ${rows.length.toLocaleString()}.</p>`:`<p class="note">${rows.length.toLocaleString()} rows.</p>`}</div>`}
+ const sk=D.skip||{};
+ const th=["Application ID","Last name","First name","Street Address","AptNum","City","State","Zip","Phone","Cell1","Total Family","Type","Company","Notes","Notes 2","Color / Matched?"];
+ const items=D.rows.map(r=>{const x={r:r,k:nlKey(r)},e=nlEff(x),nm=String(e.name||"").trim(),cm=nm.indexOf(","),sp=nm.indexOf(" ");
+  const last=cm>=0?nm.slice(0,cm).trim():(sp<0?nm:nm.slice(0,sp)),first=cm>=0?nm.slice(cm+1).trim():(sp<0?"":nm.slice(sp+1));
+  const idD=r.agency_ref&&!r.noId&&ids[String(r.agency||"")+"|"+nk(r.agency_ref)]>1,oth=((NL.dk&&NL.dk[x.k])||(NL.dy&&NL.dy[x.k]))&&!idD,c=r.noId||r.dup?null:ex[nk(r.agency_ref)],skp=!!sk[x.k];
+  const st=r.noId?"No ID":c?"✓ "+(c.name||"")+(c.active?"":" (off now)"):"New";
+  const rank=idD?0:oth?1:2;
+  const vals=[r.agency_ref||"",last,first,r.street||"",r.apt||"",r.city||"",r.state||"",r.zip||"",r.phone||"",r.cell||"",Number(e.hh)||0,e.base=="box"?"Box":"Meals",r.agency||"",r.notes||"",r.note2||"",rank];
+  const cell=(v,w)=>`<td${w?` style="max-width:${w}px;overflow:hidden;text-overflow:ellipsis" title="${H(v)}"`:""}>${H(v)}</td>`;
+  const html=`<tr style="${skp?"opacity:.4;text-decoration:line-through;":""}${idD?"background:#fbc9c9;":oth?"background:#fdeccb;":""}">${cell(vals[0])}${cell(last,150)}${cell(first,150)}${cell(vals[3],220)}${cell(vals[4],90)}${cell(vals[5])}${cell(vals[6])}${cell(vals[7])}${cell(vals[8])}${cell(vals[9])}${cell(String(e.hh==null?"":e.hh))}${cell(vals[11])}${cell(vals[12])}${cell(vals[13],160)}${cell(vals[14],160)}<td class="note">${H(st)}${idD?" · <b style='color:#b42318'>duplicate ID</b>":oth?" · duplicate phone/address":""}</td></tr>`;
+  return {vals,html}});
+ const pv=NL.pv||{c:-1,d:1};
+ if(pv.c>=0){const c=pv.c,d=pv.d;items.sort((a,b)=>{const x=a.vals[c],y=b.vals[c];const r=(typeof x=="number"&&typeof y=="number")?x-y:String(x).localeCompare(String(y),undefined,{numeric:true,sensitivity:"base"});return r*d||(a.vals[15]-b.vals[15])})}
+ const sh=items.slice(0,1500);
+ const hd=th.map((t,i)=>`<th onclick="nlPvSort(${i})" style="cursor:pointer;user-select:none">${t}${pv.c===i?(pv.d>0?" ▲":" ▼"):""}</th>`).join("");
+ return `<div class="card"><h2>Preview · like your Google sheet</h2><p class="note">The uploaded list in the Customer_data columns, with your edits, merges and deletes applied. <span style="background:#fbc9c9;padding:1px 6px">Red</span> = the same ID twice. <span style="background:#fdeccb;padding:1px 6px">Orange</span> = same phone or address. Crossed out = left out. <b>Click a column title to sort</b> (click again to reverse). To sort by color, click "Color / Matched?" (red first, then orange).</p>
+ <div class="wrap pvw" style="max-height:70vh;overflow:auto"><table class="pvt" style="font-size:12px;white-space:nowrap"><thead><tr>${hd}</tr></thead><tbody>${sh.map(x=>x.html).join("")}</tbody></table></div>${items.length>1500?`<p class="note">Showing the first 1,500 of ${items.length.toLocaleString()}.</p>`:`<p class="note">${items.length.toLocaleString()} rows.</p>`}</div>`}
 function vNewList(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
  nlLoad();nlDupCalc();if(NL.mapAsk)return nlMapView();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button></div>`;
