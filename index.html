@@ -139,7 +139,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b222">
+<meta name="build" content="b223">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1839,6 +1839,8 @@ function nlCalc(){
  out.ag=Object.keys(mag);
  cust.forEach(c=>{if(c.active&&mag[String(c.agency)]&&!got[c.uuid])out.off.push({k:nk(c.ref),c:c,sk:!!(D.skip||{})[nk(c.ref)]})});
  return out}
+/* household cell: "4" or "2 enhanced, 3 HH" (= enhanced + household add-ons, so 5) */
+function hhv(v){v=String(v==null?"":v);if(/enhanced|\bhh\b/i.test(v)){const n=v.match(/\d+/g);return n?n.reduce((t,x)=>t+Number(x),0):0}const m=v.replace(/[^0-9.]/g,"");return Math.round(Number(m))||0}
 function nlParse(text,fname,map){
  const all=parseCsv(text),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
  let hi=-1,H=[];
@@ -1858,7 +1860,7 @@ function nlParse(text,fname,map){
    addr=g(r,c.addr),ph=g(r,c.num),pr=g(r,c.prim),ce=g(r,c.cellc),ag=g(r,c.co)||(map&&map.ag)||((m=>m&&COS.indexOf(m.toUpperCase())>=0?m.toUpperCase():"")((String(fname||"").match(/^\s*([A-Za-z]{2,4})\b/)||[""])[1]))||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase()||"UNK";
   const num=k=>{const v=Number(String(r[k]==null?"":r[k]).replace(/[^0-9.]/g,""));return isFinite(v)?v:0},MX=(c.mealsIdx||c.boxIdx)?(()=>{const m=(c.mealsIdx||[]).reduce((t,k)=>t+num(k),0),x=(c.boxIdx||[]).reduce((t,k)=>t+num(k),0);return (m+x)>0?{hh:Math.round(m+x),base:m>0?"meals":"box",food:m>0?"meals":(nb?"rawnb":"raw")}:null})():null;
   const FB=noF0&&FT?{raw:["box","raw"],rawnb:["box","rawnb"],supper:["meals","supper"],shabbos:["meals","shabbos"],meals:["meals","meals"]}[FT]:null;if(FB&&FT=="raw"&&nb)FB[1]="rawnb";
-  recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:MX?MX.hh:(Math.round(Number(g(r,c.hh).replace(/[^0-9.]/g,"")))||undefined),food:MX?MX.food:FB?FB[1]:noF?undefined:food,base:MX?MX.base:FB?FB[0]:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[]})});
+  recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:MX?MX.hh:(hhv(g(r,c.hh))||undefined),food:MX?MX.food:FB?FB[1]:noF?undefined:food,base:MX?MX.base:FB?FB[0]:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[]})});
  return {recs:recs,mode:"headers",blank:blank,nrows:nrows}}
 async function nlMapsLoad(){NL.maps={};try{const r=await sb.from("app_settings").select("value").eq("key","list_maps").maybeSingle();if(r.data&&r.data.value)NL.maps=r.data.value}catch(e){}}
 function nlSig(t){const all=parseCsv(t),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");for(let i=0;i<Math.min(all.length,15);i++){const c=all[i].map(hn).filter(Boolean);if(c.length>=3)return c.join("|").slice(0,400)}return ""}
@@ -1875,7 +1877,7 @@ function nlAuto(t){
  const uq=j=>{const v=vals(j);return v.length>=2&&new Set(v.map(x=>x.toLowerCase())).size/v.length>=.85},byHU=re=>hdr.findIndex((h,j)=>!used.has(j)&&h&&re.test(h)&&uq(j));
  setc("id",byHU(/line\s*code|^code$|order\s*(id|no|number)|^(application|customer|client|case|account)\s*(id|no\.?|number|#)$/i))||setc("id",byHU(/^(family|application|customer|client|case|member|account)\s*(id|no\.?|number|#)?$|^id$|^(family|application|customer|client)\s*id|^ref(erence)?$/i))||setc("id",byC(v=>/^[A-Za-z][A-Za-z .,'\-]*\s-\s\d{7,}$/.test(v),.6));
  setc("name",byH(/^(clients?|names?|last\s*name|surname|family\s*name|customer\s*name|mother'?s?\s*name|full\s*name)$/i))||setc("name",byH(/name|client/i))||setc("name",byH(/^family$|^last$|^customer$|^mother/i));
- setc("hh",byH(/household|members|family\s*size|total\s*fam|people|persons|hh\b|# of/i))||(()=>{const f=v=>/^\d+(\.0+)?$/.test(v)&&+v>=1&&+v<=30,c=hdr.map((h,j)=>!used.has(j)&&h&&frac(j,f)>=.9?j:-1).filter(j=>j>=0);if(c.length==1)setc("hh",c[0])})();
+ setc("hh",byH(/household|members|family\s*size|total\s*fam|people|persons|hh\b|# of/i))||(()=>{const j=hdr.findIndex((h,k)=>!used.has(k)&&hn(h)=="total"&&frac(k,v=>/^\d{1,2}$/.test(v)||/^\d+\s*enhanced/i.test(v))>=.9);if(j>=0)return setc("hh",j)})()||(()=>{const f=v=>/^\d+(\.0+)?$/.test(v)&&+v>=1&&+v<=30,c=hdr.map((h,j)=>!used.has(j)&&h&&frac(j,f)>=.9?j:-1).filter(j=>j>=0);if(c.length==1)setc("hh",c[0])})();
  setc("addr",byH(/address|street/i))||setc("addr",byC(v=>/\d/.test(v)&&/(st|street|ave|avenue|rd|road|blvd|dr|drive|ln|lane|way|pkwy|ct|court|pl|place)\b/i.test(v),.5));
  setc("prim",byH(/primary\s*phone|^phone|^tel|home phone|phone\s*1/i));setc("cellc",byH(/secondary\s*phone|cell|mobile|phone\s*2|alt/i));
  if(!("prim" in cols))setc("prim",byH(/phone|tel/i))||setc("prim",byC(isPh,.6));
