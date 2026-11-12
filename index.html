@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b271">
+<meta name="build" content="b272">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2255,11 +2255,52 @@ function nlPreview(){
  <div class="wrap pvw" style="max-height:70vh;overflow:auto"><table class="pvt" style="font-size:12px;white-space:nowrap"><thead><tr>${hd}</tr></thead><tbody>${sh.map(x=>x.html).join("")}</tbody></table></div>${items.length>1500?`<p class="note">Showing the first 1,500 of ${items.length.toLocaleString()}.</p>`:`<p class="note">${items.length.toLocaleString()} rows.</p>`}</div>`}
 function nlWsBar(){const k=NL.ws,b=(w,t,sub)=>`<button class="${k==w?"pri":""}" style="padding:10px 18px;font-size:15px" onclick="nlWs('${w}')">${t}${sub?`<div style="font-size:11px;font-weight:400;opacity:.85">${sub}</div>`:""}</button>`;
  return `<div class="bar" style="margin-bottom:10px;gap:10px">${b("next","➕ New week",NL.W.next?"in progress":"upload next week's list")}${b("cur","Week "+((NL.W.cur&&NL.W.cur.label)||nlMon(0)),NL.W.cur?"this week · approved":"no list saved")}</div>${k=="cur"?`<p class="note" style="margin:-4px 0 8px">This is the list you already approved for this week. It is kept here with all its tabs. For next week's list, press <b>New week</b>.</p>`:`<p class="note" style="margin:-4px 0 8px">Upload next week's list here. When everything is approved it moves into its own <b>Week</b> tab and this page is empty again for the following week.</p>`}`}
+/* ---- a company changed its IDs: replace the IDs of existing customers from a list (this week's code + last week's code) ---- */
+const IDX={rows:null,ag:"CCS",fname:"",busy:false,msg:"",err:"",open:false};
+function idxCsv(t){const out=[];let row=[],f="",q=false;t=String(t||"").replace(/^﻿/,"");for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==","){row.push(f);f=""}else if(c=="\n"||c=="\r"){if(c=="\r"&&t[i+1]=="\n")i++;row.push(f);out.push(row);row=[];f=""}else f+=c}if(f!==""||row.length){row.push(f);out.push(row)}return out.filter(r=>r.some(x=>String(x).trim()!==""))}
+async function idxFile(files){const f=files&&files[0];if(!f)return;IDX.err="";IDX.msg="";IDX.rows=null;IDX.fname=f.name;
+ try{let a;if(/\.xlsx?$/i.test(f.name)){await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});a=idxCsv(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]))}else a=idxCsv(await f.text());
+  if(a.length<2)throw new Error("The file is empty.");const h=a[0].map(x=>String(x).toLowerCase().trim());
+  let iN=h.findIndex(x=>/this week|\bnew\b/.test(x)&&/code|id/.test(x)),iO=h.findIndex(x=>/last week|\bold\b|previous/.test(x)&&/code|id/.test(x));
+  if(iN<0||iO<0)throw new Error('I could not tell which column is the new ID and which is the old one. Name the columns "... this week" (new ID) and "... last week" (old ID).');
+  const iName=h.findIndex(x=>/family|name/.test(x)),iPh=h.findIndex(x=>/phone/.test(x));
+  const m=/^([A-Za-z]+)/.exec(f.name);if(m&&AGLIST().includes(m[1].toUpperCase()))IDX.ag=m[1].toUpperCase();
+  IDX.rows=a.slice(1).map(r=>({nw:String(r[iN]||"").trim(),old:String(r[iO]||"").trim(),name:iName>=0?String(r[iName]||"").trim():"",ph:iPh>=0?String(r[iPh]||"").trim():""}));
+ }catch(e){IDX.err=String(e&&e.message||e)}render()}
+const AGLIST=()=>[...new Set(cust.map(c=>String(c.agency||"").toUpperCase()))].sort();
+function idxPlan(){const ag=IDX.ag,cs=cust.filter(c=>String(c.agency||"").toUpperCase()==ag),by={},used={};cs.forEach(c=>{const k=nk(c.ref);(by[k]=by[k]||[]).push(c);used[k]=c});
+ const oc={},nc={};(IDX.rows||[]).forEach(r=>{if(r.old)oc[nk(r.old)]=(oc[nk(r.old)]||0)+1;if(r.nw)nc[nk(r.nw)]=(nc[nk(r.nw)]||0)+1});
+ return (IDX.rows||[]).map(r=>{const o={r:r,st:"",c:null};
+  if(!r.nw){o.st="skip:no new ID in the file";return o}
+  if(!r.old){o.st="none:no old ID (new customer)";return o}
+  if(nk(r.old)==nk(r.nw)){o.st="same:already this ID";return o}
+  if(oc[nk(r.old)]>1){o.st="skip:the same old ID is on two lines in the file";return o}
+  if(nc[nk(r.nw)]>1){o.st="skip:the same new ID is on two lines";return o}
+  const l=by[nk(r.old)]||[];if(!l.length){o.st="skip:old ID is not in your system";return o}
+  const a=l.filter(c=>c.active),pick=a.length==1?a[0]:(l.length==1?l[0]:null);if(!pick){o.st="skip:several customers have this old ID";return o}
+  const clash=used[nk(r.nw)];if(clash&&clash.uuid!=pick.uuid){o.st="skip:the new ID already belongs to another customer";return o}
+  o.c=pick;o.st="ok:will change";return o})}
+async function idxApply(){const P=idxPlan().filter(x=>x.c);if(!P.length||IDX.busy)return;
+ if(!confirm("Replace the ID of "+P.length+" "+IDX.ag+" customers with the new ID from the file?\n\nOnly the ID changes (nothing else). The old ID is kept in History. Nobody is deleted."))return;
+ IDX.busy=true;IDX.err="";IDX.msg="";render();let n=0;
+ try{for(const x of P){const r=await sb.from("customers").update({agency_ref:x.r.nw}).eq("id",x.c.uuid);if(r.error)throw r.error;x.c.ref=x.r.nw;n++}
+  IDX.msg="Done: "+n+" IDs replaced. They are saved in History with the old ID.";IDX.rows=null;try{await loadDB()}catch(e){}}
+ catch(e){IDX.err="Stopped after "+n+" IDs: "+dberr(e)+". Nothing else was changed."}
+ IDX.busy=false;render()}
+function idxCard(){const H=esc,P=IDX.rows?idxPlan():[],cnt={},lab=s=>s.split(":")[0];P.forEach(x=>cnt[lab(x.st)]=(cnt[lab(x.st)]||0)+1);
+ return `<div class="card"><details ${IDX.open||IDX.rows||IDX.msg||IDX.err?"open":""} ontoggle="IDX.open=this.open"><summary style="cursor:pointer;font-weight:700">Company changed its IDs? Replace the IDs from a list</summary>
+ <p class="note">Upload a list with two columns: the <b>new ID (this week)</b> and the <b>old ID (last week)</b>. Customers are found by the old ID, and only their ID is replaced. You see everything before anything changes.</p>
+ <div class="bar"><span class="note">Company:</span><select style="width:auto;margin:0" onchange="IDX.ag=this.value;render()">${AGLIST().map(a=>`<option ${a==IDX.ag?"selected":""}>${H(a)}</option>`).join("")}</select><input type="file" accept=".csv,.xlsx,.xls" onchange="idxFile(this.files)" ${IDX.busy?"disabled":""}></div>
+ ${IDX.err?`<p class="err">${H(IDX.err)}</p>`:""}${IDX.msg?`<p class="msg">${H(IDX.msg)}</p>`:""}
+ ${IDX.rows?`<p class="note"><b>${H(IDX.fname)}</b> · ${P.length} lines · <b style="color:#1a7f37">${cnt.ok||0} will change</b> · ${cnt.same||0} already have it · ${cnt.none||0} have no old ID (new customers) · <b style="color:#b42318">${cnt.skip||0} skipped</b> (see the reason in the list)</p>
+ <div class="wrap" style="max-height:50vh;overflow:auto"><table style="font-size:13px"><tr><th>Name</th><th>Old ID</th><th>New ID</th><th>What happens</th></tr>${P.filter(x=>lab(x.st)!="same").slice(0,400).map(x=>`<tr><td>${H(x.r.name)}</td><td>${H(x.r.old)}</td><td>${H(x.r.nw)}</td><td class="note" style="white-space:normal;color:${lab(x.st)=="ok"?"#1a7f37":lab(x.st)=="skip"?"#b42318":"#667085"}">${H(x.st.split(":")[1])}</td></tr>`).join("")}</table></div>
+ <div class="bar" style="margin-top:10px"><button class="pri" style="background:#1a7f37;border-color:#1a7f37" onclick="idxApply()" ${cnt.ok&&!IDX.busy?"":"disabled"}>✓ Replace ${cnt.ok||0} IDs</button><button onclick="IDX.rows=null;render()">Cancel</button>${IDX.busy?`<span class="note">Working…</span>`:""}</div>`:""}
+ </details></div>`}
 function nlCoStrip(){const D=NL.d,UA=a=>String(a||"").toUpperCase(),up=new Set((D&&D.rows||[]).map(r=>UA(r.agency))),act={},rows={},lw={};((NL.W.cur&&NL.W.cur.rows)||[]).forEach(r=>{const a=UA(r.agency);lw[a]=(lw[a]||0)+1});cust.filter(c=>c.active).forEach(c=>{const a=UA(c.agency);act[a]=(act[a]||0)+1});(D&&D.rows||[]).forEach(r=>{const a=UA(r.agency);rows[a]=(rows[a]||0)+1});
  const ags=[...new Set(Object.keys(act).concat([...up]))].sort(),card=a=>up.has(a)?`<div style="padding:8px 12px;border:2px solid #1a7f37;border-radius:10px;background:#eaf7ee;min-width:140px"><b>${esc(a)}</b> <span style="color:#1a7f37;font-weight:700">✓ NEW LIST</span><div class="note">${(rows[a]||0).toLocaleString()} customers in the new file</div></div>`:`<div style="padding:8px 12px;border:2px solid #b8bfcc;border-radius:10px;background:#f3f4f7;min-width:140px"><b>${esc(a)}</b> <span style="color:#667085;font-weight:700">LAST WEEK</span><div class="note">${(lw[a]||act[a]||0).toLocaleString()} customers (not uploaded yet)</div></div>`;
  return `<div class="card"><div style="font-weight:700;margin-bottom:6px">Kitchen numbers right now</div><p class="note" style="margin:0 0 8px">Companies you have uploaded show the <b>new list</b>. The other companies still show <b>last week's list</b>, so the kitchen always has the full numbers. Each time you upload a company, its numbers switch to the new list.</p><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">${ags.map(card).join("")}</div><input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<span class="note"> Working…</span>`:""}</div>`}
 function nlWs(w){NL.ws=w;NL.view=w=="next"?"prod":"draft";NL.tab="all";NL.co="";NL.msg="";NL.err="";NL.dsel={};nlSave();render()}
-function vNewList(){if(!S.user||S.user.role!="owner")return vNewList1();return nlWsBar()+(NL.ws=="next"?nlCoStrip():"")+vNewList1()}
+function vNewList(){if(!S.user||S.user.role!="owner")return vNewList1();return nlWsBar()+(NL.ws=="next"?idxCard()+nlCoStrip():"")+vNewList1()}
 function vNewList1(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
  nlLoad();nlDupCalc();if(NL.mapAsk)return nlMapView();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button><button class="${NL.view=="cases"?"pri":""}" onclick="NL.view='cases';render()">Two cases${NL.d&&NL.d.rows?" ("+NL.d.rows.filter(r=>r.cases).length+")":""}</button></div>`;
