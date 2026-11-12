@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b266">
+<meta name="build" content="b267">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1822,10 +1822,12 @@ async function doImport(quiet){
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";if(quiet)throw e}
  render()}
 /* ===== New list (draft): upload, review, edit, approve ===== */
-const NL={d:null,loaded:false,busy:false,msg:"",err:"",tab:"all"};
+const NL={W:{cur:null,next:null,prev:null},ws:"cur",loaded:false,busy:false,msg:"",err:"",tab:"all"};
+Object.defineProperty(NL,"d",{get(){return this.W[this.ws]||null},set(v){this.W[this.ws]=v},enumerable:true});
+const nlMon=o=>{const s=wkKey(Date.now()),d=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2+7*o);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})};
 const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
-async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;NL.d=r.data&&r.data.payload&&r.data.payload.rows?r.data.payload:null;NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
-async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
+async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;const pl=r.data&&r.data.payload;if(pl&&pl.v==2){NL.W={cur:pl.W&&pl.W.cur||null,next:pl.W&&pl.W.next||null,prev:pl.W&&pl.W.prev||null};NL.ws=pl.ws=="next"?"next":"cur"}else if(pl&&pl.rows){NL.W={cur:pl,next:null,prev:null};NL.ws="cur"}if(NL.W.cur&&!NL.W.cur.label)NL.W.cur.label=nlMon(0);NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
+async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:{v:2,ws:NL.ws,W:NL.W},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
 const nlDg=v=>{let d=String(v||"").replace(/\D/g,"");if(d.length==11&&d[0]=="1")d=d.slice(1);return d};
 const nlNK=n=>String(n||"").toLowerCase().replace(/[^a-z]+/g," ").trim().split(" ").filter(Boolean).sort().join(" ");
 const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.name)+":"+(r.hh||""):r.ak?"a:"+String(r.agency||"").toUpperCase()+":"+nk(r.agency_ref):nk(r.agency_ref);
@@ -1991,7 +1993,7 @@ async function nlReviewXlsx(){const R=nlCalc();if(!R)return;
  <div class="bar" style="margin-top:12px"><button class="pri" style="background:#1a7f37;border-color:#1a7f37" id="nlRevOk" ${rows.length>1?"":"disabled"}>✓ Approve these (${rows.length-1})</button><button data-x="1">Close</button></div></div>`;
  document.body.appendChild(d);const ok=d.querySelector("#nlRevOk");if(ok)ok.onclick=()=>{d.remove();nlApproveTicked()}}
 function nlTab(t){NL.tab=t;render()}
-async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";try{await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id})}catch(e){}render()}
+async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";await nlSave();render()}
 const NL_CATS=[["every","Everyone on this week's list"],["all","Everything below"],["nw","New customers"],["swap","Name only flipped (Last, First)"],["name","Name is different"],["type","Box / Meals changed"],["hh","Household number changed"],["fill","Phone / cell / note added"],["on","Turned back on"],["off","In our system, not in the file"],["skd","Rows the file had but we left out"]];
 function nlRows(R,cat){if(cat=="every"){const D=NL.d,sk=D.skip||{},nwS=new Set(R.nw.map(x=>x.k)),chS=new Set(R.chg.map(x=>x.k));return (D.rows||[]).filter(r=>!NL.co||String(r.agency||"").toUpperCase()==NL.co).map(r=>{const k=nlKey(r),e=nlEff({r:r,k:k});return {k:k,r:r,e:e,skipped:!!sk[k],st:r.cases?"Held back: two cases":sk[k]?"Skipped (you ticked skip)":nwS.has(k)?"New":chS.has(k)?"Changed":"Same, no change",wasNew:nwS.has(k)}})}
  return cat=="all"?R.nw.map(x=>Object.assign({kind:"New"},x)).concat(R.chg.map(x=>Object.assign({kind:"Changed"},x)),R.off.map(x=>Object.assign({kind:"Not on list"},x))):cat=="nw"?R.nw:cat=="off"?R.off:cat=="skd"?[]:R.chg.filter(x=>x.cats[cat])}
@@ -2010,11 +2012,13 @@ async function nlApprove(cat){
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
   if(NL.d){const D0=NL.d;D0.appr=D0.appr||{};[...SET].forEach(k=>D0.appr[k]=1);nlSave()}
   NL.msg="Approved "+lab+": "+nw.length+" new, "+ch.length+" updated, "+of.length+" switched off.";
-  await loadDB();const R2=nlCalc();if(!NL.co&&(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});NL.msg+=" Everything in the draft is done."}}
+  await loadDB();const R2=nlCalc();if(!NL.co&&(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){if(NL.ws=="next"){const D1=NL.d;D1.label=D1.label||nlMon(1);NL.W.prev=NL.W.cur;NL.W.cur=D1;NL.W.next=null;NL.ws="cur";NL.view="draft";NL.msg+=" Everything is approved. This list is now saved as the tab Week "+D1.label+"."}else NL.msg+=" Everything in this week is approved.";await nlSave()}}
  catch(e){NL.err="Stopped: "+dberr(e)+(/apply_list_draft|function/i.test(String(e&&e.message))?" (Database update 044 has not been run yet.)":"")+" Nothing was deleted. Whatever was done is in History."}
  NL.busy=false;render()}
 /* ---- New list · Production: how many boxes the kitchen starts from the list, the customers' settings and their changes for next week ---- */
-function nlProj(useDraft){
+const nlDD=()=>S.view=="newlist"?NL.d:NL.W.next;
+function nlProj(useDraft){const w=NL.ws;if(S.view!="newlist")NL.ws="next";try{return nlProj0(useDraft)}finally{NL.ws=w}}
+function nlProj0(useDraft){
  const P=new Map(),removed=[],added=[];let R=null;
  cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area,mid:c.mid},why:[]}));
  if(useDraft&&NL.d){R=nlCalc();
@@ -2029,7 +2033,7 @@ function nlProj(useDraft){
  return {P:P,removed:removed,added:added,R:R,nreq:nreq}}
 const PROD_GROUPS={kitchen:{name:"Kitchen",letters:["H","F","E","3"]},raw:{name:"Raw production",letters:["A","B","F"]}};
 function prodCounts(){
- const useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
+ const useDraft=NL.useDraft!==false&&!!nlDD(),J=nlProj(useDraft),now=cust.filter(c=>c.active),cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
  const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
  now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));[...J.P.values()].forEach(o=>add(cn,o.p));
  const sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0);
@@ -2070,7 +2074,7 @@ async function prodMailOpen(g){
   catch(e){msg(String((e&&e.message)||e),true)}
   b.disabled=false}}
 function nlProdView(){
- const H=esc,useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),list=[...J.P.values()];
+ const H=esc,useDraft=NL.useDraft!==false&&!!nlDD(),J=nlProj(useDraft),now=cust.filter(c=>c.active),list=[...J.P.values()];
  const cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
  const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
  now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));list.forEach(o=>add(cn,o.p));
@@ -2238,7 +2242,11 @@ function nlPreview(){
  const hd=th.map((t,i)=>`<th onclick="nlPvSort(${i})" style="cursor:pointer;user-select:none">${t}${pv.c===i?(pv.d>0?" ▲":" ▼"):""}</th>`).join("");
  return `<div class="card"><h2>Preview · like your Google sheet</h2><p class="note">The uploaded list in the Customer_data columns, with your edits, merges and deletes applied. <span style="background:#fbc9c9;padding:1px 6px">Red</span> = the same ID twice. <span style="background:#fdeccb;padding:1px 6px">Orange</span> = same phone or address. Crossed out = left out. <b>Click a column title to sort</b> (click again to reverse). To sort by color, click "Color / Matched?" (red first, then orange).</p>
  <div class="wrap pvw" style="max-height:70vh;overflow:auto"><table class="pvt" style="font-size:12px;white-space:nowrap"><thead><tr>${hd}</tr></thead><tbody>${sh.map(x=>x.html).join("")}</tbody></table></div>${items.length>1500?`<p class="note">Showing the first 1,500 of ${items.length.toLocaleString()}.</p>`:`<p class="note">${items.length.toLocaleString()} rows.</p>`}</div>`}
-function vNewList(){
+function nlWsBar(){const k=NL.ws,b=(w,t,sub)=>`<button class="${k==w?"pri":""}" style="padding:10px 18px;font-size:15px" onclick="nlWs('${w}')">${t}${sub?`<div style="font-size:11px;font-weight:400;opacity:.85">${sub}</div>`:""}</button>`;
+ return `<div class="bar" style="margin-bottom:10px;gap:10px">${b("next","➕ New week",NL.W.next?"in progress":"upload next week's list")}${b("cur","Week "+((NL.W.cur&&NL.W.cur.label)||nlMon(0)),NL.W.cur?"this week · approved":"no list saved")}</div>${k=="cur"?`<p class="note" style="margin:-4px 0 8px">This is the list you already approved for this week. It is kept here with all its tabs. For next week's list, press <b>New week</b>.</p>`:`<p class="note" style="margin:-4px 0 8px">Upload next week's list here. When everything is approved it moves into its own <b>Week</b> tab and this page is empty again for the following week.</p>`}`}
+function nlWs(w){NL.ws=w;NL.view="draft";NL.tab="all";NL.co="";NL.msg="";NL.err="";NL.dsel={};nlSave();render()}
+function vNewList(){if(!S.user||S.user.role!="owner")return vNewList1();return nlWsBar()+vNewList1()}
+function vNewList1(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
  nlLoad();nlDupCalc();if(NL.mapAsk)return nlMapView();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button><button class="${NL.view=="cases"?"pri":""}" onclick="NL.view='cases';render()">Two cases${NL.d&&NL.d.rows?" ("+NL.d.rows.filter(r=>r.cases).length+")":""}</button></div>`;
  if(NL.view=="prod")return nb+nlProdView();if(NL.view=="prev")return nb+nlPreview();if(NL.view=="dups")return nb+nlDupView();if(NL.view=="cases")return nb+nlCasesView();return nb+vNewList0()}
