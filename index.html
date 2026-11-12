@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b264">
+<meta name="build" content="b265">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -171,8 +171,8 @@ cust.forEach(c=>c.active=true);
    weeks:["10/26","10/19","10/12"].map((w,k)=>({w:w,on:k>0||active,got:(k>0||active)?"Sample":"",pod:(k>0||active)&&id%3!=0}))});
  }})();
 const SET={1:["H","B","H","B"],2:["E C","A S","E C","3 B"],3:["E B","A M","E B","A 3"],4:["E A","A M","E A","A 3"],5:["E A","A D L","E A","A 3"],6:["E A B","D A L","E A B","A 3 3"]};const SET0=JSON.stringify(SET);for(let n=7;n<=10;n++)SET[n]=SET[6].slice();
-function codesFor(food,hh,area){
- if(area=="Middleton")return "MN"+(hh>=3?"3+":Math.max(hh,1));
+function codesFor(food,hh,area,mid){
+ if(mid||area=="Middleton")return "MN"+(hh>=3?"3+":Math.max(hh,1));
  const r=SET[Math.min(Math.max(hh,1),10)],i={meals:0,raw:1,rawnb:1,supper:2,shabbos:3}[food];let t=r[i];
  if(food=="rawnb")t=t.split(" ").map(x=>({S:"Sc",M:"Mc",L:"Lc"}[x]||x)).join(" ");return t}
 const CODEC={"H":"#3b82f6","B":"#22a559","E C":"#e07b00","A S":"#8b5cf6","3 B":"#0f9d9a","E B":"#e0483e","A M":"#d946a8","A 3":"#7c8a1a","E A":"#0ea5e9","A D L":"#b45309","D A L":"#64748b","E A B":"#c026d3","A 3 3":"#4f46e5","MN1":"#16a34a","MN2":"#ca8a04","MN3+":"#dc2626"};
@@ -183,7 +183,7 @@ function optList(base,agency){
  return o}
 const fcls=c=>c.food=="meals"?"t-meals":c.food=="supper"?"t-sup":c.food=="shabbos"?"t-sab":c.food=="rawnb"?"t-nb":c.base=="box"?"t-box":"t-raw";
 const optName=(base,food)=>(optList(base,"").find(x=>x[0]==food)||[0,F[food]])[1];
-const tag=c=>(c.base=="box"?"Box":"Meals")+" "+codesFor(c.food,c.hh,c.area);
+const tag=c=>(c.base=="box"?"Box":"Meals")+" "+codesFor(c.food,c.hh,c.area,c.mid);
 let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:false,loading:false,rerr:"",pg:0,dq:"",dpg:0,dflt:"all",msg:"",err:""},log=[],reqs=[];
 
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
@@ -331,7 +331,7 @@ const COLS=[
  {k:"phone",l:"Phone",on:1,v:c=>esc(c.phone),s:c=>c.phone},
  {k:"base",l:"Type",on:1,v:c=>c.base=="box"?"Box":"Meals",s:c=>c.base},
  {k:"hh",l:"HH",on:1,v:c=>c.hh,s:c=>+c.hh||0,num:1},
- {k:"chose",l:"Customer chose",on:1,v:c=>{if(S.real&&c.active===false)return `<span class="note">–</span>`;const code=codesFor(c.food,c.hh,c.area);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area)+" "+optName(c.base,c.food)},
+ {k:"chose",l:"Customer chose",on:1,v:c=>{if(S.real&&c.active===false)return `<span class="note">–</span>`;const code=codesFor(c.food,c.hh,c.area,c.mid);return `<span class="ctag" style="--c:${codeColor(code)};cursor:pointer" title="Click to see the menu" onclick="event.stopPropagation();showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(code)}</span>`},s:c=>codesFor(c.food,c.hh,c.area,c.mid)+" "+optName(c.base,c.food)},
  {k:"deliv",l:"Delivery",on:1,v:c=>delTag(c,S.wkOff||0),s:c=>{const w=S.real?weekDel(c,S.wkOff||0):null;return w?(w.last?w.last.ts:0)+(w.state=="part"?0:0):(c.delivered?1:0)},num:1},
  {k:"agency",l:"Agency",v:c=>esc(c.agency),s:c=>c.agency},
  {k:"area",l:"Area",v:c=>esc(c.area),s:c=>c.area},
@@ -357,10 +357,10 @@ function vList(db){
  const q=(db?S.dq:S.q).toLowerCase(),f=db?S.dflt:"active",pk=db?"dpg":"pg",nA=cust.filter(c=>c.active).length,nI=cust.length-nA;
  const all=cust.filter(c=>f=="all"||(f=="active")==c.active),rows=all.filter(c=>(c.name+c.ref+c.addr+c.phone+c.agency+(c.email||"")+(c.legal||"")).toLowerCase().includes(q)).filter(c=>{
   if(S.fBase&&c.base!=S.fBase)return false;
-  if(S.fCode&&codesFor(c.food,c.hh,c.area).split(/\s+/).indexOf(S.fCode)<0)return false;
+  if(S.fCode&&codesFor(c.food,c.hh,c.area,c.mid).split(/\s+/).indexOf(S.fCode)<0)return false;
   if(S.fDel){const st=S.real?weekDel(c,S.wkOff||0).state:(c.delivered?"full":"none");if(S.fDel=="done"?st!="full":S.fDel=="part"?st!="part":st!="none")return false}
   return true});
- const letters=[...new Set(cust.filter(c=>c.active).flatMap(c=>codesFor(c.food,c.hh,c.area).split(/\s+/)).filter(x=>/^[A-Za-z]$/.test(x)))].sort();
+ const letters=[...new Set(cust.filter(c=>c.active).flatMap(c=>codesFor(c.food,c.hh,c.area,c.mid).split(/\s+/)).filter(x=>/^[A-Za-z]$/.test(x)))].sort();
  const cols=activeCols(),pr=myPrefs(),sc=COLS.find(c=>c.k==pr.sortK);
  if(sc){const dir=pr.sortD=="desc"?-1:1;rows.sort((x,y)=>{const a=sc.s(x),b=sc.s(y);const r=sc.num?(a-b):String(a||"").localeCompare(String(b||""),undefined,{numeric:true,sensitivity:"base"});return r*dir||x.name.localeCompare(y.name)})}
  const pz0=myPrefs().psz,psz=pz0===0?0:(pz0||100),PS=psz||Math.max(rows.length,1),pages=Math.max(1,Math.ceil(rows.length/PS)),pg=Math.min(S[pk],pages-1),vis=rows.slice(pg*PS,pg*PS+PS),nf=n=>n.toLocaleString();
@@ -387,7 +387,7 @@ const L=(c,f,o,n)=>log.unshift({at:new Date().toLocaleString(),user:S.user.name,
 const summ=(c,x)=>["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+(k=="food"?F[c.food]+" → "+nlabel(x[k]):x[k])).join("; ");
 function opts(c){
  let o=c.food=="raw"||c.food=="rawnb"?["raw","rawnb"].filter(x=>x!=c.food):c.food=="meals"?(c.agency=="CCS"?["supper","shabbos"]:["raw","rawnb","supper","shabbos"]):[];
- return o.map(x=>[x,F[x]]).concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[])}
+ return o.map(x=>[x,F[x]]).concat(S.allowMid&&!c.mid?[["mid","Middleton"]]:[])}
 /* only for a family with two cases (same company, same ID, one Meals + one Box). Everyone else: nothing is shown. */
 function casesPnl(c){const k=c&&c.cases;if(!Array.isArray(k)||k.length<2)return "";
  const ty=q=>q.base=="box"?"Box":"Meals",tot=Number(c.hh)||0;
@@ -402,10 +402,10 @@ function vCard(){
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
- return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto">${c.active===false?"Not active":"Active"}</span></div>${dlv(c)}</div>
+ return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area,c.mid))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto">${c.active===false?"Not active":"Active"}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
-  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div>${casesPnl(c)}</div>
+  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span></div></label></div>${casesPnl(c)}</div>
  </div>
  <div class="pnl"><h4>Delivery</h4><div class="grid g4" style="--n:4">${fAddr}${fApt}${fArea}</div></div>
  <div class="pnl"><h4>Notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
@@ -471,7 +471,7 @@ function menuHtml(k){const l=menuLines(k);if(!l)return `<p class="note">No menu 
  if(!l.length)return `<p class="no">Nothing on the menu yet for code ${esc(k)} this week.</p>`;
  return `<ul style="margin:6px 0 0;padding-left:20px">${l.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`}
 function showMenu(id){
- const c=cust.find(x=>x.id==id),cs=codesFor(c.food,c.hh,c.area).split(" "),d=document.createElement("div");d.className="ov";
+ const c=cust.find(x=>x.id==id),cs=codesFor(c.food,c.hh,c.area,c.mid).split(" "),d=document.createElement("div");d.className="ov";
  d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  d.innerHTML=`<div class="mod" style="max-width:560px;max-height:85vh;overflow:auto"><b>${esc(c.name)}</b> <span class="note">· ${esc(c.ref)} · this customer gets:</span>
  ${cs.map(k=>`<div class="card" style="margin:10px 0 0"><h2 style="font-size:15px"><span class="tag">${esc(k)}</span> <span class="note">Menu ${esc(MENU.week)}</span></h2>${MENU.lists[k]?`${MENU.lists[k].info?`<p class="note" style="white-space:pre-line">${esc(MENU.lists[k].info)}</p>`:""}${menuHtml(k)}`:`<p class="note">No menu list for code ${esc(k)} yet.</p>`}</div>`).join("")}
@@ -482,7 +482,7 @@ const MGRP=[["Grocery boxes",["A","B","C","D"]],["Meals",["E","H","F"]],["Shabbo
 function vMenu(){
  if(!MENU.real)return `<div class="card"><h2>Menu</h2>${MENU.err?`<p class="err">${esc(MENU.err)}</p>`:`<p class="note">Loading the menu…</p>`}</div>`;
  const own=S.user.role=="owner",codes=MENU.order.filter(k=>MENU.lists[k]),code=S.mcode&&MENU.lists[S.mcode]?S.mcode:codes[0];
- const cnt={};cust.forEach(c=>{if(c.active)codesFor(c.food,c.hh,c.area).split(" ").forEach(k=>cnt[k]=(cnt[k]||0)+1)});
+ const cnt={};cust.forEach(c=>{if(c.active)codesFor(c.food,c.hh,c.area,c.mid).split(" ").forEach(k=>cnt[k]=(cnt[k]||0)+1)});
  const col=k=>(typeof LC!=="undefined"&&LC[k])||"#667085",used={};
  const pill=k=>{used[k]=1;return `<button class="mt${k==code?" on":""}" style="--c:${col(k)}" onclick="S.mcode='${k}';render()"><span class="mk">${esc(k)}</span><span class="mi2"><b>${MENU.lists[k].lines.length} item${MENU.lists[k].lines.length==1?"":"s"}</b><small>${cnt[k]!=null?cnt[k]+" boxes":"–"}</small></span></button>`};
  let tabs=MGRP.map(g=>{const ks=g[1].filter(k=>MENU.lists[k]);return ks.length?`<div class="mg"><div class="mgl">${g[0]}</div><div class="mrow">${ks.map(pill).join("")}</div></div>`:""}).join("");
@@ -626,12 +626,12 @@ function showPod(id,w){
  document.body.appendChild(d)}
 function fillOpt(){
  const c=cust.find(x=>x.id==S.sel),b=document.getElementById("nf_base");if(!c||!b)return;
- const bv=b.value||c.base,cur=(c.next&&c.next.food)||"",l=optList(bv,c.agency).filter(x=>x[0]!="meals").concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[]);
+ const bv=b.value||c.base,cur=(c.next&&c.next.food)||"",l=optList(bv,c.agency).filter(x=>x[0]!="meals").concat(S.allowMid&&!c.mid?[["mid","Middleton"]]:[]);
  const o=document.getElementById("nf_opt");o.innerHTML='<option value="">No change</option>'+l.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join("");
  o.value=l.some(x=>x[0]==cur)?cur:"";prevCode()}
 function prevCode(){
  const c=cust.find(x=>x.id==S.sel),v=nf_opt.value;
- nf_code.innerHTML=!v?'<span class="note">no change</span>':v=="mid"?`<span class="tag">${codesFor("meals",c.hh,"Middleton")}</span>`:c.area=="Middleton"?`<span class="tag">${codesFor(v,c.hh,leaveMid(c.a))}</span> <span class="note">leaves Middleton → ${esc(leaveMid(c.a))}</span>`:`<span class="tag">${codesFor(v,c.hh,c.area)}</span>`}
+ nf_code.innerHTML=!v?'<span class="note">no change</span>':v=="mid"?`<span class="tag">${codesFor("meals",c.hh,c.area,true)}</span>`:`<span class="tag">${codesFor(v,c.hh,c.area)}</span>`+(c.mid?` <span class="note">leaves Middleton</span>`:"")}
 const leaveMid=a=>{a=a||{};const r=detectArea({st:a.st||a.street,city:a.city,zip:a.zip});return r=="Middleton"?"Lee":r};
 function detectArea(a){
  const city=String(a.city||"").toLowerCase(),zip=String(a.zip||"").slice(0,5),st=String(a.st||a.street||"").toLowerCase();
@@ -716,7 +716,7 @@ function vDash(){
  const herr=A.filter(c=>!(Number.isInteger(c.hh)&&c.hh>=1&&c.hh<=10)).length;
  const soon=A.filter(c=>c.auth).map(c=>({c:c,d:Math.round((c.auth-now)/864e5)})).filter(x=>x.d>=0&&x.d<=30).sort((a,b)=>a.d-b.d);
  const cnt={};LET.forEach(l=>cnt[l]={});
- A.forEach(c=>codesFor(c.food,c.hh,c.area).split(" ").forEach(l=>{if(cnt[l])cnt[l][c.area]=(cnt[l][c.area]||0)+1}));
+ A.forEach(c=>codesFor(c.food,c.hh,c.area,c.mid).split(" ").forEach(l=>{if(cnt[l])cnt[l][c.area]=(cnt[l][c.area]||0)+1}));
  
  const own=S.user&&S.user.role=="owner",ex=(l,a)=>+((EXTRA[l]||{})[a])||0,exIn=(l,a)=>own?`<input type="number" min="0" value="${ex(l,a)||""}" placeholder="+0" title="Manual extra: add boxes by hand on top of the count" onchange="setExtra('${l}','${a}',this.value)" style="width:56px;margin:0 0 0 6px;padding:1px 3px;font-size:11px">`:(ex(l,a)?` <span class="note">(+${ex(l,a)} extra)</span>`:"");
  const tile=(l,sm)=>{const isMN=l.indexOf("MN")==0,tot=Object.keys(cnt[l]).reduce((t,a)=>t+cnt[l][a],0)+Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+ex(l,a),0),mx=Math.max(...AR.map(a=>(cnt[l][a]||0)+ex(l,a)));return `<div class="bx" style="--c:${LC[l]}"><div class="bh"><div class="lt">${l}</div><div><div class="big">${tot}</div><div class="note">${LD[l]}</div></div></div>${(isMN?[]:AR).map(a=>`<div class="br"><span>${a}</span><div class="tr"><i style="width:${mx?Math.round(((cnt[l][a]||0)+ex(l,a))/mx*100):0}%"></i></div><b>${(cnt[l][a]||0)+ex(l,a)}</b></div>`).join("")}${own||ex(l,"_")?`<div class="br"><span>Extra</span><div class="tr"></div><b>${ex(l,"_")||""}</b>${exIn(l,"_")}</div>`:""}</div>`};
@@ -1311,7 +1311,7 @@ function devTrusted(em){em=String(em||"").toLowerCase();try{if(sessionStorage.ge
 function devTrust(em,remember){em=String(em||"").toLowerCase();try{sessionStorage.setItem("sm_ok",em)}catch(e){}if(remember){try{const t=JSON.parse(localStorage.getItem("sm_trust")||"{}");t[em]=Date.now()+30*864e5;localStorage.setItem("sm_trust",JSON.stringify(t))}catch(e){}}}
 const SB_URL="https://znszotxuhkxgbszhyqcp.supabase.co",SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpuc3pvdHh1aGt4Z2Jzemh5cWNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NDYzMTUsImV4cCI6MjEwOTIyMjMxNX0.UUZAT5wU8iR9lXia_AQRo_kICaNrWbz_67bnH8Aw_38";
 let sb=null;try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}})}catch(e){}
-const AREAS=["Lee","Monsey/Monroe","Bedford","BP","Middleton"],AREA_KEY={"Lee":"lee","Monsey/Monroe":"monsey_monroe","Bedford":"bedford","BP":"bp"};
+const AREAS=["Lee","Monsey/Monroe","Bedford","BP"],AREA_KEY={"Lee":"lee","Monsey/Monroe":"monsey_monroe","Bedford":"bedford","BP":"bp"};
 const areaDb=l=>l=="Middleton"?{middleton:true}:{area:AREA_KEY[l]||"lee",middleton:false};
 const areaOpts=cur=>AREAS.map(a=>`<option ${a==cur?"selected":""}>${a}</option>`).join("");
 const AREAL={lee:"Lee",bedford:"Bedford",bp:"BP",monsey_monroe:"Monsey/Monroe"};
@@ -1438,7 +1438,7 @@ async function loadDB(){
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
    cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
-    auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,enh:c.enh||0,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
+    auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,enh:c.enh||0,food:c.food,base:c.base,codes:[],area:c.middleton?leaveMid({st:c.street,city:c.city,zip:c.zip}):(AREAL[c.area]||"Lee"),mid:!!c.middleton,lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const {data}=await pSet;(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await pReq;rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,ew:r.effective_week,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
@@ -1464,7 +1464,7 @@ function banner(){
 
 /* ---- how many boxes were delivered this week (a code like "E B" is two boxes, sometimes delivered separately) ---- */
 const shortAt=a=>String(a||"").replace(/\/\d{4},/,"");
-function boxNeed(c){return Math.max(1,String(codesFor(c.food,c.hh,c.area)).trim().split(/\s+/).filter(Boolean).length)}
+function boxNeed(c){return Math.max(1,String(codesFor(c.food,c.hh,c.area,c.mid)).trim().split(/\s+/).filter(Boolean).length)}
 function weekDel(c,off){off=off||0;const t0=weekStart()-off*7*864e5,t1=off?t0+7*864e5:Infinity,ps=(c.pods||[]).filter(x=>x.ts&&x.ts>=t0&&x.ts<t1),need=boxNeed(c);
  let got=0;ps.forEach(p=>{const b=p.snap&&p.snap.boxes;got+=b>0?b:(ps.length>1?Math.max(1,Math.floor(need/ps.length)):need)});   // an order whose box count is unknown counts as complete
  const last=ps.slice().sort((a,b)=>b.ts-a.ts)[0];
@@ -1476,7 +1476,7 @@ function delTag(c,off){const w=weekDel(c,off);
 
 /* ---- which box (E, A, ...) each delivery carried ---- */
 function combos(a,k){if(k<=0)return [[]];if(a.length<k)return [];const h=a[0],t=a.slice(1);return combos(t,k-1).map(x=>[h].concat(x)).concat(combos(t,k))}
-function codeOf(c,p){const sn=p.snap;return String(sn&&sn.food?codesFor(sn.food,sn.hh||c.hh,sn.mid?"Middleton":(AREAL[sn.area]||"Lee")):codesFor(c.food,c.hh,c.area)).trim()}
+function codeOf(c,p){const sn=p.snap;return String(sn&&sn.food?codesFor(sn.food,sn.hh||c.hh,AREAL[sn.area]||"Lee",sn.mid):codesFor(c.food,c.hh,c.area,c.mid)).trim()}
 function weekList(c,p){const k=+wkStartOf(podTime(p));return (c.pods||[]).filter(x=>podTime(x)&&+wkStartOf(podTime(x))==k).sort((a,b)=>podTime(a)-podTime(b))}
 function lettersOf(c,p){
  const list=weekList(c,p),toks=codeOf(c,p).split(/\s+/).filter(Boolean),pool=toks.slice(),out={};
@@ -1495,9 +1495,9 @@ async function cycleLetters(id,oid){const c=cust.find(x=>x.id==id),p=(c.pods||[]
 /* ---- past weeks: one row per week, every delivery of that week inside it ---- */
 function wkStartOf(t){const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d}
 function podTime(p){if(p.ts)return p.ts;const m=String(p.k||"").match(/^(\d{1,2})\/(\d{1,2})/);if(!m)return 0;const n=new Date();let d=new Date(n.getFullYear(),+m[1]-1,+m[2]);if(d>n)d=new Date(n.getFullYear()-1,+m[1]-1,+m[2]);return d.getTime()}
-function boxAt(c,p){const sn=p.snap;let food=c.food,hh=c.hh,area=c.area,now=true;
- if(sn&&sn.food){food=sn.food;hh=sn.hh||hh;area=sn.mid?"Middleton":(AREAL[sn.area]||"Lee");now=false}
- const code=codesFor(food,hh,area),base=sn&&sn.base||c.base;
+function boxAt(c,p){const sn=p.snap;let food=c.food,hh=c.hh,area=c.area,mid=c.mid,now=true;
+ if(sn&&sn.food){food=sn.food;hh=sn.hh||hh;area=AREAL[sn.area]||"Lee";mid=!!sn.mid;now=false}
+ const code=codesFor(food,hh,area,mid),base=sn&&sn.base||c.base;
  return `<span class="ctag" style="--c:${codeColor(code)};${now?"opacity:.6;":""}" title="${now?"The customer's choice today (the choice at that delivery was not saved)":"What the customer had when this was delivered"}">${esc(optName(base,food))} · ${esc(code)}</span>`}
 function whTabStart(a,b,now){
  const cand=t=>{const out=[],str=String(t).replace(/[^0-9\/_.]/g,""),sp=str.split(/[\/_.]/).filter(Boolean);
@@ -1586,7 +1586,7 @@ function pastReal(c){
   return o.length?`<div class="pwq">${o.join("")}</div>`:""};
  const menu=r=>{const h=r.h,cur=+r.ws==weekStart(),top=(f,hh,base,codes,note)=>`<div class="pwt"><b>${esc(f)||"–"}</b>${codes&&codes!="–"?`<span class="ctag" style="--c:${codeColor(codes)}">Box ${esc(codes)}</span>`:""}<span class="note">${esc(hh)||"–"} in household · ${base=="box"?"Box":"Meals"}</span></div>${note?`<div class="note">${note}</div>`:""}`;
   if(h&&!h.in_list)return `<div class="note">Not on the list</div>`+reqs(r);
-  if(!h&&cur)return c.active===false?`<div class="note">Not on the list</div>`+reqs(r):top(optName(c.base,c.food),c.hh,c.base,codesFor(c.food,c.hh,c.area),"On this week's list")+reqs(r);
+  if(!h&&cur)return c.active===false?`<div class="note">Not on the list</div>`+reqs(r):top(optName(c.base,c.food),c.hh,c.base,codesFor(c.food,c.hh,c.area,c.mid),"On this week's list")+reqs(r);
   if(!h&&r.bh&&!r.list.length){const b=r.bh[0];return top(optName(b.base,b.food)||b.food,b.hh,b.base,"","From the billing sheet")+reqs(r)}
   if(!h)return (r.up&&whOk?`<div class="note">Not on the list</div>`:`<div class="note">${whOk?"No list saved for this week":""}</div>`)+reqs(r);
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
@@ -2016,23 +2016,22 @@ async function nlApprove(cat){
 /* ---- New list · Production: how many boxes the kitchen starts from the list, the customers' settings and their changes for next week ---- */
 function nlProj(useDraft){
  const P=new Map(),removed=[],added=[];let R=null;
- cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area},why:[]}));
+ cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area,mid:c.mid},why:[]}));
  if(useDraft&&NL.d){R=nlCalc();
-  if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
+  if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area,mid:x.c.mid},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
     if(x.cats.type||x.cats.hh){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base;o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>/^(customer type|household)/.test(t)).join(", "))}});
    R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
    R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
  let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n)return;nreq++;
-  if(n.food=="mid"){o.p.area="Middleton";o.why.push("customer asked: move to Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;o.why.push("customer asked: "+(F[n.food]||n.food))}
-  if(!n.area&&n.food&&n.food!="mid"&&o.c.area=="Middleton"){o.p.area=leaveMid(n.a||o.c.a);o.why.push("left Middleton: area "+o.p.area)}
+  if(n.food=="mid"){o.p.mid=true;o.why.push("customer asked: Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;if(o.p.mid){o.p.mid=false;o.why.push("customer asked: "+(F[n.food]||n.food)+" (leaves Middleton)")}else o.why.push("customer asked: "+(F[n.food]||n.food))}
   if(n.area){o.p.area=n.area;o.why.push("customer asked: area "+n.area)}
   if(n.a||n.addr)o.why.push("customer asked: new address")});
  return {P:P,removed:removed,added:added,R:R,nreq:nreq}}
 const PROD_GROUPS={kitchen:{name:"Kitchen",letters:["H","F","E","3"]},raw:{name:"Raw production",letters:["A","B","F"]}};
 function prodCounts(){
  const useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
- const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
- now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area}));[...J.P.values()].forEach(o=>add(cn,o.p));
+ const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
+ now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));[...J.P.values()].forEach(o=>add(cn,o.p));
  const sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0);
  return {cn:cn,cx:cx,sum:sum,ex:ex,useDraft:useDraft}}
 function prodWeekLabel(){const s=new Date(wkKey(Date.now()).getTime()+7*864e5),a=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2),b=new Date(s.getFullYear(),s.getMonth(),s.getDate()+8),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
@@ -2073,8 +2072,8 @@ async function prodMailOpen(g){
 function nlProdView(){
  const H=esc,useDraft=NL.useDraft!==false&&!!NL.d,J=nlProj(useDraft),now=cust.filter(c=>c.active),list=[...J.P.values()];
  const cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
- const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
- now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area}));list.forEach(o=>add(cn,o.p));
+ const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
+ now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));list.forEach(o=>add(cn,o.p));
  const ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0),sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0);
  const tile=l=>{const isMN=l.indexOf("MN")==0,t=sum(cn[l])+ex(l),was=sum(cx[l])+ex(l),d=t-was,mx=Math.max(1,...AR.map(a=>cn[l][a]||0));
   return `<div class="bx" style="--c:${LC[l]}"><div class="bh"><div class="lt">${l}</div><div><div class="big">${t}</div><div class="note">${LD[l]}</div>${d?`<div class="note" style="color:${d>0?"var(--ok)":"#b42318"}"><b>${d>0?"+":""}${d}</b> vs now (${was})</div>`:""}</div></div>${(isMN?[]:AR).map(a=>`<div class="br"><span>${a}</span><div class="tr"><i style="width:${Math.round((cn[l][a]||0)/mx*100)}%"></i></div><b>${cn[l][a]||0}</b></div>`).join("")}${cn[l]["?"]?`<div class="br"><span>No area</span><div class="tr"></div><b>${cn[l]["?"]}</b></div>`:""}</div>`};
@@ -2082,7 +2081,7 @@ function nlProdView(){
  const kp=(l,v,sub)=>`<div class="kpi"><span class="note">${l}</span><b>${v}</b>${sub?`<span class="note">${sub}</span>`:""}</div>`,dl=(a,b)=>a==b?"":" ("+(a>b?"+":"")+(a-b)+")";
  const fk=["meals","supper","shabbos","raw","rawnb"],hhn=[...Array(10).keys()].map(i=>i+1);
  const chg=list.filter(o=>o.why.length).sort((a,b)=>String(a.c.name).localeCompare(String(b.c.name))),sh=chg.slice(0,300);
- const lc=(food,hh,area)=>Number.isInteger(hh)&&hh>=1?codesFor(food,hh,area):"—";
+ const lc=(food,hh,area,mid)=>Number.isInteger(hh)&&hh>=1?codesFor(food,hh,area,mid):"—";
  return `<div class="card"><h2>Production · what to make ready</h2>
  <p class="note">What the kitchen starts from: <b>active customers</b> with their settings on the Customers page, plus the changes customers asked for <b>next week</b>${NL.d?", plus the uploaded new list":""}. It is calculated live. Nothing is changed here.</p>
  ${NL.d?`<label class="note"><input type="checkbox" style="width:auto" ${useDraft?"checked":""} onchange="NL.useDraft=this.checked;render()"> Include the uploaded new list (new customers, household and type changes, customers left out of the file)</label>`:`<p class="note">No new list is uploaded, so this is the current list with the customers' changes for next week.</p>`}
@@ -2445,7 +2444,7 @@ async function saveNow(id){
  const raw=g("f_addr").value.trim(),same=raw===fmtA(c.a),ad=same?{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""}:parseAddrSmart(raw),apt=g("f_apt").value.trim();
  if(!same){const miss=addrMissing(ad);if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY"}
  const ph=cleanPhones(g("f_phone").value);if(g("f_phone").value.trim()&&!ph.length){ce.textContent="Phone must be 10 digits.";return}
- const patch={phone:ph[0]?fmtPh(ph[0]):"",street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),...areaDb(g("f_area").value)};
+ const patch={phone:ph[0]?fmtPh(ph[0]):"",street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),area:AREA_KEY[g("f_area").value]||"lee"};
  const hh=Math.round(+g("f_hh").value);if(!(hh>=1&&hh<=30)){ce.textContent="Household size must be a number from 1 to 30.";return}
  patch.hh=hh;patch.base=g("f_base").value;patch.food=g("f_food").value;
  const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
@@ -2456,15 +2455,14 @@ async function saveNow(id){
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  const v={phone:g("nf_phone").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?stripCS(g("nf_notes2").value.trim(),c.note2,"mid"):"",food:g("nf_opt").value},nx={};
- for(const k in v)if(v[k]&&(v[k]!==(k=="food"?c.food:c[k])||(k=="food"&&c.area=="Middleton"&&v[k]!="mid")))nx[k]=v[k];
+ for(const k in v)if(v[k]&&(v[k]!==(k=="food"?c.food:c[k])||(k=="food"&&c.mid&&v[k]!="mid")))nx[k]=v[k];
  if(nx.food=="mid"){const tag="CS "+nwk(),b2=(nx.note2||c.note2||"").trim();if(b2.indexOf(tag)<0)nx.note2=(b2?b2+" ":"")+tag}
  if(nx.food)nx.base=g("nf_base").value||c.base;
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
  if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
   const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
-  if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!==c.area&&nx.food!="mid"&&c.area!="Middleton")nx.area=ar}}
- if(nx.food&&nx.food!="mid"&&c.area=="Middleton")nx.area=leaveMid(nx.a||c.a);
+  if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!==c.area)nx.area=ar}}
  const had=c.next&&c.next.rid;
  if(had&&c.next.ew&&c.next.ew!=nwk()){ce.textContent="This customer already has changes waiting for the week of "+c.next.ew+". Apply or cancel those first, then add changes for "+nwk()+".";return}
  if(!Object.keys(nx).length){
@@ -2479,15 +2477,15 @@ async function saveNext(id){
  S.msg="Saved as changes for next week. This week is not changed.";S.err="";render()}
 async function applyNow(id,quiet){
  const c=cust.find(x=>x.id==id),x=c.next;if(!x||S.user.role!="owner")return false;
- const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;{const ax=x.area||(x.food&&x.food!="mid"&&c.area=="Middleton"?leaveMid(x.a||c.a):"");if(ax)Object.assign(p,areaDb(ax))}
+ const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;if(x.area)Object.assign(p,{area:AREA_KEY[x.area]||"lee"});
  if(x.a){p.street=x.a.st;p.city=x.a.city;p.state=x.a.state;p.zip=x.a.zip;p.apt=x.apt||""}
- if(x.food){if(x.food=="mid")p.middleton=true;else{p.food=x.food;p.base=x.base||c.base}}
+ if(x.food){if(x.food=="mid")p.middleton=true;else{p.food=x.food;p.base=x.base||c.base;if(c.mid)p.middleton=false}}
  let r=Object.keys(p).length?await sb.from("customers").update(p).eq("id",c.uuid):{error:null};
  if(!r.error)r=await sb.from("change_requests").update({status:"applied"}).eq("id",x.rid);
  if(r.error){S.err="Not applied: "+dberr(r.error);S.msg="";render();return false}
  if(x.phone)c.phone=x.phone;if(x.notes)c.notes=x.notes;if(x.note2)c.note2=x.note2;if(x.area)c.area=x.area;
  if(x.a){c.a=x.a;c.apt=x.apt||"";c.addr=addrStr(c.a,c.apt)}
- if(x.food){if(x.food=="mid")c.area="Middleton";else{c.food=x.food;c.base=x.base||c.base}}
+ if(x.food){if(x.food=="mid")c.mid=true;else{c.food=x.food;c.base=x.base||c.base;c.mid=false}}
  c.next=null;if(!quiet){S.msg="Applied. It is recorded in History.";S.err="";render()}return true}
 async function applyAll(){
  const ids=cust.filter(c=>c.next).map(c=>c.id);let n=0;
@@ -2615,7 +2613,7 @@ async function rwAddType(wid){
 async function rwStatus(wid){const w=RW.weeks.find(x=>x.id==wid);const s=w.status=="live"?"draft":"live";w.status=s;render();const {error}=await sb.from("raw_weeks").update({status:s}).eq("id",wid);if(error)rwSaveErr(error)}
 const rwMeatCodes=c=>[...new Set(c.codes.filter(rwIsM).concat(Object.keys(RW.types).filter(k=>rwIsM(k)&&(RW.types[k].active!==false))))].sort((a,b)=>((RW.types[a]||{}).sort||100)-((RW.types[b]||{}).sort||100)||a.localeCompare(b));
 const rwCodeOf=it=>((RW.lib.find(x=>x.id==it.item_id)||{}).code)||"";
-function rwBoxNow(){const cn={};LET.forEach(l=>cn[l]={});cust.filter(c=>c.active).forEach(c=>String(codesFor(c.food,c.hh,c.area)).split(" ").forEach(l=>{if(cn[l])cn[l][c.area]=(cn[l][c.area]||0)+1}));return cn}
+function rwBoxNow(){const cn={};LET.forEach(l=>cn[l]={});cust.filter(c=>c.active).forEach(c=>String(codesFor(c.food,c.hh,c.area,c.mid)).split(" ").forEach(l=>{if(cn[l])cn[l][c.area]=(cn[l][c.area]||0)+1}));return cn}
 function rwLoc(cn,k){const x=cn[k];if(!x)return null;const ex=Object.keys(EXTRA[k]||{}).reduce((t,a)=>t+(+EXTRA[k][a]||0),0),lee=(x.Lee||0)+(x.BP||0)+(x["Monsey/Monroe"]||0)+ex;return {lee:lee,bed:x.Bedford||0,tot:lee+(x.Bedford||0),ex:ex}}
 function rwLocStrip(w,codes){
  if(!S.real||!cust.length||!codes.length)return "";const cn=rwBoxNow(),rows=codes.map(k=>({k:k,l:rwLoc(cn,k)})).filter(r=>r.l);if(!rows.length)return "";
@@ -2893,23 +2891,23 @@ const isoD=d=>d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
 const usD=s=>{const p=String(s||"").split("-");return p.length==3?(+p[1])+"/"+(+p[2])+"/"+p[0]:""};
 const dvTomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return isoD(d)};
 const DGROUPS=[{id:"main",name:"Lee · Bedford · BP",areas:["Lee","Bedford","BP"]},{id:"mon",name:"Monsey / Monroe",areas:["Monsey/Monroe"]},{id:"mid",name:"Middleton",areas:["Middleton"]}];
-const dvG=a=>DGROUPS.find(g=>g.areas.indexOf(a)>=0)||DGROUPS[0];
+const dvG=a=>{const m=a&&typeof a=="object"?(a.mid?"Middleton":a.area):a;return DGROUPS.find(g=>g.areas.indexOf(m)>=0)||DGROUPS[0]};
 const dvDate=a=>DV.dt[dvG(a).id]||dvTomorrow();
 const dvDay=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{weekday:"long"})};
 function dvFood(c){
  if(c.base=="box")return c.food=="rawnb"?"Box - No Beef":"Box";
  return ({meals:"Meals",supper:"Supper",shabbos:"Shabbos",raw:"Meals - Raw",rawnb:"Meals - Raw No Beef"})[c.food]||"Meals"}
-const dvAllL=c=>String(codesFor(c.food,c.hh,c.area)).trim().split(/\s+/).filter(Boolean);
-const dvTicked=c=>{const m=DV.foods[dvG(c.area).id]||{};return Object.keys(m).filter(k=>m[k])};
+const dvAllL=c=>String(codesFor(c.food,c.hh,c.area,c.mid)).trim().split(/\s+/).filter(Boolean);
+const dvTicked=c=>{const m=DV.foods[dvG(c).id]||{};return Object.keys(m).filter(k=>m[k])};
 const dvLetters=c=>{const a=dvAllL(c),t=dvTicked(c);return t.length?a.filter(l=>t.indexOf(l)>=0):a};
 function dvRows(){
  const q=DV.q.trim().toLowerCase(),out={rows:[],sent:0,expired:0};
  cust.forEach(c=>{
-  if(!c.active||!DV.areas[dvG(c.area).id])return;
+  if(!c.active||!DV.areas[dvG(c).id])return;
   {const t=dvTicked(c);if(t.length&&!dvAllL(c).some(l=>t.indexOf(l)>=0))return}
   if(Object.keys(DV.cos).some(k=>DV.cos[k])&&!DV.cos[c.agency])return;
   if(q&&(c.name+" "+c.ref+" "+c.addr+" "+c.phone).toLowerCase().indexOf(q)<0)return;
-  const d=dvDate(c.area);
+  const d=dvDate(c);
   if(c.auth&&isoD(c.auth)<d)out.expired++;
   const was=dvLetters(c).length>0&&dvLetters(c).every(l=>DV.sent[c.uuid+"|"+d+"|"+l]);
   if(was){out.sent++;if(!DV.showSent)return}
@@ -2940,7 +2938,7 @@ function vDelivery(){
  if(!S.real)return `<div class="card"><h2>Delivery</h2><p class="note">Load the real data first (the green/blue bar at the top of Customers), then come back here.</p></div>`;
  const R=dvRows(),pick=R.rows.filter(r=>!DV.off[r.c.uuid||r.c.id]),foods={},cos={};
  const gl={};DGROUPS.forEach(g=>gl[g.id]={});
- cust.forEach(c=>{if(c.active){dvAllL(c).forEach(l=>gl[dvG(c.area).id][l]=(gl[dvG(c.area).id][l]||0)+1);cos[c.agency]=1}});
+ cust.forEach(c=>{if(c.active){dvAllL(c).forEach(l=>gl[dvG(c).id][l]=(gl[dvG(c).id][l]||0)+1);cos[c.agency]=1}});
  const cl=Object.keys(cos).sort(),none=!DGROUPS.some(g=>DV.areas[g.id]);
  const pages=Math.max(1,Math.ceil(R.rows.length/50)),pg=Math.min(DV.pg,pages-1),vis=R.rows.slice(pg*50,pg*50+50);
  const dtm=dvTomorrow();
