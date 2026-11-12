@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b279">
+<meta name="build" content="b280">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2038,11 +2038,11 @@ function nlProjNext(useDraft){
 function nlProj0(useDraft){
  const P=new Map(),removed=[],added=[];let R=null;
  cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area,mid:c.mid},why:[]}));
- if(useDraft&&NL.d){R=nlCalc();
-  if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area,mid:x.c.mid},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
-    if(x.cats.type||x.cats.hh){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base;o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>/^(customer type|household)/.test(t)).join(", "))}});
-   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
-   R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
+ if(useDraft&&NL.d){R=nlCalc();const AP=NL.d.appr||{};/* demo: only boxes turned green change what the kitchen sees */
+  if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on||!AP.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area,mid:x.c.mid},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
+    const gt=x.cats.type&&AP.type,gh=x.cats.hh&&AP.hh;if(gt||gh){if(gt){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base}if(gh)o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>gt&&gh?/^(customer type|household)/.test(t):gt?/^customer type/.test(t):/^household/.test(t)).join(", "))}});
+   R.nw.forEach(x=>{if(x.sk||!AP.nw)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
+   R.off.forEach(x=>{if(x.sk||!AP.off)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
  let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n)return;nreq++;
   if(n.food=="mid"){o.p.mid=true;o.why.push("customer asked: Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;if(o.p.mid){o.p.mid=false;o.why.push("customer asked: "+(F[n.food]||n.food)+" (leaves Middleton)")}else o.why.push("customer asked: "+(F[n.food]||n.food))}
   if(n.area){o.p.area=n.area;o.why.push("customer asked: area "+n.area)}
