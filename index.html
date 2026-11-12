@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b240">
+<meta name="build" content="b242">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -388,6 +388,10 @@ const summ=(c,x)=>["phone","addr","area","notes","note2","food"].filter(k=>x[k])
 function opts(c){
  let o=c.food=="raw"||c.food=="rawnb"?["raw","rawnb"].filter(x=>x!=c.food):c.food=="meals"?(c.agency=="CCS"?["supper","shabbos"]:["raw","rawnb","supper","shabbos"]):[];
  return o.map(x=>[x,F[x]]).concat(S.allowMid&&c.area!="Middleton"?[["mid","Move to Middleton"]]:[])}
+/* only for a family with two cases (same company, same ID, one Meals + one Box). Everyone else: nothing is shown. */
+function casesPnl(c){const k=c&&c.cases;if(!Array.isArray(k)||k.length<2)return "";
+ const ty=q=>q.base=="box"?"Box":"Meals",tot=Number(c.hh)||0;
+ return `<div style="margin-top:8px;padding:8px 10px;border:1px solid #e5a100;border-radius:8px;background:#fff8e6;font-size:13px"><b>Two cases:</b> ${k.map(q=>ty(q)+" · "+(q.hh?esc(q.hh):"–")+" HH").join("  +  ")}<div class="note" style="margin-top:3px">Family total ${tot||"–"}${c.enh?" (Enhanced "+esc(c.enh)+" included)":""}</div></div>`}
 function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
  const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=false,dis=ed&&!lock?"":"disabled",o=opts(c);
@@ -401,7 +405,7 @@ function vCard(){
  return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto">${c.active===false?"Not active":"Active"}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${ro("Cell",c.cell)}${ro("Email",c.email,"s2")}${ro("Legal address",c.legal,"s2")}</div></div>
-  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div></div>
+  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area))}</span></div></label></div>${casesPnl(c)}</div>
  </div>
  <div class="pnl"><h4>Delivery</h4><div class="grid g4" style="--n:4">${fAddr}${fApt}${fArea}</div></div>
  <div class="pnl"><h4>Notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
@@ -2121,9 +2125,47 @@ function nlDupView(){
  const ml=D.mlog||[];
  const dm=NL.dm;NL.dm="";
  return (dm?`<div class="card" style="border-color:var(--ok)"><p class="msg" style="margin:0"><b>${H(dm)}</b></p></div>`:"")+`<div class="card"><h2>Duplicates (${NL.dg.length} to review)</h2><p class="note">Customers in the uploaded list that look the same: same ID, same phone or same address, even with a different ID. <b>Merge</b> keeps the first one and asks you the household (it suggests the total, for example 1 box + 1 meals = 2) and whether it is a Box or Meals customer. The menu (raw, supper, Shabbos…) stays as it was. <b>Delete this one</b> leaves that customer out of the list. <b>Leave</b> keeps both. Nothing changes in your real customers until you approve the list. "Delete" here never deletes a real customer.</p></div>
- ${NL.dg.map((g,i)=>box(g,i,false)).join("")||`<div class="card"><p class="msg">No duplicates left to review ✓</p></div>`}
+ ${dupBar()}${NL.dg.map((g,i)=>box(g,i,false)).join("")||`<div class="card"><p class="msg">No duplicates left to review ✓</p></div>`}
  ${ml.length?`<div class="card"><h2>Merged (${ml.length})</h2>${ml.map((m,i)=>`<p class="note">${H(m.names.join("  +  "))} <button onclick="nlMergeUndo(${i})">Undo</button></p>`).join("")}</div>`:""}
  ${NL.dgDone.length?`<div class="card"><h2>Left as they are (${NL.dgDone.length})</h2>${NL.dgDone.map((g,i)=>box(g,i,true)).join("")}</div>`:""}`}
+/* ===== Duplicates are mistakes in the company's list: email that company an Excel of them ===== */
+const DUPM={v:{},loaded:false};
+function nlDupAgs(){const m={};(NL.dg||[]).forEach(g=>{const a=String(g.rows[0].r.agency||"?").toUpperCase();(m[a]=m[a]||[]).push(g)});return m}
+async function dupMailLoad(){try{const r=await sb.from("app_settings").select("value").eq("key","dup_emails").maybeSingle();DUPM.v=(r.data&&r.data.value)||{}}catch(e){}render()}
+function dupBar(){
+ if(!DUPM.loaded&&sb){DUPM.loaded=true;dupMailLoad()}
+ const m=nlDupAgs(),ks=Object.keys(m).sort();if(!ks.length)return "";
+ return `<div class="card"><h2>Send to the company</h2><p class="note">These duplicates are mistakes in the list the company sent. Press the company to email it an Excel of its duplicates (you see the email first and can change it). The address is remembered for next time.</p>
+ <div class="bar" style="flex-wrap:wrap">${ks.map(a=>{const l=(DUPM.v||{})[a],when=l&&l.last?" · sent "+new Date(l.last).toLocaleDateString("en-US",{month:"short",day:"numeric"}):"";return `<button onclick="dupMailOpen('${esc(a)}')">Email ${esc(a)} (${m[a].length})${when}</button>`}).join("")}</div></div>`}
+async function dupXlsx(ag,gs){
+ await loadXlsx();const a=[["Group","Problem","ID","Name","Type","Household","Phone","Cell","Address","Keep or delete? (please fill in)"]];
+ gs.forEach((g,i)=>{g.rows.forEach((x,j)=>{const e=nlEff(x),r=x.r;a.push([i+1,j?"":g.why.map(w=>nlWhy[w]).join(" + "),r.agency_ref||"",e.name||"",e.base=="box"?"Box":"Meals",e.hh==null?"":e.hh,r.phone||"",r.cell||"",[r.street,r.apt,r.city,r.zip].filter(Boolean).join(", "),""])});a.push([])});
+ const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(a);ws["!cols"]=[{wch:7},{wch:22},{wch:22},{wch:28},{wch:8},{wch:10},{wch:14},{wch:14},{wch:44},{wch:30}];XLSX.utils.book_append_sheet(wb,ws,"Duplicates");
+ return {b64:XLSX.write(wb,{type:"base64",bookType:"xlsx"}),name:"Satmar-"+ag+"-duplicates-"+new Date().toISOString().slice(0,10)+".xlsx",rows:a.length-1}}
+async function dupMailOpen(ag){
+ const gs=nlDupAgs()[ag]||[];if(!gs.length)return;try{await invLoad()}catch(e){}
+ const sv=(DUPM.v||{})[ag]||{},co=invCo(ag),wk=prodWeekLabel(),nr=gs.reduce((t,g)=>t+g.rows.length,0),d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ const body0="Hello,\n\nIn the customer list you sent us for the week of "+wk+", "+gs.length+" customer"+(gs.length>1?"s appear":" appears")+" more than once (same ID, phone or address). The attached Excel lists each one.\n\nPlease write KEEP or DELETE in the last column for each row and send the corrected list back to us.\n\nThank you,\nSatmar Meat\n718-963-1100";
+ d.innerHTML=`<div class="mod" style="max-width:640px;max-height:92vh;overflow:auto"><b style="font-size:17px">Email ${esc(ag)} · their duplicates</b>
+ <p class="note">An Excel is attached: ${gs.length} duplicate group${gs.length>1?"s":""}, ${nr} rows. Nothing is sent until you press Send.</p>
+ <div class="rwfld"><label>Send to (emails, separated by comma)<input id="dm_to" value="${esc(sv.to!=null?sv.to:(co.emails||""))}" placeholder="name@company.com"></label><label>CC<input id="dm_cc" value="${esc(sv.cc!=null?sv.cc:(co.cc||""))}" placeholder="optional"></label>
+ <label style="grid-column:1/-1;flex:1 1 100%;width:100%">Subject<input id="dm_sub" value="${esc("Satmar Meat · duplicate customers in your list · week of "+wk)}" style="width:100%;box-sizing:border-box"></label>
+ <label style="grid-column:1/-1;flex:1 1 100%;width:100%">Message<textarea id="dm_body" rows="9" style="width:100%;box-sizing:border-box">${esc(body0)}</textarea></label></div>
+ <div class="bar"><button class="pri" id="dm_send">Send email</button><button data-x="1">Close</button></div><p id="dm_msg" class="note"></p></div>`;
+ document.body.appendChild(d);
+ const G=id=>document.getElementById(id),msg=(t,bad)=>{G("dm_msg").textContent=t;G("dm_msg").style.color=bad?"#b42318":"var(--ok)"};
+ G("dm_send").onclick=async()=>{
+  const to=inMail(G("dm_to").value),cc=inMail(G("dm_cc").value);if(!to.length){msg("Add at least one email address.",true);return}
+  if(!confirm("Send the duplicates ("+gs.length+" groups) to "+to.join(", ")+"?"))return;
+  const b=G("dm_send");b.disabled=true;
+  try{msg("Sending…");const xl=await dupXlsx(ag,gs),txt=G("dm_body").value,subj=G("dm_sub").value.trim()||"Duplicate customers",html='<div style="font:14px Arial,sans-serif;color:#111;max-width:640px">'+esc(txt).replace(/\n/g,"<br>")+"</div>";
+   const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
+   const res=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"sendinvoice",to,cc,subject:subj,html,text:txt,xlsx_b64:xl.b64,xlsx_name:xl.name,company:"DUPLICATES",week:wk,inv_no:ag+" duplicates"})});
+   const j=await res.json().catch(()=>({}));if(!j.ok)throw new Error(j.error||("Not sent ("+res.status+")"));
+   const nx=Object.assign({},DUPM.v||{});nx[ag]={to:G("dm_to").value.trim(),cc:G("dm_cc").value.trim(),last:new Date().toISOString(),n:gs.length};DUPM.v=nx;try{await sb.from("app_settings").upsert({key:"dup_emails",value:nx,updated_at:new Date().toISOString()})}catch(e){}
+   msg("Sent ✓ to "+to.join(", "));render()}
+  catch(e){msg(String((e&&e.message)||e),true)}
+  b.disabled=false}}
 function nlPvSort(i){const p=NL.pv||(NL.pv={c:-1,d:1});if(p.c===i)p.d=-p.d;else{p.c=i;p.d=1}render()}
 function nlPreview(){
  const H=esc,D=NL.d;if(!D)return `<div class="card"><h2>Preview</h2><p class="note">Upload the new list first.</p></div>`;
