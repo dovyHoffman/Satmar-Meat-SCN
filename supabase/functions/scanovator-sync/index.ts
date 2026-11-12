@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
     const offset = Math.max(0, Number(body.offset) || 0);
     const cust: any[] = [];
     for (let f = 0; ; f += 1000) {
-      const { data, error } = await sb.from("customers").select("id,agency_ref,phone,street,apt,name,food,hh,area,middleton,base").eq("active", true).order("id").range(f, f + 999);
+      const { data, error } = await sb.from("customers").select("id,agency_ref,phone,cell,street,apt,name,food,hh,area,middleton,base").eq("active", true).order("id").range(f, f + 999);
       if (error) throw error;
       cust.push(...data!);
       if (data!.length < 1000) break;
@@ -299,8 +299,10 @@ Deno.serve(async (req) => {
     for (const k of ambiguous) byId.delete(k);
     const byPhone = new Map<string, any[]>();
     for (const c of cust) {
-      const k = digits(c.phone);
-      if (/^[2-9]\d\d[2-9]\d{6}$/.test(k)) { if (!byPhone.has(k)) byPhone.set(k, []); byPhone.get(k)!.push(c); }
+      // the main phone AND the second (cell) number: an order may carry either one
+      for (const k of new Set([digits(c.phone), digits(c.cell)])) {
+        if (/^[2-9]\d\d[2-9]\d{6}$/.test(k)) { if (!byPhone.has(k)) byPhone.set(k, []); byPhone.get(k)!.push(c); }
+      }
     }
     const phones = [...byPhone.keys()].sort();
     const chunk = phones.slice(offset, offset + CHUNK);
