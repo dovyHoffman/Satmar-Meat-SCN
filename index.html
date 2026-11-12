@@ -143,7 +143,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b234">
+<meta name="build" content="b235">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1916,8 +1916,10 @@ async function nlMapSave(){
  const sg=nlSig(it.text);if(!sg){document.getElementById("nm_msg").textContent="This file looks empty.";return}
  NL.maps[sg]={cols:cols,ag:A.ag||"",type:A.type||""};try{await sb.from("app_settings").upsert({key:"list_maps",value:NL.maps,updated_at:new Date().toISOString()})}catch(e){}
  const fs=A.files;NL.mapAsk=null;await nlFiles(fs)}
+async function liveBuild(){try{const t=await fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text());const x=/name="build" content="([^"]+)"/.exec(t);return x?x[1]:""}catch(e){return ""}}
 async function nlFiles(files){
  if(!files||!files.length)return;NL.err="";NL.msg="";
+ {const run=document.querySelector('meta[name=build]').content,live=await liveBuild();if(live&&live!==run){NL.err="This page is an OLD version ("+run+"; the current one is "+live+"). Nothing was uploaded, so the files are not read with old rules. Close this tab, open office.satmarmeat.com again and press Ctrl+Shift+R (Mac: Cmd+Shift+R), then add the files.";render();return}}
  if(NL.d&&NL.d.files&&NL.d.files.length){const nf=[...files].filter(f=>NL.d.files.indexOf(f.name)<0);if(!nf.length){NL.msg="That file is already in the draft: "+[...files].map(f=>f.name).join(", ")+". Throw the draft away first if you want to start over.";render();return}files=nf}
  NL.busy=true;render();
  try{const seen={},rows=[];let skipped=0;
@@ -2131,7 +2133,7 @@ function vNewList0(){
  const R=R0&&NL.co?Object.assign({},R0,{nw:R0.nw.filter(x=>fa(x.r.agency)),chg:R0.chg.filter(x=>fa(x.r.agency||x.c.agency)),off:R0.off.filter(x=>fa(x.c.agency)),skd:(R0.skd||[]).filter(x=>fa(x.agency)),same:R0.sameBy[NL.co]||0}):R0;
  const cc={};if(D&&D.rows)D.rows.forEach(r=>{const a=UA(r.agency)||"?";cc[a]=(cc[a]||0)+1});
  const chips=D&&D.rows?`<div class="bar" style="flex-wrap:wrap;margin-bottom:8px"><span class="note">Company:</span><button class="${NL.co?"":"pri"}" onclick="NL.co='';render()">All (${D.rows.length.toLocaleString()})</button>${Object.keys(cc).sort().map(a=>`<button class="${NL.co==a?"pri":""}" onclick="NL.co='${H(a)}';render()">${H(a)} (${cc[a].toLocaleString()})</button>`).join("")}</div>`:"";
- const up=`<div class="card"><h2>New list (draft)</h2><p class="note">Upload the customer list file(s) for next week (Excel .xlsx or .csv). The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
+ const up=`<div class="card"><h2>New list (draft) <span class="note" style="font-weight:400;font-size:12px">· page version ${esc(document.querySelector("meta[name=build]").content)}</span></h2><p class="note">Upload the customer list file(s) for next week (Excel .xlsx or .csv). The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
  <input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
  if(!R)return up;
