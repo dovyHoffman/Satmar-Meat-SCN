@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b267">
+<meta name="build" content="b268">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -175,7 +175,7 @@ function codesFor(food,hh,area,mid){
  if(mid||area=="Middleton")return "MN"+(hh>=3?"3+":Math.max(hh,1));
  const r=SET[Math.min(Math.max(hh,1),10)],i={meals:0,raw:1,rawnb:1,supper:2,shabbos:3}[food];let t=r[i];
  if(food=="rawnb")t=t.split(" ").map(x=>({S:"Sc",M:"Mc",L:"Lc"}[x]||x)).join(" ");return t}
-const CODEC={"H":"#3b82f6","B":"#22a559","E C":"#e07b00","A S":"#8b5cf6","3 B":"#0f9d9a","E B":"#e0483e","A M":"#d946a8","A 3":"#7c8a1a","E A":"#0ea5e9","A D L":"#b45309","D A L":"#64748b","E A B":"#c026d3","A 3 3":"#4f46e5","MN1":"#16a34a","MN2":"#ca8a04","MN3+":"#dc2626"};
+const CODEC={"H":"#3b82f6","B":"#22a559","E C":"#e07b00","A S":"#8b5cf6","3 B":"#0f9d9a","E B":"#e0483e","A M":"#d946a8","A 3":"#7c8a1a","E A":"#0ea5e9","A D L":"#b45309","D A L":"#64748b","E A B":"#c026d3","A 3 3":"#4f46e5","MN1":"#dc2626","MN2":"#dc2626","MN3+":"#dc2626"};
 const PAL=["#3b82f6","#22a559","#e07b00","#8b5cf6","#0f9d9a","#e0483e","#d946a8","#0ea5e9","#b45309","#64748b","#c026d3","#4f46e5"];
 function codeColor(code){const k=String(code||"").replace(/\b(S|M|L)c\b/g,"$1").trim();if(CODEC[k])return CODEC[k];let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))>>>0;return PAL[h%PAL.length]}
 function optList(base,agency){
