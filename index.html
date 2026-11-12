@@ -139,7 +139,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b221">
+<meta name="build" content="b222">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2045,12 +2045,13 @@ function nlDupCalc(){
  const okP=v=>{const d=nlDg(v);return d.length==10&&!/0{7}|^(\d)\1{9}$/.test(d)?d:""},nzA=r=>{const t=String(r.street||"").toLowerCase().replace(/[^a-z0-9]/g,""),ap=String(r.apt||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(t.length<=5)return "";
   let sn="";if(!ap){const nm=String(r.name||"").trim(),c=nm.indexOf(",");sn=(c>0?nm.slice(0,c):nm.split(/\s+/).pop()).toLowerCase().replace(/[^a-z]/g,"");if(!sn)return ""}
   return t+ap+(ap?"":"~"+sn)+String(r.zip||"").slice(0,5)};
+ const soft={},sn=r=>{const nm=String(r.name||"").trim(),c=nm.indexOf(",");return (c>0?nm.slice(0,c):nm.split(/\s+/).pop()).toLowerCase().replace(/[^a-z]/g,"")},rel=(i,j)=>{const a=rows[i].r,b=rows[j].r,A=nzA(a),B=nzA(b);if(A&&A==B)return true;const x1=sn(a),x2=sn(b);return !!x1&&x1==x2};
  rows.forEach((x,i)=>{const r=x.r,ks=[],AG=String(r.agency||"").toUpperCase()+"|";if(r.agency_ref&&!r.noId)ks.push(["id","i:"+AG+nk(r.agency_ref)]);[r.phone,r.cell].forEach(v=>{const d=okP(v);if(d)ks.push(["phone","p:"+AG+d])});const a=nzA(r);if(a)ks.push(["address","a:"+AG+a]);
-  new Set(ks.map(q=>q[1])).forEach(()=>{});ks.forEach(q=>{if(idx[q[1]]==null)idx[q[1]]=i;else{const j=idx[q[1]],a2=f(i),b2=f(j);if(a2!=b2)par[a2]=b2;why[i][q[0]]=1;why[j][q[0]]=1}})});
+  new Set(ks.map(q=>q[1])).forEach(()=>{});ks.forEach(q=>{if(idx[q[1]]==null)idx[q[1]]=i;else{const j=idx[q[1]];if(q[0]=="phone"&&!rel(i,j)){soft[x.k]=1;soft[rows[j].k]=1;return}const a2=f(i),b2=f(j);if(a2!=b2)par[a2]=b2;why[i][q[0]]=1;why[j][q[0]]=1}})});
  const gs={};rows.forEach((x,i)=>{const g=f(i);(gs[g]=gs[g]||[]).push(i)});
  Object.keys(gs).forEach(g=>{const m=gs[g];if(m.length<2)return;const rs=m.map(i=>rows[i]),rsn={};m.forEach(i=>Object.keys(why[i]).forEach(w=>rsn[w]=1));const gid=rs.map(x=>x.k).sort().join("|"),done=(D.dupOk||{})[gid];
   const o={gid:gid,rows:rs,why:["id","phone","address"].filter(w=>rsn[w]),done:!!done};if(done)NL.dgDone.push(o);else{NL.dg.push(o);rs.forEach(x=>NL.dk[x.k]=1)}});
- NL.dy={};const sa={};rows.forEach(x=>{const r=x.r,t=String(r.street||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(t.length<=5)return;const q=String(r.agency||"").toUpperCase()+"|"+t+String(r.zip||"").slice(0,5);(sa[q]=sa[q]||[]).push(x.k)});
+ NL.dy=Object.assign({},soft);const sa={};rows.forEach(x=>{const r=x.r,t=String(r.street||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(t.length<=5)return;const q=String(r.agency||"").toUpperCase()+"|"+t+String(r.zip||"").slice(0,5);(sa[q]=sa[q]||[]).push(x.k)});
  Object.keys(sa).forEach(q=>{if(sa[q].length>1)sa[q].forEach(k=>{if(!NL.dk[k])NL.dy[k]=1})})}
 const nlWhy={id:"Same ID",phone:"Same phone",address:"Same address"};
 function nlEff(x){return Object.assign({name:x.r.name,hh:x.r.hh,base:x.r.base,food:x.r.food},((NL.d.edit||{})[x.k])||{})}
