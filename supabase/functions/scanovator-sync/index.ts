@@ -290,6 +290,7 @@ Deno.serve(async (req) => {
     const phones = [...byPhone.keys()].sort();
     const chunk = phones.slice(offset, offset + CHUNK);
     const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
+    const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
     const since = Date.now() - daysBack * 864e5;
     let seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;   // owner ticked "also match by name + phone"
@@ -303,6 +304,10 @@ Deno.serve(async (req) => {
       return hits.size === 1 ? [...hits.values()][0] : null;
     };
     const examples: string[] = [];
+    // diagnostics (numbers only): skipped orders that were delivered in the last 6 days, and why they did not match
+    const diag: Record<string, number> = { delivered_skipped: 0, name_unique: 0, name_several: 0, phone_only: 0, nothing: 0, no_code: 0 };
+    const nameMap = new Map<string, any[]>();
+    for (const c of cust) { const w = words(c.name); if (w) { if (!nameMap.has(w)) nameMap.set(w, []); nameMap.get(w)!.push(c); } }
     let withCode = 0, withOnline = 0, deliveredN = 0; const codeEx = new Set<string>(); let deliveredSample: string[] = [];
     // diagnostics: where on an order does Scanovator keep our customer ID?
     const caseKeys: string[] = [];
@@ -341,6 +346,13 @@ Deno.serve(async (req) => {
               for (const tk of va.match(/[A-Za-z]{1,4}[\s-]*\d{2,6}/g) || []) { const k2 = idKey(tk); if (k2 && byId.has(k2)) idPaths[pa + " (inside text)"] = (idPaths[pa + " (inside text)"] || 0) + 1; }
             }
             if (samplePaths.length < 60 && diagN <= 2) for (const [pa, va] of fl) samplePaths.push(PII.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)); }
+          if (!c && delivered0(o)) {
+            diag.delivered_skipped++;
+            if (!String(o.customercode ?? "").trim() && !String(o.online_order_id ?? "").trim()) diag.no_code++;
+            const ow = words(`${o.fname || ""} ${o.lname || ""}`); const nm = ow ? (nameMap.get(ow) || []) : [];
+            if (nm.length === 1) diag.name_unique++; else if (nm.length > 1) diag.name_several++;
+            else if ([o.phone, o.cell1, o.cell2].some((p: any) => byPhone.has(last10(p)))) diag.phone_only++; else diag.nothing++;
+          }
           if (!c) { noMatch++; unmatched.push(String(o.order_id)); if (examples.length < 3) examples.push(String(o.customercode || o.online_order_id || "(none)").slice(0, 20)); continue; }  // only match by customer ID
           const delivered = nyIso(o.actually_delivered);
           // "Case description" (Scanovator column AI) holds the box letters of this delivery, e.g. "B" or "A,S"
@@ -381,7 +393,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
