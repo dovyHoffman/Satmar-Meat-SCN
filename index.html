@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b260">
+<meta name="build" content="b261">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2130,7 +2130,8 @@ function nlDupMerge(i){const g=NL.dg[i];if(!g)return;const es=g.rows.map(nlEff),
  <p class="note">The merged customer keeps the first ID. The other row is left out of the list.</p>
  <div class="bar"><button class="pri" id="mg_ok">Merge</button><button data-x="1">Cancel</button></div></div>`;document.body.appendChild(d);
  document.getElementById("mg_ok").onclick=()=>{const h=Math.max(1,Math.min(30,parseInt(document.getElementById("mg_hh").value)||1)),base=document.getElementById("mg_ty").value,m=es.find(e=>e.base==base),food=m&&m.food?m.food:(base=="box"?"raw":"meals");const nm=document.getElementById("mg_nm").value.trim();d.remove();nlDupMergeDo(i,h,base,food,nm)}}
-function nlDupMergeG(g,hh,base,food,nm){const D=NL.d;
+function nlDupRank(x){const ag=String(x.r.agency||"").toUpperCase(),k=nk(x.r.agency_ref);let b=0;for(const c of cust){if(nk(c.ref)==k&&(!ag||String(c.agency||"").toUpperCase()==ag)){if(c.active)return 2;b=1}}return b}
+function nlDupMergeG(g,hh,base,food,nm){const D=NL.d;const best=g.rows.map((x,n)=>({x:x,n:n,r:nlDupRank(x)})).sort((a,b)=>b.r-a.r||a.n-b.n).map(o=>o.x);g={rows:best};
   const kp=g.rows[0].k;D.edit=D.edit||{};D.skip=D.skip||{};D.mlog=D.mlog||[];
   D.mlog.push({k:kp,o:g.rows.slice(1).map(x=>x.k),prev:(D.edit[kp]||null),names:g.rows.map(x=>x.r.name+" ("+nlEff(x).hh+" HH, "+(nlEff(x).base=="box"?"box":"meals")+")")});
   D.edit[kp]=Object.assign({},D.edit[kp]||{},{hh:hh,base:base,food:food},nm?{name:nm}:{});g.rows.slice(1).forEach(x=>D.skip[x.k]=1);
