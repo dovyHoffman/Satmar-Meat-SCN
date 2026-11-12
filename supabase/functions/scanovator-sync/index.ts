@@ -312,6 +312,7 @@ Deno.serve(async (req) => {
     let seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;
     const word = body.word === true;
+    const dbg = { try: 0, hit: 0, many: 0, none: 0, wk: "" };
     const wkStart = (() => {   // last Saturday 00:00 New York (the delivery week starts Saturday)
       const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
       const g = (t: string) => parts.find((x) => x.type === t)!.value;
@@ -320,6 +321,7 @@ Deno.serve(async (req) => {
       return new Date(nyIso(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} 00:00:00`)!).getTime();
     })();
     const thisWeek = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() >= wkStart; };
+    dbg.wk = new Date(wkStart).toISOString();
     const haveWeek = new Set<string>();   // customers that already have a delivery this week
     if (word) { for (let f = 0; ; f += 1000) { const { data } = await sb.from("deliveries").select("customer_id").gte("delivered_at", new Date(wkStart).toISOString()).not("customer_id", "is", null).range(f, f + 999); (data || []).forEach((x: any) => haveWeek.add(x.customer_id)); if ((data || []).length < 1000) break; } }   // owner ticked "also match by name + phone"
     const words = (t: unknown) => String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter(Boolean).sort().join(" ");
@@ -374,13 +376,14 @@ Deno.serve(async (req) => {
                     if (!c && loose) { const h = byNamePhone(o); if (h) { c = h; viaName++; } }
           // phone + at least one shared name word, ONE customer only, and ONLY for deliveries of this week to customers that have no delivery yet this week
           if (!c && word && thisWeek(o)) {
+            dbg.try++;
             const ow = new Set(words(`${o.fname || ""} ${o.lname || ""}`).split(" ").filter((w) => w.length > 1));
             const hits = new Map<string, any>();
             for (const ph of [o.phone, o.cell1, o.cell2]) for (const cc of byPhone.get(last10(ph)) || []) {
               if (haveWeek.has(cc.id)) continue;
               if (words(cc.name).split(" ").some((w) => w.length > 1 && ow.has(w))) hits.set(cc.id, cc);
             }
-            if (hits.size === 1) { c = [...hits.values()][0]; viaName++; }
+            if (hits.size === 1) { c = [...hits.values()][0]; viaName++; dbg.hit++; } else if (hits.size > 1) dbg.many++; else dbg.none++;
           }
           if (!c && diagN < 40) { diagN++; const fl: [string, string][] = []; flat(o, "", fl);
             const PII = /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/;
@@ -436,7 +439,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, dbg, have_week: haveWeek.size, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
