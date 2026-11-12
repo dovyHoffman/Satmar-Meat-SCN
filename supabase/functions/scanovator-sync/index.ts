@@ -312,6 +312,7 @@ Deno.serve(async (req) => {
       return hits.size === 1 ? [...hits.values()][0] : null;
     };
     const examples: string[] = [];
+    const found: any[] = [];
     // diagnostics (numbers only): skipped orders that were delivered in the last 6 days, and why they did not match
     const diag: Record<string, number> = { delivered_skipped: 0, name_unique: 0, name_several: 0, phone_only: 0, nothing: 0, no_code: 0 };
     const nameMap = new Map<string, any[]>();
@@ -328,6 +329,10 @@ Deno.serve(async (req) => {
     if (chunk.length) {
       for (let page = 1; page <= 6; page++) {
         const j = await search(chunk, page);
+        if (body.find) {   // read-only search: which order holds this text (e.g. a photo file name)?
+          for (const o of j.data || []) if (JSON.stringify(o).includes(String(body.find))) { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o)) { if (v === null || v === undefined || typeof v === "object") continue; const t = String(v); if (t !== "") r[k] = t.slice(0, 60); } found.push(r); }
+          if (!j.pagination?.has_more || page >= 3) break; await wait(300); continue;
+        }
         const rows: any[] = [];
         let oldest = Infinity;
         const unmatched: string[] = [];
@@ -401,7 +406,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
