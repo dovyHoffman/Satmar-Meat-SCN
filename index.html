@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b239">
+<meta name="build" content="b240">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1635,7 +1635,7 @@ function toDbRows(recs){const seen={},out=[],skipped={noref:0,dup:0};
   const k=ag+"|"+nk(ref);if(seen[k]){skipped.dup++;return}seen[k]=1;
   const ad=cleanAddr(parseAddr(r.addr)),PH=cleanPhones(r.phone,r.cell),mid=r.area=="Middleton",area=mid?"lee":(r.area=="Monsey/Monroe"?"monsey_monroe":/^bedford$/i.test(r.area)?"bedford":/^bp$/i.test(r.area)?"bp":"lee");
   out.push({agency:ag,agency_ref:ref,name:r.name||ref,phone:PH[0]?fmtPh(PH[0]):(r.phone||""),legal_address:String(r.legal||"").trim(),cell:PH[1]?fmtPh(PH[1]):(PH.length?"":String(r.cell||"").trim()),email:String(r.email||"").trim(),street:ad.street,apt:ad.apt,city:ad.city,state:ad.state,zip:ad.zip,notes:r.notes||"",notes_labels:String(r.notesL||"").trim(),note2:String(r.note2||"").trim(),
-   hh:r.hh?Math.max(1,Math.min(30,r.hh)):null,enh:r.enh==null?undefined:r.enh,base:r.base,food:r.food,area:area,middleton:mid,active:!!r.active,auth_end:dstr(r.auth),door_lock:""})});
+   cases:r.cases||undefined,ak:r.ak||undefined,hh:r.hh?Math.max(1,Math.min(30,r.hh)):null,enh:r.enh==null?undefined:r.enh,base:r.base,food:r.food,area:area,middleton:mid,active:!!r.active,auth_end:dstr(r.auth),door_lock:""})});
  return {rows:out,skipped:skipped}}
 function csvToRecs(text){const rows=parseCsv(text).slice(1),col=(a,b)=>rows.map(r=>r.slice(a,b+1));
  return mapRows([col(0,3),col(5,8),col(9,11),col(14,19),col(20,24)])}
@@ -1823,12 +1823,15 @@ async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=awai
 async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:NL.d||{},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
 const nlDg=v=>{let d=String(v||"").replace(/\D/g,"");if(d.length==11&&d[0]=="1")d=d.slice(1);return d};
 const nlNK=n=>String(n||"").toLowerCase().replace(/[^a-z]+/g," ").trim().split(" ").filter(Boolean).sort().join(" ");
-const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.name)+":"+(r.hh||""):nk(r.agency_ref);
+const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.name)+":"+(r.hh||""):r.ak?"a:"+String(r.agency||"").toUpperCase()+":"+nk(r.agency_ref):nk(r.agency_ref);
+/* two cases of one family (same agency, same ID, one Meals + one Box): production counts ONE Meals family, household = both added */
+function nlMk2(a,b,fa,fb){const m=a.base=="meals"?a:b,x=m===a?b:a,fm=m===a?fa:fb,fx=m===a?fb:fa,c=q=>({base:q.base,food:q.food,hh:q.hh,enh:q.enh});
+ return {m:m,cases:[Object.assign(c(m),{file:fm}),Object.assign(c(x),{file:fx})],hh:(m.hh&&x.hh)?m.hh+x.hh:undefined,enh:(m.enh==null&&x.enh==null)?undefined:(m.enh||0)+(x.enh||0),food:m.food||"meals"}}
 function nlCalc(){
- const D=NL.d;if(!D)return null;const ex={},exN={},mag={},got={};
- cust.forEach(c=>{const k=nk(c.ref);if(!ex[k]||(!ex[k].active&&c.active))ex[k]=c;const n=nlNK(c.name);if(n)(exN[n]=exN[n]||[]).push(c)});
+ const D=NL.d;if(!D)return null;const ex={},exN={},mag={},got={},exAg={};
+ cust.forEach(c=>{const k=nk(c.ref);exAg[String(c.agency||"").toUpperCase()+"|"+k]=c;if(!ex[k]||(!ex[k].active&&c.active))ex[k]=c;const n=nlNK(c.name);if(n)(exN[n]=exN[n]||[]).push(c)});
  const out={nw:[],chg:[],same:0,sameBy:{},off:[],skd:(D.sk||[]).filter(y=>y.blankRow).map(y=>({name:y.name,ref:"",hh:"",phone:"",cell:"",why:y.why})),byName:0},rows=D.rows.map(r=>{const k=nlKey(r);return {r:r,k:k,e:Object.assign({name:r.name,hh:r.hh,enh:r.enh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c:null}});
- rows.forEach(x=>{if(!x.r.dup&&!x.r.noId){const c=ex[nk(x.r.agency_ref)];if(c){x.c=c;got[c.uuid]=1}}});
+ rows.forEach(x=>{if(!x.r.dup&&!x.r.noId){const c=x.r.ak?exAg[String(x.r.agency||"").toUpperCase()+"|"+nk(x.r.agency_ref)]:ex[nk(x.r.agency_ref)];if(c){x.c=c;got[c.uuid]=1}}});
  rows.forEach(x=>{if(x.c)return;let l=(exN[nlNK(x.e.name||x.r.name)]||[]).filter(c=>!got[c.uuid]);if(l.length>1){const la=l.filter(c=>c.active);if(la.length==1)l=la}if(l.length==1){x.c=l[0];got[l[0].uuid]=1;x.byName=1;out.byName++}});
  rows.forEach(x=>{const r=x.r,e=x.e,c=x.c,k=x.k,sk=!!(D.skip||{})[k];
   if(!c){if(r.noId||r.dup){out.skd.push({agency:r.agency,name:r.name,ref:r.agency_ref,hh:r.hh,phone:r.phone,cell:r.cell,why:r.noId?"no ID in the file and no customer with this name":"ID used twice in the file and no customer with this name"});return}
@@ -1936,13 +1939,21 @@ async function nlFiles(files){
     if(!ok)pend.push({file:f.name,text:best||""})}
    else{const t=await f.text();if(!addUnit(f.name,t))pend.push({file:f.name,text:t})}}
   if(pend.length){NL.mapAsk={items:pend,i:0,hrow:1,sel:{},ag:"",files:[...files]};NL.busy=false;render();return}
+  {/* two cases: the SAME agency and the SAME ID in two files, one Meals and one Box = one family (never across agencies) */
+   const grp={},byRef={};units.forEach((f,ui)=>f.pr.recs.forEach(r=>{const ref=String(r.ref||"").trim();if(!ref)return;const A=String(r.agency||"").toUpperCase(),g=A+"|"+nk(ref);(grp[g]=grp[g]||[]).push({ui:ui,r:r});(byRef[nk(ref)]=byRef[nk(ref)]||{})[A]=1}));
+   Object.keys(byRef).forEach(k=>{if(Object.keys(byRef[k]).length>1)Object.keys(byRef[k]).forEach(A=>(grp[A+"|"+k]||[]).forEach(q=>q.r.ak=1))});
+   Object.keys(grp).forEach(g=>{const m=grp[g];if(m.length!=2||m[0].ui==m[1].ui)return;const a=m[0].r,b=m[1].r;if(!a.base||!b.base||a.base==b.base)return;
+    const q=nlMk2(a,b,units[m[0].ui].name,units[m[1].ui].name),me=a===q.m?a:b,ot=me===a?b:a;me.cases=q.cases;me.hh=q.hh;me.enh=q.enh;me.base="meals";me.food=q.food;ot.__c2=1})}
   for(const f of units){const t=f.text,pr=f.pr,recs=pr.recs,keep=[];(pr.blank||[]).forEach(b=>sk.push({name:b,ref:"",why:"no name and no ID in the file (row has other data)",blankRow:1}));
-   recs.forEach((r,i)=>{const ref=String(r.ref||"").trim(),tag=f.name+"#"+i;if(!ref){r.ref="NOID"+(sk.length+keep.length);r.__t="noId";keep.push(r);sk.push({name:r.name,ref:"",why:"no ID"});return}const k=nk(ref);if(useen[k]){r.__o=ref;r.ref=ref+"~dup"+(sk.length+keep.length);r.__t="dup";keep.push(r);sk.push({name:r.name,ref:ref,why:"ID used twice"});return}useen[k]=1;keep.push(r)});
-   const res=toDbRows(keep);res.rows.forEach(r=>{const o=keep.find(q=>q.ref==r.agency_ref);if(o&&o.__t=="noId"){r.agency_ref="";r.noId=true;r.agency=""}else if(o&&o.__t=="dup"){r.agency_ref=o.__o;r.dup=true}const k=nlKey(r)+(r.dup||r.noId?":"+rows.length:"");if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
+   recs.forEach((r,i)=>{if(r.__c2)return;const ref=String(r.ref||"").trim(),tag=f.name+"#"+i;if(!ref){r.ref="NOID"+(sk.length+keep.length);r.__t="noId";keep.push(r);sk.push({name:r.name,ref:"",why:"no ID"});return}const k=String(r.agency||"").toUpperCase()+"|"+nk(ref);if(useen[k]){r.__o=ref;r.ref=ref+"~dup"+(sk.length+keep.length);r.__t="dup";keep.push(r);sk.push({name:r.name,ref:ref,why:"ID used twice"});return}useen[k]=1;keep.push(r)});
+   const res=toDbRows(keep);res.rows.forEach(r=>{const o=keep.find(q=>q.ref==r.agency_ref);if(o&&o.__t=="noId"){r.agency_ref="";r.noId=true;r.agency=""}else if(o&&o.__t=="dup"){r.agency_ref=o.__o;r.dup=true}const k=(r.dup||r.noId||r.ak?"":String(r.agency||"").toUpperCase()+"|")+nlKey(r)+(r.dup||r.noId?":"+rows.length:"");if(seen[k]){skipped++;return}seen[k]=1;r.active=true;rows.push(r)});skipped+=res.skipped.noref+res.skipped.dup}
   if(!rows.length)throw new Error("No customers were found in the file. Is it the customer list? Please send me the file so I can set it up.");
   const ag=[...new Set(rows.map(r=>r.agency))];
   const old=NL.d&&NL.d.rows&&NL.d.rows.length?NL.d:null;
-  if(old){const ids=new Set(old.rows.filter(r=>!r.noId&&r.agency_ref).map(r=>nk(r.agency_ref)));rows.forEach(r=>{if(!r.noId&&r.agency_ref&&!r.dup&&ids.has(nk(r.agency_ref))){r.dup=true;sk.push({name:r.name,ref:r.agency_ref,why:"ID used twice (in two files)"})}})}
+  if(old){const idm={};old.rows.forEach(r=>{if(!r.noId&&r.agency_ref&&!r.dup)idm[String(r.agency||"").toUpperCase()+"|"+nk(r.agency_ref)]=r});const rm=new Set();rows.forEach(r=>{if(r.noId||!r.agency_ref||r.dup)return;const o=idm[String(r.agency||"").toUpperCase()+"|"+nk(r.agency_ref)];if(!o)return;
+    if(!o.cases&&!r.cases&&o.base&&r.base&&o.base!=r.base){const q=nlMk2(o,r,(old.files||[]).join(", ")||"earlier file",(files[0]&&files[0].name)||"new file");o.cases=q.cases;o.hh=q.hh;o.enh=q.enh;o.base="meals";o.food=q.food;rm.add(r)}
+    else{r.dup=true;sk.push({name:r.name,ref:r.agency_ref,why:"ID used twice (in two files)"})}});
+   for(let i=rows.length-1;i>=0;i--)if(rm.has(rows[i]))rows.splice(i,1)}
   NL.d=old?{rows:old.rows.concat(rows),ag:[...new Set((old.ag||[]).concat(ag))],skip:old.skip||{},edit:old.edit||{},files:(old.files||[]).concat([...files].map(f=>f.name)),skipped:(old.sk||[]).concat(sk).length,sk:(old.sk||[]).concat(sk),mlog:old.mlog||[],dupOk:old.dupOk||{},uploaded:new Date().toISOString()}:{rows:rows,ag:ag,skip:{},edit:{},files:[...files].map(f=>f.name),skipped:sk.length||skipped,sk:sk,uploaded:new Date().toISOString()};NL.tab="swap";
   await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+(old?" and added to the draft ("+NL.d.rows.length.toLocaleString()+" in all). The same ID in two files is shown under Duplicates.":"")+". Nothing has been changed yet. Look it over below."+(autoN.length?" Columns recognized by themselves → "+autoN.join(" | "):"")}
  catch(e){NL.err=String((e&&e.message)||e)}
@@ -1956,14 +1967,14 @@ const NL_CATS=[["nw","New customers"],["swap","Name: first/last swapped"],["name
 function nlRows(R,cat){return cat=="nw"?R.nw:cat=="off"?R.off:cat=="skd"?[]:R.chg.filter(x=>x.cats[cat])}
 async function nlApprove(cat){
  cat=cat||"all";const R=nlCalc();if(!R||NL.busy)return;const live=a=>a.filter(x=>!x.sk),fa=a=>!NL.co||String(a||"").toUpperCase()==NL.co;
- const nw=cat=="all"||cat=="nw"?live(R.nw).filter(x=>fa(x.r.agency)&&!nlBlank(x).t&&!nlBlank(x).h):[],of=cat=="all"||cat=="off"?live(R.off).filter(x=>fa(x.c.agency)):[],ch=live(cat=="all"?R.chg.filter(x=>Object.keys(x.cats).some(k=>k!="type"&&k!="hh")):(cat=="nw"||cat=="off")?[]:R.chg.filter(x=>x.cats[cat])).filter(x=>fa(x.r.agency||x.c.agency));
+ const nw=cat=="all"||cat=="nw"?live(R.nw).filter(x=>fa(x.r.agency)&&!x.r.cases&&!nlBlank(x).t&&!nlBlank(x).h):[],of=cat=="all"||cat=="off"?live(R.off).filter(x=>fa(x.c.agency)):[],ch=live(cat=="all"?R.chg.filter(x=>Object.keys(x.cats).some(k=>k!="type"&&k!="hh")):(cat=="nw"||cat=="off")?[]:R.chg.filter(x=>x.cats[cat])).filter(x=>fa(x.r.agency||x.c.agency)&&!x.r.cases);
  if(!nw.length&&!of.length&&!ch.length){NL.msg="Nothing to apply there.";render();return}
  const lab=(cat=="all"?"everything in this list EXCEPT household and customer type (those you approve one by one)":(NL_CATS.find(c=>c[0]==cat)||[0,cat])[1])+(NL.co?" for "+NL.co+" only":"");
  if(!confirm("Approve "+lab+"?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated"+(cat=="all"?"":" ("+lab.toLowerCase()+" only)")+"\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
  NL.busy=true;NL.err="";render();
  try{const ags=[...new Set(nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
-  const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,enh:x.e.enh==null?undefined:x.e.enh,base:x.e.base,food:x.e.food,active:true}));
+  const rows=nw.map(x=>{const o=Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,enh:x.e.enh==null?undefined:x.e.enh,base:x.e.base,food:x.e.food,active:true});delete o.cases;delete o.ak;return o});
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
   const f=c=>(c=="hh"||c=="type")?cat==c:(cat=="all"||cat==c),items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,enh:f("hh")&&x.cats.hh&&x.e.enh!=null?x.e.enh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?(x.fillPhone||x.r.phone||""):"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
@@ -2137,8 +2148,14 @@ function nlPreview(){
  <div class="wrap pvw" style="max-height:70vh;overflow:auto"><table class="pvt" style="font-size:12px;white-space:nowrap"><thead><tr>${hd}</tr></thead><tbody>${sh.map(x=>x.html).join("")}</tbody></table></div>${items.length>1500?`<p class="note">Showing the first 1,500 of ${items.length.toLocaleString()}.</p>`:`<p class="note">${items.length.toLocaleString()} rows.</p>`}</div>`}
 function vNewList(){
  if(!S.user||S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open this page.</p></div>`;
- nlLoad();nlDupCalc();if(NL.mapAsk)return nlMapView();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button></div>`;
- if(NL.view=="prod")return nb+nlProdView();if(NL.view=="prev")return nb+nlPreview();if(NL.view=="dups")return nb+nlDupView();return nb+vNewList0()}
+ nlLoad();nlDupCalc();if(NL.mapAsk)return nlMapView();const nb=`<div class="bar" style="margin-bottom:8px"><button class="${NL.view=="prod"?"":"pri"}" onclick="NL.view='draft';render()">New list (draft)</button><button class="${NL.view=="prod"?"pri":""}" onclick="NL.view='prod';render()">Production · what to make ready</button><button class="${NL.view=="prev"?"pri":""}" onclick="NL.view='prev';render()">Preview · like my sheet</button><button class="${NL.view=="dups"?"pri":""}" onclick="NL.view='dups';render()" style="${NL.dg&&NL.dg.length?"background:#e5484d;color:#fff;border-color:#e5484d":""}">Duplicates${NL.dg&&NL.dg.length?" ("+NL.dg.length+")":""}</button><button class="${NL.view=="cases"?"pri":""}" onclick="NL.view='cases';render()">Two cases${NL.d&&NL.d.rows?" ("+NL.d.rows.filter(r=>r.cases).length+")":""}</button></div>`;
+ if(NL.view=="prod")return nb+nlProdView();if(NL.view=="prev")return nb+nlPreview();if(NL.view=="dups")return nb+nlDupView();if(NL.view=="cases")return nb+nlCasesView();return nb+vNewList0()}
+function nlCasesView(){
+ const H=esc,D=NL.d;if(!D||!D.rows)return `<div class="card"><h2>Two cases</h2><p class="note">Upload the new list first.</p></div>`;
+ const L=D.rows.filter(r=>r.cases),ty=c=>c.base=="box"?"Box":"Meals",by={};L.forEach(r=>{const a=String(r.agency||"?").toUpperCase();by[a]=(by[a]||0)+1});
+ return `<div class="card"><h2>Two cases (${L.length})</h2><p class="note">One family that is in <b>two files of the same company</b> with the <b>same ID</b>: one Meals and one Box. For production and the family total it is <b>one Meals family</b> and the household of both cases is added. The same ID in two different companies is never merged. <b>Billing is not connected yet</b>, so these families are held back from Approve: nothing about them is changed in your real customers. Same type twice (Box + Box, Meals + Meals) stays in Duplicates.</p>
+ ${Object.keys(by).length?`<p class="note">${Object.keys(by).sort().map(a=>H(a)+": "+by[a]).join(" · ")}</p>`:""}</div>
+ ${L.length?`<div class="card"><div class="wrap"><table style="font-size:13px"><tr><th>Company</th><th>ID</th><th>Name</th><th>Case 1</th><th>Case 2</th><th>Production</th></tr>${L.map(r=>{const c=r.cases;return `<tr><td><span class="ctag">${H(r.agency||"")}</span></td><td>${H(r.agency_ref)}</td><td>${H(r.name||"")}</td>${c.map(q=>`<td>${ty(q)}${q.food&&q.food!="meals"&&q.food!="raw"?" · "+H(q.food):""} · ${q.hh?H(q.hh)+" HH":"<b style='color:#b42318'>HH blank</b>"}<div class="note">${H(q.file||"")}</div></td>`).join("")}<td><b>Meals · ${r.hh?H(r.hh)+" HH":"<b style='color:#b42318'>HH blank</b>"}</b>${r.enh?`<div class="note">Enhanced ${H(r.enh)}</div>`:""}</td></tr>`}).join("")}</table></div></div>`:`<div class="card"><p class="msg">No families with two cases in this draft.</p></div>`}`}
 function vNewList0(){
  if(!S.user||S.user.role!="owner")return "";
  nlLoad();const R0=nlCalc(),H=esc,D=NL.d,UA=a=>String(a||"").toUpperCase(),fa=a=>!NL.co||UA(a)==NL.co;
