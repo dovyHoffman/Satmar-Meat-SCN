@@ -139,7 +139,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b223">
+<meta name="build" content="b224">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1393,7 +1393,7 @@ async function fetchAllPar(table,cols,build){
   const n=Math.ceil(r0.count/1000)||1,jobs=[Promise.resolve(r0.data)];for(let i=1;i<n;i++){let q=sb.from(table).select(cols).range(i*1000,i*1000+999);if(build)q=build(q);jobs.push(q.then(r=>{if(r.error)throw r.error;return r.data}))}
   return (await Promise.all(jobs)).flat()}catch(e){return fetchAll(table,cols,build)}}
 const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
-const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,base,food,area,middleton,active,auth_end,door_lock";
+const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,enh,base,food,area,middleton,active,auth_end,door_lock";
 const ccKey=()=>"sm_cc_"+(S.user?S.user.id:"");
 const IDB={db:null,open(){return this.db||(this.db=new Promise((res,rej)=>{try{const q=indexedDB.open("sm_cache",1);q.onupgradeneeded=()=>q.result.createObjectStore("kv");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}catch(e){rej(e)}}))},
  async get(k){try{const d=await this.open();return await new Promise(r=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch(e){return null}},
@@ -1427,7 +1427,7 @@ async function loadDB(){
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
    cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
-    auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
+    auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,enh:c.enh||0,food:c.food,base:c.base,codes:[],area:c.middleton?"Middleton":(AREAL[c.area]||"Lee"),lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const {data}=await pSet;(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
   try{const rq=await pReq;rq.forEach(r=>{const c=byU[r.customer_id];if(c)c.next=Object.assign({},r.payload,{rid:r.id,ew:r.effective_week,at:new Date(r.requested_at).toLocaleDateString()})})}catch(e){}
@@ -1821,7 +1821,7 @@ const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.n
 function nlCalc(){
  const D=NL.d;if(!D)return null;const ex={},exN={},mag={},got={};
  cust.forEach(c=>{const k=nk(c.ref);if(!ex[k]||(!ex[k].active&&c.active))ex[k]=c;const n=nlNK(c.name);if(n)(exN[n]=exN[n]||[]).push(c)});
- const out={nw:[],chg:[],same:0,sameBy:{},off:[],skd:(D.sk||[]).filter(y=>y.blankRow).map(y=>({name:y.name,ref:"",hh:"",phone:"",cell:"",why:y.why})),byName:0},rows=D.rows.map(r=>{const k=nlKey(r);return {r:r,k:k,e:Object.assign({name:r.name,hh:r.hh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c:null}});
+ const out={nw:[],chg:[],same:0,sameBy:{},off:[],skd:(D.sk||[]).filter(y=>y.blankRow).map(y=>({name:y.name,ref:"",hh:"",phone:"",cell:"",why:y.why})),byName:0},rows=D.rows.map(r=>{const k=nlKey(r);return {r:r,k:k,e:Object.assign({name:r.name,hh:r.hh,enh:r.enh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c:null}});
  rows.forEach(x=>{if(!x.r.dup&&!x.r.noId){const c=ex[nk(x.r.agency_ref)];if(c){x.c=c;got[c.uuid]=1}}});
  rows.forEach(x=>{if(x.c)return;let l=(exN[nlNK(x.e.name||x.r.name)]||[]).filter(c=>!got[c.uuid]);if(l.length>1){const la=l.filter(c=>c.active);if(la.length==1)l=la}if(l.length==1){x.c=l[0];got[l[0].uuid]=1;x.byName=1;out.byName++}});
  rows.forEach(x=>{const r=x.r,e=x.e,c=x.c,k=x.k,sk=!!(D.skip||{})[k];
@@ -1830,7 +1830,7 @@ function nlCalc(){
   e.base=e.base||c.base;e.food=e.food||c.food;e.hh=e.hh||c.hh;mag[String(c.agency)]=1;
   const d=[],cats={};if(x.byName)d.push("matched by name (ID in file: "+(r.agency_ref||"none")+")");
   if(e.name&&String(c.name||"").trim()!==String(e.name).trim()){d.push("name: "+(c.name||"—")+" → "+e.name);if(nlNK(c.name)==nlNK(e.name))cats.swap=1;else cats.name=1}
-  if(c.base!==e.base){d.push("customer type: "+c.base+" → "+e.base);cats.type=1}if(c.hh!==e.hh){d.push("household: "+c.hh+" → "+e.hh);cats.hh=1}
+  if(c.base!==e.base){d.push("customer type: "+c.base+" → "+e.base);cats.type=1}if(c.hh!==e.hh){d.push("household: "+c.hh+" → "+e.hh);cats.hh=1}if(e.enh!=null&&(c.enh||0)!==e.enh){d.push("Enhanced (billing): "+(c.enh||0)+" → "+e.enh);cats.hh=1}
   const okN=v=>nlDg(v).length==10&&!/0{7}|^(\d)\1{9}$/.test(nlDg(v)),bad=!!c.rawPhone&&(/^\s*\d(\.\d+)?E\+\d+\s*$/i.test(c.rawPhone)||nlDg(c.rawPhone).length<10),fp=bad?(okN(r.cell)?r.cell:(okN(r.phone)?r.phone:"")):"";x.fillPhone=fp;
   const ph=fp?"phone "+fp+" (the saved one is broken: "+c.rawPhone+")":String(r.phone||"").replace(/\D/g,"").length==10&&!c.phone?"phone "+r.phone:"",ce=!bad&&r.cell&&!c.cell&&nlDg(r.cell).length==10&&nlDg(r.cell)!=nlDg(c.phone)&&!/0{7}|^(\d)\1{9}$/.test(nlDg(r.cell))?"cell "+r.cell:"",nl=r.notes_labels&&!c.notes?"label note":"",n2=r.note2&&!c.note2?"note 2":"";
   const fill=[ph,ce,nl,n2].filter(Boolean);if(fill.length)cats.fill=1;
@@ -1840,6 +1840,7 @@ function nlCalc(){
  cust.forEach(c=>{if(c.active&&mag[String(c.agency)]&&!got[c.uuid])out.off.push({k:nk(c.ref),c:c,sk:!!(D.skip||{})[nk(c.ref)]})});
  return out}
 /* household cell: "4" or "2 enhanced, 3 HH" (= enhanced + household add-ons, so 5) */
+function enhv(v){const m=String(v==null?"":v).match(/(\d+)\s*enhanced/i);return m?Number(m[1]):undefined}
 function hhv(v){v=String(v==null?"":v);if(/enhanced|\bhh\b/i.test(v)){const n=v.match(/\d+/g);return n?n.reduce((t,x)=>t+Number(x),0):0}const m=v.replace(/[^0-9.]/g,"");return Math.round(Number(m))||0}
 function nlParse(text,fname,map){
  const all=parseCsv(text),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -1860,7 +1861,7 @@ function nlParse(text,fname,map){
    addr=g(r,c.addr),ph=g(r,c.num),pr=g(r,c.prim),ce=g(r,c.cellc),ag=g(r,c.co)||(map&&map.ag)||((m=>m&&COS.indexOf(m.toUpperCase())>=0?m.toUpperCase():"")((String(fname||"").match(/^\s*([A-Za-z]{2,4})\b/)||[""])[1]))||(ref.match(/^[A-Za-z]+/)||[""])[0].toUpperCase()||"UNK";
   const num=k=>{const v=Number(String(r[k]==null?"":r[k]).replace(/[^0-9.]/g,""));return isFinite(v)?v:0},MX=(c.mealsIdx||c.boxIdx)?(()=>{const m=(c.mealsIdx||[]).reduce((t,k)=>t+num(k),0),x=(c.boxIdx||[]).reduce((t,k)=>t+num(k),0);return (m+x)>0?{hh:Math.round(m+x),base:m>0?"meals":"box",food:m>0?"meals":(nb?"rawnb":"raw")}:null})():null;
   const FB=noF0&&FT?{raw:["box","raw"],rawnb:["box","rawnb"],supper:["meals","supper"],shabbos:["meals","shabbos"],meals:["meals","meals"]}[FT]:null;if(FB&&FT=="raw"&&nb)FB[1]="rawnb";
-  recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:MX?MX.hh:(hhv(g(r,c.hh))||undefined),food:MX?MX.food:FB?FB[1]:noF?undefined:food,base:MX?MX.base:FB?FB[0]:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[]})});
+  recs.push({name:name,ref:ref,agency:ag,legal:addr,cell:c.num>=0?(ce||pr):ce,addr:addr,a:{st:addr,city:"",state:"",zip:""},apt:"",phone:c.num>=0?ph:pr,email:g(r,c.email),auth:null,hh:MX?MX.hh:(hhv(g(r,c.hh))||undefined),enh:MX?undefined:enhv(g(r,c.hh)),food:MX?MX.food:FB?FB[1]:noF?undefined:food,base:MX?MX.base:FB?FB[0]:noF?undefined:base,codes:[],area:(a=>/middleton/i.test(a)?"Middleton":/monsey|monroe|upstate/i.test(a)?"Monsey/Monroe":a)(g(r,c.loc)),lock:"",notes:g(r,c.notes),notesL:g(r,c.nl),note2:g(r,c.n2),active:true,weeks:[]})});
  return {recs:recs,mode:"headers",blank:blank,nrows:nrows}}
 async function nlMapsLoad(){NL.maps={};try{const r=await sb.from("app_settings").select("value").eq("key","list_maps").maybeSingle();if(r.data&&r.data.value)NL.maps=r.data.value}catch(e){}}
 function nlSig(t){const all=parseCsv(t),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");for(let i=0;i<Math.min(all.length,15);i++){const c=all[i].map(hn).filter(Boolean);if(c.length>=3)return c.join("|").slice(0,400)}return ""}
@@ -1953,9 +1954,9 @@ async function nlApprove(cat){
  NL.busy=true;NL.err="";render();
  try{const ags=[...new Set(nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
-  const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true}));
+  const rows=nw.map(x=>Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,enh:x.e.enh==null?undefined:x.e.enh,base:x.e.base,food:x.e.food,active:true}));
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
-  const f=c=>(c=="hh"||c=="type")?cat==c:(cat=="all"||cat==c),items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?(x.fillPhone||x.r.phone||""):"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
+  const f=c=>(c=="hh"||c=="type")?cat==c:(cat=="all"||cat==c),items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,enh:f("hh")&&x.cats.hh&&x.e.enh!=null?x.e.enh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?(x.fillPhone||x.r.phone||""):"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?x.r.note2||"":"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   let n=0;for(let i=0;i<items.length;i+=300){const q=await sb.rpc("apply_list_draft",{p:items.slice(i,i+300)});if(q.error)throw q.error;n+=q.data||0}
   NL.msg="Approved "+lab+": "+nw.length+" new, "+ch.length+" updated, "+of.length+" switched off.";
   await loadDB();const R2=nlCalc();if(!NL.co&&(R2&&!R2.nw.length&&!R2.chg.length&&!R2.off.length)){NL.d=null;await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id});NL.msg+=" Everything in the draft is done."}}
