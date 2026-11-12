@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b255">
+<meta name="build" content="b256">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1969,6 +1969,20 @@ function nlSkip(k,v){const D=NL.d;D.skip=D.skip||{};if(v)D.skip[k]=1;else delete
 function nlTicked(k){return !(NL.tk&&NL.tk[k]===false)}
 function nlTick(k,v){NL.tk=NL.tk||{};NL.tk[k]=!!v;render()}
 function nlApproveTicked(){const ks=NL_CATS.map(c=>c[0]).filter(k=>k!="all"&&k!="skd"&&nlTicked(k));if(!ks.length){NL.msg="Tick at least one box first.";render();return}nlApprove(ks)}
+async function nlReviewXlsx(){const R=nlCalc();if(!R)return;await loadXlsx();
+ const ks=NL_CATS.map(c=>c[0]).filter(k=>k!="all"&&k!="skd"&&nlTicked(k)),SET=new Set(ks),fa=a=>!NL.co||String(a||"").toUpperCase()==NL.co,live=a=>a.filter(x=>!x.sk&&!(x.r&&x.r.cases));
+ const T=b=>b=="box"?"Box":b?"Meals":"",rows=[["What happens","Company","ID","Name now","Name after","Type now","Type after","Household now","Household after","Other changes"]];
+ const sum={New:0,Updated:0,"Switched off":0};
+ if(SET.has("nw"))live(R.nw).filter(x=>fa(x.r.agency)&&!nlBlank(x).t&&!nlBlank(x).h).forEach(x=>{sum.New++;rows.push(["New customer",x.r.agency,x.r.agency_ref,"",x.e.name,"",T(x.e.base),"",x.e.hh,""])});
+ live(R.chg).filter(x=>fa(x.r.agency||x.c.agency)&&[...SET].some(k=>x.cats[k])).forEach(x=>{const c=x.cats,o=[];
+  if(SET.has("fill")&&c.fill)o.push(...(x.fill||[]).map(f=>"adds "+f));if(SET.has("on")&&c.on)o.push("switched ON");
+  const nm=((SET.has("name")&&c.name)||(SET.has("swap")&&c.swap)),ty=SET.has("type")&&c.type,hh=SET.has("hh")&&c.hh;
+  if(!nm&&!ty&&!hh&&!o.length)return;sum.Updated++;
+  rows.push(["Updated",x.c.agency,x.c.ref,x.c.name,nm?x.e.name:"(no change)",T(x.c.base),ty?T(x.e.base):"(no change)",x.c.hh,hh?x.e.hh:"(no change)",o.join(" · ")])});
+ if(SET.has("off"))live(R.off).filter(x=>fa(x.c.agency)).forEach(x=>{sum["Switched off"]++;rows.push(["Switched off (not in file)",x.c.agency,x.c.ref,x.c.name,"",T(x.c.base),"",x.c.hh,"",""])});
+ const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:24},{wch:9},{wch:16},{wch:28},{wch:28},{wch:10},{wch:12},{wch:14},{wch:16},{wch:40}];
+ const su=XLSX.utils.aoa_to_sheet([["What will change if you press the green button"],["Boxes included",ks.map(k=>(NL_CATS.find(c=>c[0]==k)||[0,k])[1]).join(", ")],["Company",NL.co||"All"],["New customers added",sum.New],["Existing customers updated",sum.Updated],["Customers switched off",sum["Switched off"]],["Nothing is deleted. Two-case families and skipped rows are not included."]]);su["!cols"]=[{wch:34},{wch:70}];
+ XLSX.utils.book_append_sheet(wb,su,"Summary");XLSX.utils.book_append_sheet(wb,ws,"Changes");XLSX.writeFile(wb,"Satmar-what-will-change"+(NL.co?"-"+NL.co:"")+".xlsx");NL.msg="Excel downloaded: "+(rows.length-1)+" lines. Nothing was changed.";render()}
 function nlTab(t){NL.tab=t;render()}
 async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";try{await sb.from("list_draft").upsert({id:1,payload:{},updated_at:new Date().toISOString(),updated_by:S.user.id})}catch(e){}render()}
 const NL_CATS=[["all","Everything below"],["nw","New customers"],["swap","Name only flipped (Last, First)"],["name","Name is different"],["type","Box / Meals changed"],["hh","Household number changed"],["fill","Phone / cell / note added"],["on","Turned back on"],["off","In our system, not in the file"],["skd","Rows the file had but we left out"]];
@@ -2230,7 +2244,7 @@ function vNewList0(){
  nlLoad();const R0=nlCalc(),H=esc,D=NL.d,UA=a=>String(a||"").toUpperCase(),fa=a=>!NL.co||UA(a)==NL.co;
  const R=R0&&NL.co?Object.assign({},R0,{nw:R0.nw.filter(x=>fa(x.r.agency)),chg:R0.chg.filter(x=>fa(x.r.agency||x.c.agency)),off:R0.off.filter(x=>fa(x.c.agency)),skd:(R0.skd||[]).filter(x=>fa(x.agency)),same:R0.sameBy[NL.co]||0}):R0;
  const cc={};if(D&&D.rows)D.rows.forEach(r=>{const a=UA(r.agency)||"?";cc[a]=(cc[a]||0)+1});
- const chips=D&&D.rows?`<div class="bar" style="flex-wrap:wrap;margin-bottom:8px"><span class="note">Company:</span><button class="${NL.co?"":"pri"}" onclick="NL.co='';render()">All (${D.rows.length.toLocaleString()})</button>${Object.keys(cc).sort().map(a=>`<button class="${NL.co==a?"pri":""}" onclick="NL.co='${H(a)}';render()">${H(a)} (${cc[a].toLocaleString()})</button>`).join("")}<span style="flex:1"></span><button class="pri" style="background:#1a7f37;border-color:#1a7f37" onclick="nlApproveTicked()" ${NL.busy?"disabled":""}>✓ Approve all ticked boxes${NL.co?" · "+H(NL.co):""}</button></div>`:"";
+ const chips=D&&D.rows?`<div class="bar" style="flex-wrap:wrap;margin-bottom:8px"><span class="note">Company:</span><button class="${NL.co?"":"pri"}" onclick="NL.co='';render()">All (${D.rows.length.toLocaleString()})</button>${Object.keys(cc).sort().map(a=>`<button class="${NL.co==a?"pri":""}" onclick="NL.co='${H(a)}';render()">${H(a)} (${cc[a].toLocaleString()})</button>`).join("")}<span style="flex:1"></span><button onclick="nlReviewXlsx()">⬇ See what will change (Excel)</button><button class="pri" style="background:#1a7f37;border-color:#1a7f37" onclick="nlApproveTicked()" ${NL.busy?"disabled":""}>✓ Approve all ticked boxes${NL.co?" · "+H(NL.co):""}</button></div>`:"";
  const up=`<div class="card"><h2>New list (draft) <span class="note" style="font-weight:400;font-size:12px">· page version ${esc(document.querySelector("meta[name=build]").content)}</span></h2><p class="note">Upload the customer list file(s) for next week (Excel .xlsx or .csv). The system matches every customer by ID. <b>Nothing changes in your real customers until you approve.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
  <input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
