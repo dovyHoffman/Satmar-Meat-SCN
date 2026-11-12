@@ -289,7 +289,8 @@ Deno.serve(async (req) => {
     }
     const phones = [...byPhone.keys()].sort();
     const chunk = phones.slice(offset, offset + CHUNK);
-    const since = Date.now() - DAYS_BACK * 864e5;
+    const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
+    const since = Date.now() - daysBack * 864e5;
     let seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;   // owner ticked "also match by name + phone"
     const words = (t: unknown) => String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter(Boolean).sort().join(" ");
