@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b247">
+<meta name="build" content="b248">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2098,17 +2098,31 @@ function nlMergeName(names){
  u.slice(1).forEach(n=>tk(n).forEach(w=>{if(!all.some(x=>same(x,w))){all.push(w);rest.push(w)}}));
  return rest.length?l+", "+rest.join(" "):l}
 function nlDupMerge(i){const g=NL.dg[i];if(!g)return;const es=g.rows.map(nlEff),hh=es.reduce((t,e)=>t+(Number(e.hh)||1),0);let b=0;es.forEach((e,j)=>{if((Number(e.hh)||1)>(Number(es[b].hh)||1))b=j});
- const dv=es[b].base=="box"?"box":"meals",d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ const dv=es.some(e=>e.base!="box")?"meals":"box",d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
  d.innerHTML=`<div class="mod" style="max-width:520px"><b style="font-size:17px">Merge into one customer</b>
  <p class="note">${esc(g.rows.map((x,j)=>(x.r.name||"")+" ("+es[j].hh+" HH, "+(es[j].base=="box"?"box":"meals")+")").join("  +  "))}</p>
  <div class="rwfld"><label style="grid-column:1/-1;flex:1 1 100%;width:100%">Name<input id="mg_nm" value="${esc(nlMergeName(es.map(e=>e.name)))}" placeholder="name of the merged customer" style="width:100%;box-sizing:border-box"></label><label>Household (HH)<input id="mg_hh" type="number" min="1" max="30" value="${Math.min(30,hh)}"></label><label>Customer type<select id="mg_ty"><option value="box" ${dv=="box"?"selected":""}>Box</option><option value="meals" ${dv=="meals"?"selected":""}>Meals</option></select></label></div>
  <p class="note">The merged customer keeps the first ID. The other row is left out of the list.</p>
  <div class="bar"><button class="pri" id="mg_ok">Merge</button><button data-x="1">Cancel</button></div></div>`;document.body.appendChild(d);
  document.getElementById("mg_ok").onclick=()=>{const h=Math.max(1,Math.min(30,parseInt(document.getElementById("mg_hh").value)||1)),base=document.getElementById("mg_ty").value,m=es.find(e=>e.base==base),food=m&&m.food?m.food:(base=="box"?"raw":"meals");const nm=document.getElementById("mg_nm").value.trim();d.remove();nlDupMergeDo(i,h,base,food,nm)}}
-function nlDupMergeDo(i,hh,base,food,nm){const D=NL.d,g=NL.dg[i];if(!g)return;
+function nlDupMergeG(g,hh,base,food,nm){const D=NL.d;
   const kp=g.rows[0].k;D.edit=D.edit||{};D.skip=D.skip||{};D.mlog=D.mlog||[];
   D.mlog.push({k:kp,o:g.rows.slice(1).map(x=>x.k),prev:(D.edit[kp]||null),names:g.rows.map(x=>x.r.name+" ("+nlEff(x).hh+" HH, "+(nlEff(x).base=="box"?"box":"meals")+")")});
-  D.edit[kp]=Object.assign({},D.edit[kp]||{},{hh:hh,base:base,food:food},nm?{name:nm}:{});g.rows.slice(1).forEach(x=>D.skip[x.k]=1);NL.dm="Merged ✓ "+(nm||g.rows[0].r.name||"")+" → "+hh+" HH, "+(base=="box"?"Box":"Meals")+". It is listed under Merged at the bottom (you can undo it there).";nlSave();render();try{window.scrollTo(0,0)}catch(e){}}
+  D.edit[kp]=Object.assign({},D.edit[kp]||{},{hh:hh,base:base,food:food},nm?{name:nm}:{});g.rows.slice(1).forEach(x=>D.skip[x.k]=1);
+  return "Merged ✓ "+(nm||g.rows[0].r.name||"")+" → "+hh+" HH, "+(base=="box"?"Box":"Meals")+". It is listed under Merged at the bottom (you can undo it there)."}
+function nlDupMergeDo(i,hh,base,food,nm){const g=NL.dg[i];if(!g)return;NL.dm=nlDupMergeG(g,hh,base,food,nm);nlSave();render();try{window.scrollTo(0,0)}catch(e){}}
+/* select several duplicate groups and merge them in one go */
+function nlDupSel(i,v){const g=NL.dg[i];if(!g)return;NL.dsel=NL.dsel||{};if(v)NL.dsel[g.gid]=1;else delete NL.dsel[g.gid];render()}
+function nlDupSelAll(v){NL.dsel={};if(v)(NL.dg||[]).forEach(g=>NL.dsel[g.gid]=1);render()}
+function nlDupPlan(g){const es=g.rows.map(nlEff);if(es.some(e=>!(Number(e.hh)>0)))return null;const hh=Math.min(30,es.reduce((t,e)=>t+Number(e.hh),0)),base=es.some(e=>e.base!="box")?"meals":"box",m=es.find(e=>e.base==base),food=m&&m.food?m.food:(base=="box"?"raw":"meals");return {hh:hh,base:base,food:food,nm:nlMergeName(es.map(e=>e.name))}}
+function dupSelBar(){const n=(NL.dg||[]).length;if(!n)return "";const k=(NL.dg||[]).filter(g=>NL.dsel&&NL.dsel[g.gid]).length;
+ return `<div class="card"><div class="bar" style="flex-wrap:wrap"><button onclick="nlDupSelAll(true)">Select all (${n})</button><button onclick="nlDupSelAll(false)">Unselect all</button><button class="pri" onclick="nlDupMergeSel()" ${k?"":"disabled"}>Merge selected (${k})</button></div><p class="note" style="margin-top:6px">Tick the boxes next to the groups (untick any you want to leave out). <b>Merge selected</b> merges each ticked group into one customer: household = the total of its rows, type = Meals if any row is Meals (otherwise Box), the names combined, the first ID kept. A group with a blank household is skipped, so you can merge it by hand.</p></div>`}
+function nlDupMergeSel(){const sel=(NL.dg||[]).filter(g=>NL.dsel&&NL.dsel[g.gid]);if(!sel.length)return;
+ const plans=sel.map(g=>({g:g,p:nlDupPlan(g)})),ok=plans.filter(x=>x.p),sk=plans.length-ok.length;
+ if(!ok.length){NL.dm="Nothing merged: every ticked group has a blank household. Merge those one by one.";render();return}
+ if(!confirm("Merge "+ok.length+" duplicate group"+(ok.length>1?"s":"")+" into one customer each?\n\nHousehold = the total of the rows, type = Meals if any row is Meals (otherwise Box), names combined, first ID kept."+(sk?"\n"+sk+" ticked group"+(sk>1?"s have":" has")+" a blank household and will be skipped.":"")+"\n\nYou can undo each one under Merged at the bottom. Nothing changes in your real customers until you approve the list."))return;
+ ok.forEach(x=>{nlDupMergeG(x.g,x.p.hh,x.p.base,x.p.food,x.p.nm);delete NL.dsel[x.g.gid]});
+ NL.dm="Merged ✓ "+ok.length+" group"+(ok.length>1?"s":"")+(sk?" ("+sk+" skipped: household is blank, merge them one by one)":"")+". They are listed under Merged at the bottom (you can undo each one there).";nlSave();render();try{window.scrollTo(0,0)}catch(e){}}
 function nlMergeUndo(i){const D=NL.d,m=(D.mlog||[])[i];if(!m)return;if(m.prev)D.edit[m.k]=m.prev;else delete D.edit[m.k];m.o.forEach(k=>delete D.skip[k]);D.mlog.splice(i,1);nlSave();render()}
 function nlDupView(){
  const H=esc,D=NL.d;if(!D)return `<div class="card"><h2>Duplicates</h2><p class="note">Upload the new list first.</p></div>`;
@@ -2120,13 +2134,13 @@ function nlDupView(){
   dAddr=r=>{const c=!r.noId&&r.agency_ref?exA[nk(r.agency_ref)]:null;if(!c)return "";const o=[],da=c.addr||"",hm=c.legal||"";
   if(da&&!sameA(da,r))o.push("Delivery address on file: "+da);if(hm&&!sameA(hm,r)&&!(da&&nz(hm)==nz(da)&&!sameA(da,r)&&false))o.push("Home address on file: "+hm);
   return o.length?`<div class="note" style="margin-top:3px;color:#8a5a00">${o.map(H).join("<br>")}</div>`:""};
- const box=(g,i,done)=>`<div class="card" style="border-color:${done?"var(--bd,#ddd)":"#e5484d"}"><b style="color:${done?"inherit":"#b42318"}"><span class="ctag">${H(g.rows[0].r.agency||"")}</span> ${g.why.map(w=>nlWhy[w]).join(" + ")}</b>
+ const box=(g,i,done)=>`<div class="card" style="border-color:${done?"var(--bd,#ddd)":"#e5484d"}"><b style="color:${done?"inherit":"#b42318"}">${done?"":`<input type="checkbox" style="width:auto;margin:0 8px 0 0;vertical-align:middle" ${NL.dsel&&NL.dsel[g.gid]?"checked":""} onchange="nlDupSel(${i},this.checked)">`}<span class="ctag">${H(g.rows[0].r.agency||"")}</span> ${g.why.map(w=>nlWhy[w]).join(" + ")}</b>
  <div class="wrap"><table style="font-size:13px"><tr><th>ID</th><th>Name</th><th>Type</th><th>HH</th><th>Phone</th><th>Cell</th><th>Address</th><th></th></tr>${g.rows.map(x=>{const e=nlEff(x),r=x.r;return `<tr style="${done?"":"background:#fde8e8"}"><td><span class="ctag">${H(r.agency||"")}</span> ${H(r.agency_ref||"no ID")}</td><td>${H(e.name||"")}</td><td>${e.base=="box"?"Box":"Meals"}</td><td>${H(e.hh)}</td><td>${H(r.phone||"")}</td><td>${H(r.cell||"")}</td><td>${H([r.street,r.apt,r.city,r.zip].filter(Boolean).join(", "))}${dAddr(r)}</td><td>${done?"":`<button onclick="nlSkip('${H(x.k)}',true)">Delete this one</button>`}</td></tr>`}).join("")}</table></div>
  ${done?`<div class="bar"><button onclick="nlDupUndo(${i})">Review again</button></div>`:`<div class="bar"><button class="pri" onclick="nlDupMerge(${i})">Merge into one…</button><button onclick="nlDupLeave(${i})">Leave as it is</button></div>`}</div>`;
  const ml=D.mlog||[];
  const dm=NL.dm;NL.dm="";
  return (dm?`<div class="card" style="border-color:var(--ok)"><p class="msg" style="margin:0"><b>${H(dm)}</b></p></div>`:"")+`<div class="card"><h2>Duplicates (${NL.dg.length} to review)</h2><p class="note">Customers in the uploaded list that look the same: same ID, same phone or same address, even with a different ID. <b>Merge</b> keeps the first one and asks you the household (it suggests the total, for example 1 box + 1 meals = 2) and whether it is a Box or Meals customer. The menu (raw, supper, Shabbos…) stays as it was. <b>Delete this one</b> leaves that customer out of the list. <b>Leave</b> keeps both. Nothing changes in your real customers until you approve the list. "Delete" here never deletes a real customer.</p></div>
- ${dupBar()}${NL.dg.map((g,i)=>box(g,i,false)).join("")||`<div class="card"><p class="msg">No duplicates left to review ✓</p></div>`}
+ ${dupBar()}${dupSelBar()}${NL.dg.map((g,i)=>box(g,i,false)).join("")||`<div class="card"><p class="msg">No duplicates left to review ✓</p></div>`}
  ${ml.length?`<div class="card"><h2>Merged (${ml.length})</h2>${ml.map((m,i)=>`<p class="note">${H(m.names.join("  +  "))} <button onclick="nlMergeUndo(${i})">Undo</button></p>`).join("")}</div>`:""}
  ${NL.dgDone.length?`<div class="card"><h2>Left as they are (${NL.dgDone.length})</h2>${NL.dgDone.map((g,i)=>box(g,i,true)).join("")}</div>`:""}`}
 /* ===== Duplicates are mistakes in the company's list: email that company an Excel of them ===== */
