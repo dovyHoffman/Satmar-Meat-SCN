@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b263">
+<meta name="build" content="b264">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -631,7 +631,8 @@ function fillOpt(){
  o.value=l.some(x=>x[0]==cur)?cur:"";prevCode()}
 function prevCode(){
  const c=cust.find(x=>x.id==S.sel),v=nf_opt.value;
- nf_code.innerHTML=!v?'<span class="note">no change</span>':v=="mid"?`<span class="tag">${codesFor("meals",c.hh,"Middleton")}</span>`:`<span class="tag">${codesFor(v,c.hh,c.area)}</span>`}
+ nf_code.innerHTML=!v?'<span class="note">no change</span>':v=="mid"?`<span class="tag">${codesFor("meals",c.hh,"Middleton")}</span>`:c.area=="Middleton"?`<span class="tag">${codesFor(v,c.hh,leaveMid(c.a))}</span> <span class="note">leaves Middleton → ${esc(leaveMid(c.a))}</span>`:`<span class="tag">${codesFor(v,c.hh,c.area)}</span>`}
+const leaveMid=a=>{a=a||{};const r=detectArea({st:a.st||a.street,city:a.city,zip:a.zip});return r=="Middleton"?"Lee":r};
 function detectArea(a){
  const city=String(a.city||"").toLowerCase(),zip=String(a.zip||"").slice(0,5),st=String(a.st||a.street||"").toLowerCase();
  if(/monsey|monroe|airmont|spring valley|suffern|nanuet|kiryas|pomona|new city|chestnut ridge|wesley hills|upstate/.test(city)||/^(1095|1090|1097|1095|1096)/.test(zip)||/^109[0-9]{2}$/.test(zip))return "Monsey/Monroe";
@@ -2023,6 +2024,7 @@ function nlProj(useDraft){
    R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
  let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n)return;nreq++;
   if(n.food=="mid"){o.p.area="Middleton";o.why.push("customer asked: move to Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;o.why.push("customer asked: "+(F[n.food]||n.food))}
+  if(!n.area&&n.food&&n.food!="mid"&&o.c.area=="Middleton"){o.p.area=leaveMid(n.a||o.c.a);o.why.push("left Middleton: area "+o.p.area)}
   if(n.area){o.p.area=n.area;o.why.push("customer asked: area "+n.area)}
   if(n.a||n.addr)o.why.push("customer asked: new address")});
  return {P:P,removed:removed,added:added,R:R,nreq:nreq}}
@@ -2462,6 +2464,7 @@ async function saveNext(id){
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
   const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
   if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!==c.area&&nx.food!="mid"&&c.area!="Middleton")nx.area=ar}}
+ if(nx.food&&nx.food!="mid"&&c.area=="Middleton")nx.area=leaveMid(nx.a||c.a);
  const had=c.next&&c.next.rid;
  if(had&&c.next.ew&&c.next.ew!=nwk()){ce.textContent="This customer already has changes waiting for the week of "+c.next.ew+". Apply or cancel those first, then add changes for "+nwk()+".";return}
  if(!Object.keys(nx).length){
@@ -2476,7 +2479,7 @@ async function saveNext(id){
  S.msg="Saved as changes for next week. This week is not changed.";S.err="";render()}
 async function applyNow(id,quiet){
  const c=cust.find(x=>x.id==id),x=c.next;if(!x||S.user.role!="owner")return false;
- const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;if(x.area)Object.assign(p,areaDb(x.area));
+ const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;{const ax=x.area||(x.food&&x.food!="mid"&&c.area=="Middleton"?leaveMid(x.a||c.a):"");if(ax)Object.assign(p,areaDb(ax))}
  if(x.a){p.street=x.a.st;p.city=x.a.city;p.state=x.a.state;p.zip=x.a.zip;p.apt=x.apt||""}
  if(x.food){if(x.food=="mid")p.middleton=true;else{p.food=x.food;p.base=x.base||c.base}}
  let r=Object.keys(p).length?await sb.from("customers").update(p).eq("id",c.uuid):{error:null};
