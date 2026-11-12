@@ -323,7 +323,8 @@ Deno.serve(async (req) => {
     const thisWeek = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() >= wkStart; };
     dbg.wk = new Date(wkStart).toISOString();
     const haveWeek = new Set<string>();   // customers that already have a delivery this week
-    if (word) { for (let f = 0; ; f += 1000) { const { data } = await sb.from("deliveries").select("customer_id").gte("delivered_at", new Date(wkStart).toISOString()).not("customer_id", "is", null).range(f, f + 999); (data || []).forEach((x: any) => haveWeek.add(x.customer_id)); if ((data || []).length < 1000) break; } }   // owner ticked "also match by name + phone"
+    const owner = new Map<string, string>();   // order -> customer it is already attached to this week (so a second run keeps the same link)
+    if (word) { for (let f = 0; ; f += 1000) { const { data } = await sb.from("deliveries").select("customer_id,order_id").gte("delivered_at", new Date(wkStart).toISOString()).not("customer_id", "is", null).range(f, f + 999); (data || []).forEach((x: any) => { haveWeek.add(x.customer_id); owner.set(String(x.order_id), x.customer_id); }); if ((data || []).length < 1000) break; } }   // owner ticked "also match by name + phone"
     const words = (t: unknown) => String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter(Boolean).sort().join(" ");
     const last10 = (v: unknown) => digits(v).slice(-10);
     // strict: the phone AND every word of the name must agree, and exactly ONE customer may fit
@@ -380,7 +381,7 @@ Deno.serve(async (req) => {
             const ow = new Set(words(`${o.fname || ""} ${o.lname || ""}`).split(" ").filter((w) => w.length > 1));
             const hits = new Map<string, any>();
             for (const ph of [o.phone, o.cell1, o.cell2]) for (const cc of byPhone.get(last10(ph)) || []) {
-              if (haveWeek.has(cc.id)) continue;
+              if (haveWeek.has(cc.id) && owner.get(String(o.order_id)) !== cc.id) continue;
               if (words(cc.name).split(" ").some((w) => w.length > 1 && ow.has(w))) hits.set(cc.id, cc);
             }
             if (hits.size === 1) { c = [...hits.values()][0]; viaName++; dbg.hit++; } else if (hits.size > 1) dbg.many++; else dbg.none++;
