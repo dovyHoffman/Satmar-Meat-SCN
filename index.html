@@ -137,7 +137,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </style></head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b212">
+<meta name="build" content="b213">
 <script>
 (function(){try{var m=document.querySelector('meta[name=build]').content;fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(x&&x[1]!==m&&sessionStorage.getItem("sm_rl")!==x[1]){sessionStorage.setItem("sm_rl",x[1]);location.reload()}}).catch(function(){})}catch(e){}})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1293,6 +1293,9 @@ async function loadDet(tab){
 
 /* ================= LIVE DATABASE (Supabase) ================= */
 const INVITED=/type=(invite|recovery)/.test(String(location.hash)+String(location.search));
+const FROMLINK=/access_token=|type=(magiclink|invite|recovery|email|signup)|[?&]code=/.test(String(location.hash)+String(location.search));
+function devTrusted(em){em=String(em||"").toLowerCase();try{if(sessionStorage.getItem("sm_ok")==em)return true}catch(e){}try{const t=JSON.parse(localStorage.getItem("sm_trust")||"{}");const x=t[em];return !!(x&&x>Date.now())}catch(e){return false}}
+function devTrust(em,remember){em=String(em||"").toLowerCase();try{sessionStorage.setItem("sm_ok",em)}catch(e){}if(remember){try{const t=JSON.parse(localStorage.getItem("sm_trust")||"{}");t[em]=Date.now()+30*864e5;localStorage.setItem("sm_trust",JSON.stringify(t))}catch(e){}}}
 const SB_URL="https://znszotxuhkxgbszhyqcp.supabase.co",SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpuc3pvdHh1aGt4Z2Jzemh5cWNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NDYzMTUsImV4cCI6MjEwOTIyMjMxNX0.UUZAT5wU8iR9lXia_AQRo_kICaNrWbz_67bnH8Aw_38";
 let sb=null;try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}})}catch(e){}
 const AREAS=["Lee","Monsey/Monroe","Bedford","BP","Middleton"],AREA_KEY={"Lee":"lee","Monsey/Monroe":"monsey_monroe","Bedford":"bedford","BP":"bp"};
@@ -1308,7 +1311,8 @@ function vLogin(){
  if(L.step=="code")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <p class="note">We sent an email to <b>${esc(L.email)}</b>. Type the <b>6-digit code</b> from that email below.</p>
  <label>6-digit code<input id="lg_code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" onkeydown="if(event.key=='Enter')checkCode()"></label>
- <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.err='';render()">Back</button></div>${err}</div>`;
+ <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="lg_rem" checked style="width:auto"> Remember this device for 30 days (no code needed)</label>
+ <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.lg.need=false;S.err='';try{sb.auth.signOut()}catch(e){}render()">Back</button></div>${err}</div>`;
  if(L.mode=="link")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <label>Email<input id="lg_em" type="email" autocomplete="email" value="${esc(L.email)}" onkeydown="if(event.key=='Enter')sendCode()"></label>
  <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Email me a code"}</button><button onclick="S.lg.mode='pw';S.err='';render()">Use my password</button></div>
@@ -1324,6 +1328,9 @@ async function signInPw(){
  S.lg.email=e;S.lg.busy=true;S.err="";render();
  const {error}=await sb.auth.signInWithPassword({email:e,password:p});
  S.lg.busy=false;if(error){S.err=/invalid login/i.test(error.message||"")?"Wrong email or password.":dberr(error);render();return}
+ if(!devTrusted(e)){S.lg.busy=true;render();const r2=await sb.auth.signInWithOtp({email:e,options:{shouldCreateUser:false}});S.lg.busy=false;
+  if(r2.error){try{await sb.auth.signOut()}catch(x){}S.err=dberr(r2.error);render();return}
+  S.lg.step="code";S.lg.need=true;render();return}
  await afterLogin();render()}
 function openPw(first){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
@@ -1345,10 +1352,11 @@ async function sendCode(){
  const {error}=await sb.auth.signInWithOtp({email:e,options:{shouldCreateUser:false,emailRedirectTo:location.origin+BASE}});
  S.lg.busy=false;if(error){S.err=dberr(error)}else{S.lg.step="code"}render()}
 async function checkCode(){
- const t=(document.getElementById("lg_code").value||"").trim();if(!t){S.err="Enter the code from the email.";render();return}
+ const t=(document.getElementById("lg_code").value||"").trim();{const c=document.getElementById("lg_rem");S.lg.rem=!c||c.checked}if(!t){S.err="Enter the code from the email.";render();return}
  S.lg.busy=true;S.err="";render();
  const {error}=await sb.auth.verifyOtp({email:S.lg.email,token:t,type:"email"});
  S.lg.busy=false;if(error){S.err=dberr(error);render();return}
+ const rm=document.getElementById("lg_rem");devTrust(S.lg.email,S.lg.rem!==false);S.lg.need=false;
  S.lg.step="email";await afterLogin();render()}
 async function afterLogin(){
  let au=null;try{const {data:sd}=await sb.auth.getSession();au=sd&&sd.session&&sd.session.user}catch(e){}
@@ -1371,7 +1379,7 @@ S.firstLoad=true;let pDB=null;if(S.user.role=="owner"||pg.some(x=>["customers","
 async function boot(){
  if(!sb){render();return}
  S.boot=true;render();
- try{const {data}=await sb.auth.getSession();if(data&&data.session){if(INVITED)setTimeout(()=>{if(!document.querySelector(".ov .mod"))openPw(true)},300);await afterLogin()}
+ try{const {data}=await sb.auth.getSession();if(data&&data.session&&FROMLINK)devTrust(data.session.user.email,false);if(data&&data.session&&!devTrusted(data.session.user.email)){try{await sb.auth.signOut()}catch(x){}data.session=null}if(data&&data.session){if(INVITED)setTimeout(()=>{if(!document.querySelector(".ov .mod"))openPw(true)},300);await afterLogin()}
   else if(/error_code=|error=access_denied/.test(String(location.hash)+String(location.search)))S.err="This invitation link has expired or was already used. Use \"Email me a sign-in link\" below, or ask the owner to send a new invitation."}catch(e){S.err=dberr(e)}
  S.boot=false;render();
  sb.auth.onAuthStateChange(ev=>{if(ev=="SIGNED_OUT"&&S.user){ccClear();S.user=null;cust.length=0;render()}})}
