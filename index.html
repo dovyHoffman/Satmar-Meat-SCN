@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b288">
+<meta name="build" content="b289">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2042,13 +2042,17 @@ function nlProjNext(useDraft){
  const B=nlProj0(true),UA=a=>String(a||"").toUpperCase(),up=new Set(NL.W.next.rows.map(r=>UA(r.agency))),P=new Map(),ag=o=>UA(o.c&&o.c.agency);
  A.P.forEach((o,k)=>{if(!up.has(ag(o)))P.set(k,o)});B.P.forEach((o,k)=>{if(up.has(ag(o)))P.set(k,o)});
  return {P:P,removed:A.removed.filter(o=>!up.has(ag(o))).concat(B.removed.filter(o=>up.has(ag(o)))),added:A.added.filter(o=>!up.has(ag(o))).concat(B.added.filter(o=>up.has(ag(o)))),R:B.R,nreq:B.nreq}}
+function nlNewArea(r){const a=r.a||{},st=r.street||a.st||r.addr||"",zip=r.zip||a.zip||"",city=r.city||a.city||"";if(!String(st).trim()&&!String(zip).trim())return "?";try{return detectArea({st:st,city:city,zip:zip})}catch(e){return "?"}}
+/* demo extras: kept with the draft, so the live Dashboard is not touched. Until you type one, the live extras are used. */
+function nlDX(){const D=NL.W&&NL.W.next;return D&&D.extra?D.extra:EXTRA}
+function nlSetDemoExtra(l,v){const D=NL.W&&NL.W.next;if(!D)return;const n=Math.max(0,Math.round(+v||0));if(!D.extra)D.extra=JSON.parse(JSON.stringify(EXTRA));if(n)D.extra[l]={_:n};else delete D.extra[l];nlSave();render()}
 function nlProj0(useDraft){
  const P=new Map(),removed=[],added=[];let R=null;
  cust.filter(c=>c.active).forEach(c=>P.set(c.id,{c:c,p:{food:c.food,base:c.base,hh:c.hh,area:c.area,mid:c.mid},why:[]}));
  if(useDraft&&NL.d){R=nlCalc();
   if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area,mid:x.c.mid},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
     if(x.cats.type||x.cats.hh){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base;o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>/^(customer type|household)/.test(t)).join(", "))}});
-   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:"?"},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
+   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:nlNewArea(x.r)},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
    R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
  let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n)return;nreq++;
   if(n.food=="mid"){o.p.mid=true;o.why.push("customer asked: Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;if(o.p.mid){o.p.mid=false;o.why.push("customer asked: "+(F[n.food]||n.food)+" (leaves Middleton)")}else o.why.push("customer asked: "+(F[n.food]||n.food))}
@@ -2060,7 +2064,7 @@ function prodCounts(){
  const useDraft=NL.useDraft!==false&&!!nlDD(),J=nlProj(useDraft),now=cust.filter(c=>c.active),cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
  const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
  now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));[...J.P.values()].forEach(o=>add(cn,o.p));
- const sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0);
+ const DX=nlDX(),sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),ex=l=>Object.keys(DX[l]||{}).reduce((t,a)=>t+(+DX[l][a]||0),0);
  return {cn:cn,cx:cx,sum:sum,ex:ex,useDraft:useDraft}}
 function prodWeekLabel(){const s=new Date(wkKey(Date.now()).getTime()+7*864e5),a=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2),b=new Date(s.getFullYear(),s.getMonth(),s.getDate()+8),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
 function prodTot(l,b){const x=Math.max(0,Math.round(+document.getElementById("pm_x_"+l).value||0));document.getElementById("pm_t_"+l).textContent=b+x}
@@ -2102,9 +2106,9 @@ function nlProdView(){
  const cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
  const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
  now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));list.forEach(o=>add(cn,o.p));
- const ex=l=>Object.keys(EXTRA[l]||{}).reduce((t,a)=>t+(+EXTRA[l][a]||0),0),sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0);
+ const DX=nlDX(),ex=l=>Object.keys(DX[l]||{}).reduce((t,a)=>t+(+DX[l][a]||0),0),sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),own=S.user&&S.user.role=="owner";
  const tile=l=>{const isMN=l.indexOf("MN")==0,t=sum(cn[l])+ex(l),was=sum(cx[l])+ex(l),d=t-was,mx=Math.max(1,...AR.map(a=>cn[l][a]||0));
-  return `<div class="bx" style="--c:${LC[l]}"><div class="bh"><div class="lt">${l}</div><div><div class="big">${t}</div><div class="note">${LD[l]}</div>${d?`<div class="note" style="color:${d>0?"var(--ok)":"#b42318"}"><b>${d>0?"+":""}${d}</b> vs now (${was})</div>`:""}</div></div>${(isMN?[]:AR).map(a=>`<div class="br"><span>${a}</span><div class="tr"><i style="width:${Math.round((cn[l][a]||0)/mx*100)}%"></i></div><b>${cn[l][a]||0}</b></div>`).join("")}${cn[l]["?"]?`<div class="br"><span>No area</span><div class="tr"></div><b>${cn[l]["?"]}</b></div>`:""}</div>`};
+  return `<div class="bx" style="--c:${LC[l]}"><div class="bh"><div class="lt">${l}</div><div><div class="big">${t}</div><div class="note">${LD[l]}</div>${d?`<div class="note" style="color:${d>0?"var(--ok)":"#b42318"}"><b>${d>0?"+":""}${d}</b> vs now (${was})</div>`:""}</div></div>${(isMN?[]:AR).map(a=>`<div class="br"><span>${a}</span><div class="tr"><i style="width:${Math.round((cn[l][a]||0)/mx*100)}%"></i></div><b>${cn[l][a]||0}</b></div>`).join("")}${cn[l]["?"]?`<div class="br"><span>No area</span><div class="tr"></div><b>${cn[l]["?"]}</b></div>`:""}${own&&NL.W&&NL.W.next?`<div class="br"><span>Extra</span><div class="tr"></div><input type="number" min="0" value="${ex(l)||""}" placeholder="+0" title="Extra boxes for the demo only. The live Dashboard is not changed." onchange="nlSetDemoExtra('${l}',this.value)" style="width:64px;margin:0;padding:1px 4px;font-size:12px"></div>`:""}</div>`};
  const box=list.filter(o=>o.p.base=="box").length,hhs=list.reduce((t,o)=>t+(o.p.hh||0),0),nowBox=now.filter(c=>c.base=="box").length;
  const kp=(l,v,sub)=>`<div class="kpi"><span class="note">${l}</span><b>${v}</b>${sub?`<span class="note">${sub}</span>`:""}</div>`,dl=(a,b)=>a==b?"":" ("+(a>b?"+":"")+(a-b)+")";
  const fk=["meals","supper","shabbos","raw","rawnb"],hhn=[...Array(10).keys()].map(i=>i+1);
@@ -2115,7 +2119,7 @@ function nlProdView(){
  ${NL.d?`<label class="note"><input type="checkbox" style="width:auto" ${useDraft?"checked":""} onchange="NL.useDraft=this.checked;render()"> Include the uploaded new list (new customers, household and type changes, customers left out of the file)</label>`:`<p class="note">No new list is uploaded, so this is the current list with the customers' changes for next week.</p>`}
  <div class="kpis">${kp("Families",list.length.toLocaleString(),dl(list.length,now.length).trim())}${kp("Households (people)",hhs.toLocaleString(),dl(hhs,now.reduce((t,c)=>t+c.hh,0)).trim())}${kp("Box",box,dl(box,nowBox).trim())}${kp("Meals",list.length-box,dl(list.length-box,now.length-nowBox).trim())}${kp("Customer changes applied",J.nreq)}${kp("New customers (list)",J.added.length)}${kp("Taken off (list)",J.removed.length)}</div>
  ${list.some(o=>o.p.area=="?")?`<p class="note">New customers have no area yet, so they are counted in each box total but not in an area bar.</p>`:""}</div>
- <div class="card"><h2>Boxes to prepare</h2>${boxGroups(tile)}<p class="note">The big number is how many boxes of that letter to start. The green or red number is the difference from the list as it is today. Manual extras from the Dashboard are included.</p></div>
+ <div class="card"><h2>Boxes to prepare</h2>${boxGroups(tile)}<p class="note">The big number is how many boxes of that letter to start. The green or red number is the difference from the list as it is today. Extras: type them in the <b>Extra</b> box on each letter (demo only, the live Dashboard is not changed). Until you type one, the Dashboard extras are used.</p></div>
  <div class="card"><h2>Send the numbers by email</h2><p class="note">Each button asks you first if it is an <b>estimate</b> or the <b>final</b> numbers, and the email says so at the top.</p><div class="bar"><button class="pri" onclick="prodMailOpen('kitchen')">Email Kitchen · H F E 3</button><button class="pri" onclick="prodMailOpen('raw')">Email Raw production · A B F</button></div></div>
  <div class="card"><h2>Food type × household (next week)</h2><div class="wrap"><table><tr><th>Type</th>${hhn.map(n=>`<th>${n}</th>`).join("")}<th>Total</th></tr>${fk.map(f=>`<tr><td><span class="ctag ${fcls({food:f,base:f=="raw"||f=="rawnb"?"box":"meals"})}">${F[f]}</span></td>${hhn.map(n=>`<td>${list.filter(o=>o.p.food==f&&o.p.hh==n).length||""}</td>`).join("")}<td><b>${list.filter(o=>o.p.food==f).length}</b></td></tr>`).join("")}</table></div></div>
  <div class="card"><h2>What changes from today (${chg.length})</h2>${chg.length?`<div class="wrap" style="max-height:50vh;overflow:auto"><table style="font-size:13px"><tr><th>Customer</th><th>ID</th><th>Now</th><th>Next week</th><th>Why</th></tr>${sh.map(o=>{const c=o.c,was=o.isNew?"—":lc(c.food,c.hh,c.area),nx=lc(o.p.food,o.p.hh,o.p.area);return `<tr><td>${H(c.name||"")}</td><td>${H(c.ref||"")}</td><td>${H(was)}</td><td><b>${H(nx)}</b></td><td class="note">${H(o.why.join(" · "))}</td></tr>`}).join("")}</table></div>${chg.length>300?`<p class="note">Showing the first 300.</p>`:""}`:`<p class="note">No changes: next week is the same as now.</p>`}
