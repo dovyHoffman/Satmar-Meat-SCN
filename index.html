@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b299">
+<meta name="build" content="b300">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1972,6 +1972,24 @@ async function nlFiles(files){
   await nlSave();NL.msg=rows.length.toLocaleString()+" customers read from "+files.length+" file"+(files.length>1?"s":"")+(old?" and added to the draft ("+NL.d.rows.length.toLocaleString()+" in all). The same ID in two files is shown under Duplicates.":"")+". Nothing has been changed yet. Look it over below."+(autoN.length?" Columns recognized by themselves → "+autoN.join(" | "):"")}
  catch(e){NL.err=String((e&&e.message)||e)}
  NL.busy=false;render()}
+/* add-ons file: people on this week's list get the file's household ADDED; anyone not on the list is a new customer */
+async function nlAddOns(files){
+ files=[...(files||[])];if(!files.length)return;NL.err="";NL.msg="";const D=NL.d;
+ if(!D||!D.rows||!D.rows.length){NL.err="Upload the new list first, then the add-ons.";render();return}
+ D.addFiles=D.addFiles||[];D.addLog=D.addLog||[];const done=[],lines=[];let nUp=0,nNew=0;
+ try{for(const f of files){
+  if(D.addFiles.indexOf(f.name)>=0){lines.push(f.name+": already added before, skipped (so nothing is counted twice)");continue}
+  let t;if(/\.xlsx?$/i.test(f.name)){await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});t=XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]])}else t=await f.text();
+  let pr;try{const au=nlAuto(t);pr=au&&au.cols?nlParse(t,f.name,{cols:au.cols}):nlParse(t,f.name,null)}catch(e){pr=nlParse(t,f.name,null)}
+  const res=toDbRows(pr.recs),idx={};D.rows.forEach(r=>{if(!r.noId&&!r.dup&&r.agency_ref)idx[String(r.agency||"").toUpperCase()+"|"+nk(r.agency_ref)]=r});
+  const log={file:f.name,at:new Date().toISOString(),up:[],added:[]};
+  res.rows.forEach(r=>{if(!r.agency_ref)return;const k=String(r.agency||"").toUpperCase()+"|"+nk(r.agency_ref),o=idx[k],add=Number(r.hh)||Number(r.enh)||0;
+   if(o){const h0=Number(o.hh)||Number(o.enh)||0;if(add>0){o.hh=h0+add;if(Number(r.enh)>0)o.enh=(Number(o.enh)||0)+Number(r.enh);log.up.push([o.agency_ref,h0,o.hh]);nUp++}}
+   else{r.active=true;D.rows.push(r);idx[k]=r;log.added.push(r.agency_ref);nNew++}});
+  D.addFiles.push(f.name);D.addLog.push(log);lines.push(f.name+": "+log.up.length+" households raised, "+log.added.length+" new customers")}
+  await nlSave();NL.msg="Add-ons done. "+lines.join(" · ")+(NL.err?"":"")}
+ catch(e){NL.err="Add-ons stopped: "+((e&&e.message)||e)+". Nothing was saved."}
+ render()}
 function nlBlank(x){const ed=((NL.d&&NL.d.edit)||{})[x.k]||{};return {t:!(x.r.base||ed.base),h:!(x.r.hh||ed.hh)}}
 function nlEdit(k,f,v){const D=NL.d;D.edit=D.edit||{};D.edit[k]=Object.assign({},D.edit[k]||{});if((f=="hh"||f=="base")&&(v===""||v==null))delete D.edit[k][f];else D.edit[k][f]=f=="hh"?Math.max(1,Math.min(30,parseInt(v)||1)):v;nlSave();render()}
 function nlSkip(k,v){const D=NL.d;D.skip=D.skip||{};if(v)D.skip[k]=1;else delete D.skip[k];nlSave();render()}
@@ -2342,6 +2360,7 @@ function vNewList0(){
  const chips=D&&D.rows?`<div class="bar" style="flex-wrap:wrap;margin-bottom:8px"><span class="note">Company:</span><button class="${NL.co?"":"pri"}" onclick="NL.co='';render()">All (${D.rows.length.toLocaleString()})</button>${Object.keys(cc).sort().map(a=>`<button class="${NL.co==a?"pri":""}" onclick="NL.co='${H(a)}';render()">${H(a)} (${cc[a].toLocaleString()})</button>`).join("")}<span style="flex:1"></span><button onclick="nlReviewXlsx()">👁 See what will change</button><button class="pri" style="background:#1a7f37;border-color:#1a7f37" onclick="nlApproveTicked()" ${NL.busy?"disabled":""}>✓ Approve all ticked boxes${NL.co?" · "+H(NL.co):""}</button></div>`:"";
  const up=`<div class="card"><h2>New list (draft) <span class="note" style="font-weight:400;font-size:12px">· page version ${esc(document.querySelector("meta[name=build]").content)}</span></h2><p class="note">Upload the customer list file(s) for next week (Excel .xlsx or .csv). The system matches every customer by ID. <b>The blue button at the bottom only marks that box green (nothing changes). Nothing changes in your real customers until you press the green <b>Approve all ticked boxes</b> button at the top.</b> For customers already here it only changes <b>name, customer type (Box/Meals) and household</b>, and fills a phone, cell or note only if it was empty. Everything else stays as it is. New IDs are added, and customers missing from the file are shown so you can switch them off.</p>
  <input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlFiles(this.files)" ${NL.busy?"disabled":""}>${NL.busy?`<p class="note">Working…</p>`:""}
+ ${D&&D.rows&&D.rows.length?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--ln)"><b>Add-ons</b> <span class="note">· a file with extra household or new customers. Someone already on the list gets the household <b>added</b>; someone not on the list is a <b>new customer</b>. The same file is never counted twice.</span><br><input type="file" accept=".csv,text/csv,.xlsx,.xls" multiple onchange="nlAddOns(this.files);this.value=''" style="margin-top:6px" ${NL.busy?"disabled":""}>${(D.addFiles||[]).length?`<p class="note">Already added: ${H(D.addFiles.join(", "))}</p>`:""}</div>`:""}
  ${NL.err?`<p class="err">${H(NL.err)}</p>`:""}${NL.msg?`<p class="msg">${H(NL.msg)}</p>`:""}</div>`;
  if(!R)return up;
  if(NL.tab=="chg"||NL.tab=="names")NL.tab="swap";const T=NL_CATS.map(c=>[c[0],c[1],c[0]=="skd"?(R.skd||[]).map(x=>({sk:true,x:x})):nlRows(R,c[0])]),cnt=a=>a.filter(x=>!x.sk&&!(x.r&&x.r.cases)).length;
