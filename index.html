@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b295">
+<meta name="build" content="b296">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1840,7 +1840,7 @@ function nlCalc(){
  const out={nw:[],chg:[],same:0,sameBy:{},off:[],skd:(D.sk||[]).filter(y=>y.blankRow).map(y=>({name:y.name,ref:"",hh:"",phone:"",cell:"",why:y.why})),byName:0},rows=D.rows.map(r=>{const k=nlKey(r);return {r:r,k:k,e:Object.assign({name:r.name,hh:r.hh,enh:r.enh,base:r.base,food:r.food},(D.edit||{})[k]||{}),c:null}});
  rows.forEach(x=>{if(!x.r.dup&&!x.r.noId){const c=x.r.ak?exAg[String(x.r.agency||"").toUpperCase()+"|"+nk(x.r.agency_ref)]:ex[nk(x.r.agency_ref)];if(c){x.c=c;got[c.uuid]=1}}});
  /* a row merged into another row is not a customer of its own any more: its old customer is not on the list */
- const mOut=new Set(((D.mlog||[]).reduce((a,m)=>a.concat(m.o||[]),[])));const mCust={};rows.forEach(x=>{if(x.c&&mOut.has(x.k)){mCust[x.c.uuid]=1;delete got[x.c.uuid];x.c=null;x.mout=1}});
+ const mOut=new Set(((D.mlog||[]).reduce((a,m)=>a.concat(m.o||[]),[])));const mCust={};rows.forEach(x=>{if(mOut.has(x.k)){if(x.c){mCust[x.c.uuid]=1;delete got[x.c.uuid];x.c=null}x.mout=1}});
  /* the company changed its IDs: link the row to the customer who has the same phone (one active, not taken yet) before trying the name */
  const exP={};cust.forEach(c=>{[c.phone,c.cell].map(nlDg).forEach(p=>{if(p.length==10)(exP[String(c.agency||"").toUpperCase()+"|"+p]=exP[String(c.agency||"").toUpperCase()+"|"+p]||[]).push(c)})});
  out.byPhone=0;rows.forEach(x=>{if(x.c||x.mout||x.r.dup||x.r.noId)return;const ag=String(x.r.agency||"").toUpperCase(),seen={},l=[];[x.r.phone,x.r.cell].map(nlDg).forEach(p=>{if(p.length==10)(exP[ag+"|"+p]||[]).forEach(c=>{if(!seen[c.uuid]&&!got[c.uuid]&&c.active){seen[c.uuid]=1;l.push(c)}})});if(l.length==1){x.c=l[0];got[l[0].uuid]=1;x.byPhone=1;out.byPhone++}});
