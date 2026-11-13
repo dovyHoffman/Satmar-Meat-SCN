@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b297">
+<meta name="build" content="b298">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",rawx:"Raw - No Beef (blank, like the sheet)",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -179,7 +179,7 @@ const CODEC={"H":"#3b82f6","B":"#22a559","E C":"#e07b00","A S":"#8b5cf6","3 B":"
 const PAL=["#3b82f6","#22a559","#e07b00","#8b5cf6","#0f9d9a","#e0483e","#d946a8","#0ea5e9","#b45309","#64748b","#c026d3","#4f46e5"];
 function codeColor(code){const k=String(code||"").replace(/\b(S|M|L)c\b/g,"$1").trim();if(CODEC[k])return CODEC[k];let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))>>>0;return PAL[h%PAL.length]}
 function optList(base,agency){
- let o=base=="box"?[["raw","Box"],["rawnb","Box - No Beef"]]:[["meals","Meals"],["supper","Suppers"],["shabbos","Shabbos"]].concat(agency=="CCS"?[]:[["raw","Raw"],["rawnb","Raw - No Beef"]]);
+ let o=base=="box"?[["raw","Box"],["rawnb","Box - No Beef"],["rawx","Box - No Beef (blank, like the sheet)"]]:[["meals","Meals"],["supper","Suppers"],["shabbos","Shabbos"]].concat(agency=="CCS"?[]:[["raw","Raw"],["rawnb","Raw - No Beef"],["rawx","Raw - No Beef (blank)"]]);
  return o}
 const fcls=c=>c.food=="meals"?"t-meals":c.food=="supper"?"t-sup":c.food=="shabbos"?"t-sab":c.food=="rawnb"?"t-nb":c.base=="box"?"t-box":"t-raw";
 const optName=(base,food)=>(optList(base,"").find(x=>x[0]==food)||[0,F[food]])[1];
@@ -386,7 +386,7 @@ const nlabel=v=>v=="mid"?"Middleton":F[v];
 const L=(c,f,o,n)=>log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:c.name,field:f,o:o,n:n});
 const summ=(c,x)=>["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+(k=="food"?F[c.food]+" → "+nlabel(x[k]):x[k])).join("; ");
 function opts(c){
- let o=c.food=="raw"||c.food=="rawnb"?["raw","rawnb"].filter(x=>x!=c.food):c.food=="meals"?(c.agency=="CCS"?["supper","shabbos"]:["raw","rawnb","supper","shabbos"]):[];
+ let o=c.food=="raw"||c.food=="rawnb"||c.food=="rawx"?["raw","rawnb","rawx"].filter(x=>x!=c.food):c.food=="meals"?(c.agency=="CCS"?["supper","shabbos"]:["raw","rawnb","supper","shabbos"]):[];
  return o.map(x=>[x,F[x]]).concat(S.allowMid&&!c.mid?[["mid","Middleton"]]:[])}
 /* only for a family with two cases (same company, same ID, one Meals + one Box). Everyone else: nothing is shown. */
 function casesPnl(c){const k=c&&c.cases;if(!Array.isArray(k)||k.length<2)return "";
@@ -1825,7 +1825,7 @@ async function doImport(quiet){
 const NL={W:{cur:null,next:null,prev:null},ws:"cur",loaded:false,busy:false,msg:"",err:"",tab:"all"};
 Object.defineProperty(NL,"d",{get(){return this.W[this.ws]||null},set(v){this.W[this.ws]=v},enumerable:true});
 const nlMon=o=>{const s=wkKey(Date.now()),d=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2+7*o);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})};
-const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
+const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["rawx","Raw (no beef, blank)"],["supper","Suppers"],["shabbos","Shabbos"]];
 async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;const pl=r.data&&r.data.payload;if(pl&&pl.v==2){NL.W={cur:pl.W&&pl.W.cur||null,next:pl.W&&pl.W.next||null,prev:pl.W&&pl.W.prev||null};NL.ws=pl.ws=="next"?"next":"cur"}else if(pl&&pl.rows){NL.W={cur:pl,next:null,prev:null};NL.ws="cur"}if(NL.W.cur&&!NL.W.cur.label)NL.W.cur.label=nlMon(0);NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
 async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:{v:2,ws:NL.ws,W:NL.W},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
 const nlDg=v=>{let d=String(v||"").replace(/\D/g,"");if(d.length==11&&d[0]=="1")d=d.slice(1);return d};
@@ -2145,7 +2145,7 @@ const nlWhy={id:"Same ID",phone:"Same phone",address:"Same address"};
 function nlEff(x){return Object.assign({name:x.r.name,hh:x.r.hh,base:x.r.base,food:x.r.food},((NL.d.edit||{})[x.k])||{})}
 function nlDupLeave(i){const D=NL.d,g=NL.dg[i];if(!g)return;D.dupOk=D.dupOk||{};D.dupOk[g.gid]=1;nlSave();render()}
 function nlDupUndo(i){const D=NL.d,g=NL.dgDone[i];if(!g)return;delete D.dupOk[g.gid];nlSave();render()}
-const NL_TY=[["raw","Box · Raw","box"],["rawnb","Box · Raw (no beef)","box"],["meals","Meals","meals"],["supper","Supper","meals"],["shabbos","Shabbos","meals"]];
+const NL_TY=[["raw","Box · Raw","box"],["rawnb","Box · Raw (no beef)","box"],["rawx","Box · Raw (no beef, blank)","box"],["meals","Meals","meals"],["supper","Supper","meals"],["shabbos","Shabbos","meals"]];
 function nlMergeName(names){
  const u=[];names.map(n=>String(n||"").replace(/\s+/g," ").trim()).filter(Boolean).forEach(n=>{if(!u.some(x=>x.toLowerCase()==n.toLowerCase()))u.push(n)});
  if(u.length<2)return u[0]||"";
@@ -2981,7 +2981,7 @@ const dvG=a=>{const m=a&&typeof a=="object"?(a.mid?"Middleton":a.area):a;return 
 const dvDate=a=>DV.dt[dvG(a).id]||dvTomorrow();
 const dvDay=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{weekday:"long"})};
 function dvFood(c){
- if(c.base=="box")return c.food=="rawnb"?"Box - No Beef":"Box";
+ if(c.base=="box")return c.food=="rawnb"?"Box - No Beef":c.food=="rawx"?"Box - No Beef (blank)":"Box";
  return ({meals:"Meals",supper:"Supper",shabbos:"Shabbos",raw:"Meals - Raw",rawnb:"Meals - Raw No Beef",rawx:"Meals - Raw No Beef (blank)"})[c.food]||"Meals"}
 const dvAllL=c=>String(codesFor(c.food,c.hh,c.area,c.mid)).trim().split(/\s+/).filter(Boolean);
 const dvTicked=c=>{const m=DV.foods[dvG(c).id]||{};return Object.keys(m).filter(k=>m[k])};
