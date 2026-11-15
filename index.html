@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b310">
+<meta name="build" content="b311">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -484,7 +484,7 @@ function vMenu(){
  const own=S.user.role=="owner",codes=MENU.order.filter(k=>MENU.lists[k]),code=S.mcode&&MENU.lists[S.mcode]?S.mcode:codes[0];
  const cnt={};cust.forEach(c=>{if(c.active)codesFor(c.food,c.hh,c.area,c.mid).split(" ").forEach(k=>cnt[k]=(cnt[k]||0)+1)});
  const col=k=>(typeof LC!=="undefined"&&LC[k])||"#667085",used={};
- const pill=k=>{used[k]=1;return `<button class="mt${k==code?" on":""}" style="--c:${col(k)}" onclick="S.mcode='${k}';render()"><span class="mk">${esc(k)}</span><span class="mi2"><b>${MENU.lists[k].lines.length} item${MENU.lists[k].lines.length==1?"":"s"}</b><small>${cnt[k]!=null?cnt[k]+" boxes":"–"}</small></span></button>`};
+ const pill=k=>{used[k]=1;return `<button class="mt${k==code?" on":""}" style="--c:${col(k)}" onclick="S.mcode='${k}';render()"><span class="mk">${esc(k)}</span><span class="mi2"><b>${MENU.lists[k].lines.length} item${MENU.lists[k].lines.length==1?"":"s"}</b>${S.user&&S.user.role=="owner"?`<small>${cnt[k]!=null?cnt[k]+" boxes":"–"}</small>`:""}</span></button>`};
  let tabs=MGRP.map(g=>{const ks=g[1].filter(k=>MENU.lists[k]);return ks.length?`<div class="mg"><div class="mgl">${g[0]}</div><div class="mrow">${ks.map(pill).join("")}</div></div>`:""}).join("");
  const rest=codes.filter(k=>!used[k]);if(rest.length)tabs+=`<div class="mg"><div class="mgl">Other</div><div class="mrow">${rest.map(pill).join("")}</div></div>`;
  const m=MENU.lists[code]||{info:"",lines:[]},chips=(m.info||"").split("\n").map(x=>x.trim()).filter(Boolean);
@@ -496,7 +496,7 @@ function vMenu(){
  return `<div class="card mhero"><div><h2 style="margin:0">Menu · ${esc(MENU.week)}</h2><p class="note" style="margin:4px 0 0">What each box code gets this week. Click the box code tag on any customer to see that customer's menu. Saved in the database; only the admin can edit it.</p></div>
   <div class="mst"><div><b>${codes.length}</b><span>menus</span></div><div><b>${total}</b><span>different items</span></div></div></div>
  <div class="card">${tabs}</div>
- <div class="card mcard" style="--c:${col(code)}"><div class="mtop"><div class="lt">${esc(code)}</div><div><h2 style="margin:0">Menu ${esc(code)}</h2><div class="note">${m.lines.length} items${cnt[code]!=null?" · "+cnt[code]+" boxes to prepare":""}</div></div></div>
+ <div class="card mcard" style="--c:${col(code)}"><div class="mtop"><div class="lt">${esc(code)}</div><div><h2 style="margin:0">Menu ${esc(code)}</h2><div class="note">${m.lines.length} items${cnt[code]!=null&&S.user&&S.user.role=="owner"?" · "+cnt[code]+" boxes to prepare":""}</div></div></div>
   ${chips.length?`<div class="chips">${chips.map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</div>`:""}
   ${m.lines.length?`<div class="mgrid">${m.lines.map((x,i)=>`<div class="mit"><span class="mn">${i+1}</span><span>${esc(x)}</span></div>`).join("")}</div>`:`<p class="no">Nothing on the menu yet for code ${esc(code)} this week.</p>`}</div>
  <div class="card"><h2>Copy for the office</h2><p class="note">Plain text, ready to paste into an email, WhatsApp or a document.</p>
