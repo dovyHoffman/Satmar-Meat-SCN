@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b316">
+<meta name="build" content="b317">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3014,22 +3014,43 @@ function chAvLoad(root){(root||document).querySelectorAll("[data-gp]").forEach(e
 async function chProf(){if(CH.prof||!chOwner())return;CH.prof={};try{const {data}=await sb.from("profiles").select("id,name,email,active,role");(data||[]).forEach(u=>CH.prof[u.id]=u)}catch(e){CH.prof=null}}
 async function chLoad(force){
  if(!chatOn())return;chProf();chGroupsLoad();
- try{const {data,error}=await sb.from("chat_messages").select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at").order("id",{ascending:false}).limit(500);
-  if(error)throw error;CH.all=(data||[]).reverse();CH.err=""}
+ try{const {data,error}=await sb.from("chat_messages").select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at,deleted_at").order("id",{ascending:false}).limit(500);
+  if(error)throw error;CH.all=(data||[]).reverse();CH.err="";if(chOwner())chReadsLoad()}
  catch(e){CH.err="Chat could not load ("+dberr(e)+"). The chat database update may not have been run yet."}
  chMarkSeen();chPaint(force)}
-function chMarkSeen(){if(!CH.open)return;const r=chRoom();if(!r)return;const l=chIn(r),id=l.length?l[l.length-1].id:0;if(id>(CH.seen[r]||0)){CH.seen[r]=id;chSaveSeen()}}
+function chMarkSeen(){if(!CH.open)return;const r=chRoom();if(!r)return;const l=chIn(r),id=l.length?l[l.length-1].id:0;if(id>(CH.seen[r]||0)){CH.seen[r]=id;chSaveSeen()}
+ if(id&&sb&&S.user&&id>((CH.sent||{})[r]||0)){CH.sent=CH.sent||{};CH.sent[r]=id;sb.from("chat_reads").upsert({room:r,user_id:S.user.id,last_id:id,updated_at:new Date().toISOString()}).then(()=>{},()=>{})}}
+async function chReadsLoad(){try{const {data,error}=await sb.from("chat_reads").select("room,user_id,last_id");if(error)throw error;const o={};(data||[]).forEach(x=>{(o[x.room]=o[x.room]||{})[x.user_id]=+x.last_id});CH.reads=o;const k=JSON.stringify(o);if(k!=CH.rk){CH.rk=k;CH.sig="";chPaint(false)}}catch(e){}}
+function chReaders(m){const r=m.room;let ids;if(/^support:/.test(r))ids=[r.slice(8)];else ids=((CH.mem||{})[r]||[]).map(u=>u.id);ids=ids.filter(id=>id!=m.sender);const rd=(CH.reads||{})[r]||{};return {all:ids,read:ids.filter(id=>(rd[id]||0)>=m.id)}}
+function chName(id){const g=Object.values(CH.mem||{}).flat().find(u=>u.id==id);return (g&&g.name)||((CH.prof||{})[id]||{}).name||"User"}
+function chMsgMenu(id){const m=CH.all.find(x=>x.id==id);if(!m||!chOwner())return;const rr=chReaders(m),del=!!m.deleted_at;
+ const o=document.createElement("div");o.className="ov";o.style.zIndex=70;
+ const nm=a=>a.length?a.map(i=>"• "+esc(chName(i))).join("<br>"):"<span class='note'>nobody</span>";
+ o.innerHTML=`<div class="mod" style="max-width:380px;padding:20px"><div style="font-size:17px;font-weight:700">Message info</div><div class="note" style="margin:4px 0 12px">${esc(m.sender_name||"")} · ${chTime(m.created_at)}</div>
+  <div style="font-weight:600">Read by (${rr.read.length}${rr.all.length?" of "+rr.all.length:""})</div><div style="margin:4px 0 10px;line-height:1.6">${nm(rr.read)}</div>
+  ${rr.all.length>rr.read.length?`<div style="font-weight:600">Not read yet</div><div style="margin:4px 0 10px;line-height:1.6">${nm(rr.all.filter(i=>rr.read.indexOf(i)<0))}</div>`:""}
+  <div style="display:flex;gap:10px;margin-top:14px"><button data-a="x" style="flex:1;padding:12px">Close</button>${del?"":`<button data-a="d" style="flex:1;padding:12px;background:#c0392b;border-color:#c0392b;color:#fff">Delete message</button>`}</div></div>`;
+ o.onclick=e=>{if(e.target==o){o.remove();return}const b=e.target.closest&&e.target.closest("button[data-a]");if(!b)return;o.remove();if(b.dataset.a=="d")chDelMsg(id)};document.body.appendChild(o)}
+async function chDelMsg(id){const m=CH.all.find(x=>x.id==id);if(!m)return;
+ if(!await uiConfirm("Delete this message?\n\nIt disappears for everyone. People will see that a message was deleted.",{ok:"Yes, delete",danger:true}))return;
+ try{const fp=m.file_path;const {error}=await sb.from("chat_messages").update({body:"This message was deleted",kind:"text",file_path:null,file_name:null,file_type:null,file_size:null,duration:null,deleted_at:new Date().toISOString()}).eq("id",id);if(error)throw error;
+  if(fp){try{await sb.storage.from("chat-files").remove([fp])}catch(e){}}
+  Object.assign(m,{body:"This message was deleted",kind:"text",file_path:null,file_name:null,deleted_at:new Date().toISOString()});CH.err=""}
+ catch(e){CH.err="Not deleted: "+dberr(e)}
+ CH.sig="";chPaint(true)}
 function chMsgHtml(m){const me=m.sender==S.user.id,who=me?"You":esc(m.sender_name||"?");let c="";
+ if(m.deleted_at)return `<div class="chm${me?" me":""}"><div class="chw">${who} · ${chTime(m.created_at)}</div><div class="chx" style="opacity:.6;font-style:italic">🚫 This message was deleted</div></div>`;
  if(m.kind=="image"&&m.file_path)c=`<img class="chimg" data-p="${esc(m.file_path)}" alt="${esc(m.file_name||"photo")}" onclick="chView('${esc(m.file_path)}')">`;
  else if(m.kind=="voice"&&m.file_path)c=`<audio controls preload="none" data-p="${esc(m.file_path)}"></audio><div class="note">Voice note ${chDur(m.duration||0)}</div>`;
  else if(m.file_path)c=`<a href="#" onclick="chOpen(event,'${esc(m.file_path)}')">📎 ${esc(m.file_name||"file")}${m.file_size?" · "+chSize(m.file_size):""}</a>`;
  if(m.body)c+=(c?"<div style='margin-top:4px'></div>":"")+esc(m.body);
- return `<div class="chm${me?" me":""}"><div class="chw">${who} · ${chTime(m.created_at)}</div><div class="chx">${c}</div></div>`}
+ let ad="";if(chOwner()){const rr=chReaders(m);ad=`<div class="note" style="margin-top:4px;cursor:pointer;font-size:12px" onclick="chMsgMenu(${m.id})">${rr.all.length&&rr.read.length>=rr.all.length?"✓✓":"✓"} ${rr.read.length}/${rr.all.length||0} read · ⋯</div>`}
+ return `<div class="chm${me?" me":""}"><div class="chw">${who} · ${chTime(m.created_at)}</div><div class="chx">${c}${ad}</div></div>`}
 function chPaint(force){
  const b=document.getElementById("chat_b");if(!b)return;
  const un=chTotalUnread();b.innerHTML="💬"+(un&&!CH.open?`<i class="chn">${un>9?"9+":un}</i>`:"");
  const l=document.getElementById("chat_l");if(!l)return;
- const r=chRoom(),msgs=r?chIn(r):[],sig=[CH.tab,CH.pick,CH.pq,r,msgs.length,msgs.length?msgs[msgs.length-1].id:0,CH.err,chTotalUnread()].join("|");
+ const r=chRoom(),msgs=r?chIn(r):[],sig=[CH.tab,CH.pick,CH.pq,r,msgs.length,msgs.length?msgs[msgs.length-1].id:0,CH.err,chTotalUnread(),CH.rk||"",msgs.filter(x=>x.deleted_at).length].join("|");
  chTabs();
  if(!force&&sig==CH.sig)return;CH.sig=sig;
  const atEnd=l.scrollHeight-l.scrollTop-l.clientHeight<80;
@@ -3081,7 +3102,7 @@ function chToggle(v){
  if(CH.open){if((CH.tab=="team"&&!chTeam())||(CH.tab=="menus"&&!chMenu()))CH.tab=chFirstTab();CH.justOpened=true;CH.sig="";const h=document.getElementById("chat_h");if(h)h.removeAttribute("data-s");chMarkSeen();chComposer();chLoad(true);setTimeout(()=>{const t=document.getElementById("chat_t");t&&t.focus()},50)}
  chPaint();chTimer()}
 async function chPost(row){
- const {data,error}=await sb.from("chat_messages").insert(Object.assign({sender_name:S.user.name||S.user.email},row)).select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at").single();
+ const {data,error}=await sb.from("chat_messages").insert(Object.assign({sender_name:S.user.name||S.user.email},row)).select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at,deleted_at").single();
  if(error)throw error;CH.all.push(data);CH.seen[data.room]=data.id;chSaveSeen();CH.justOpened=true;return data}
 async function chSend(){
  const t=document.getElementById("chat_t"),v=t?(t.value||"").trim():"",r=chRoom();if(!v||CH.busy||!r)return;
