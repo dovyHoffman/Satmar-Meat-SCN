@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b318">
+<meta name="build" content="b319">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -189,8 +189,8 @@ let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
 const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Office chat"],["menuchat","Menus updates"],["raw","Menu · Raw"],["kitchen","Menu · Kitchen"],["meat","Menu · Meat"],["billing","Billing"],["history","History"],["import","Import"],["newlist","New list"],["settings","Settings"]];
-const ROLE_PAGES={owner:PAGES.map(p=>p[0]),secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
-const ROLE_NAMES={owner:"Owner (admin)",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
+const ROLE_PAGES={owner:PAGES.map(p=>p[0]),admin:PAGES.map(p=>p[0]).filter(x=>x!="import"&&x!="settings"&&x!="newlist"),manager:["dashboard","customers","changes","delivery","menu"],secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
+const ROLE_NAMES={owner:"Owner",admin:"Admin",manager:"Manager",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"&&p!="newlist"):[]}
 const NAVHID={history:1,import:1,delivery_prev:1,chat:1,menuchat:1,raw:1,meat:1,kitchen:1};
 const MTABS=[["menu","Menu"],["raw","Raw"],["kitchen","Kitchen"],["meat","Meat"]];
@@ -2431,7 +2431,7 @@ async function loadUsers(){
 async function updProfile(id,patch){
  const {error}=await sb.from("profiles").update(patch).eq("id",id);
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S.msg="Saved.";S.err=""}await loadUsers()}
-function urole(i,v){const pg=v=="secretary"?["customers","changes","menu"]:v=="billing"?["billing"]:[];updProfile(USERS[i].id,{role:v,pages:pg})}
+function urole(i,v){const pg=(ROLE_PAGES[v]||[]).filter(x=>x!="import"&&x!="settings"&&x!="newlist");updProfile(USERS[i].id,{role:v,pages:pg})}
 function upage(i,p,v){const u=USERS[i],cur=(u.pages||[]).filter(x=>x!=p);if(v)cur.push(p);updProfile(u.id,{pages:cur})}
 function uactive(i,v){updProfile(USERS[i].id,{active:!!v})}
 async function setOpt(k,v){
@@ -2440,7 +2440,7 @@ async function setOpt(k,v){
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S[k]=!!v;S.msg="Saved.";S.err=""}render()}
 function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
- const pg=(o=>PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"&&p[0]!="newlist").sort((x,y)=>(o.indexOf(x[0])<0?99:o.indexOf(x[0]))-(o.indexOf(y[0])<0?99:o.indexOf(y[0]))))(["dashboard","customers","changes","delivery","delivery_prev","menu","raw","kitchen","meat","chat","menuchat","billing"]),RN={owner:"Owner",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
+ const pg=(o=>PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"&&p[0]!="newlist").sort((x,y)=>(o.indexOf(x[0])<0?99:o.indexOf(x[0]))-(o.indexOf(y[0])<0?99:o.indexOf(y[0]))))(["dashboard","customers","changes","delivery","delivery_prev","menu","raw","kitchen","meat","chat","menuchat","billing"]),RN0={owner:"Owner",admin:"Admin",manager:"Manager",secretary:"Office secretary"},RNL={billing:"Billing",demo:"Demo only"};
  return `<div class="card"><h2>Changes for next week</h2>
  <p class="note">Anyone with access can add changes any time. Cut-off: every Sunday 7:00pm (New York time). Changes made before it start ${esc(nwk())}; changes made after it start one week later. This switches by itself.</p>
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
@@ -2455,13 +2455,13 @@ function vSettings(){
  <p class="note">Everyone here was invited by email. Choose a role and which pages each person can open. You can change a name, role or pages, turn someone Off (keeps their record), or Remove them completely.</p>
  <div class="wrap pt"><table><tr><th class="sk">Name</th><th></th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th></tr>
  ${USERS.map((u,i)=>`<tr style="${u.active?"":"opacity:.55"}"><td class="sk"><input value="${esc(u.name)}" style="min-width:140px" onchange="uname(${i},this.value)"></td><td>${u.id==S.user.id?"":`<button onclick="uremove(${i})" style="color:var(--bad,#b42318)">Remove</button>`}</td><td>${esc(u.email)}</td>
- <td><select onchange="urole(${i},this.value)" ${u.id==S.user.id?"disabled":""}>${Object.keys(RN).map(r=>`<option value="${r}" ${u.role==r?"selected":""}>${RN[r]}</option>`).join("")}</select></td>
+ <td><select onchange="urole(${i},this.value)" ${u.id==S.user.id?"disabled":""}>${Object.keys(RN0).concat(RNL[u.role]?[u.role]:[]).map(r=>`<option value="${r}" ${u.role==r?"selected":""}>${RN0[r]||RNL[r]}</option>`).join("")}</select></td>
  ${pg.map(p=>`<td style="text-align:center"><input type="checkbox" style="width:auto" ${u.role=="owner"||(u.pages||[]).indexOf(p[0])>=0?"checked":""} ${u.role=="owner"?"disabled":""} onchange="upage(${i},'${p[0]}',this.checked)"></td>`).join("")}
  <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${u.active?"checked":""} ${u.id==S.user.id?"disabled":""} onchange="uactive(${i},this.checked)"> ${u.active?"On":"Off"}</label></td></tr>`).join("")||`<tr><td colspan="${pg.length+5}" class="no">Loading…</td></tr>`}</table></div>
  <h3 class="gh">Invite a new person</h3>
 
  <p class="note">Type their email and choose a role. They get an email with a link; they click it once, and then they sign in here (they can also make their own password). You can change their pages in the table above afterwards.</p>
- <div class="bar" style="align-items:flex-end;flex-wrap:wrap"><label>Email<br><input id="iv_em" type="email" placeholder="name@email.com" style="width:240px"></label><label>Name (optional)<br><input id="iv_nm" style="width:170px"></label><label>Role<br><select id="iv_ro"><option value="secretary">Office secretary</option><option value="billing">Billing</option><option value="demo">Demo only</option><option value="owner">Owner (admin)</option></select></label><button class="pri" onclick="inviteUser()" ${S.inviting?"disabled":""}>${S.inviting?"Sending…":"Send invitation"}</button></div></div>`}
+ <div class="bar" style="align-items:flex-end;flex-wrap:wrap"><label>Email<br><input id="iv_em" type="email" placeholder="name@email.com" style="width:240px"></label><label>Name (optional)<br><input id="iv_nm" style="width:170px"></label><label>Role<br><select id="iv_ro"><option value="secretary">Office secretary</option><option value="manager">Manager</option><option value="admin">Admin</option><option value="owner">Owner (full control)</option></select></label><button class="pri" onclick="inviteUser()" ${S.inviting?"disabled":""}>${S.inviting?"Sending…":"Send invitation"}</button></div></div>`}
 async function inviteUser(){
  const em=document.getElementById("iv_em").value.trim(),nm=document.getElementById("iv_nm").value.trim(),ro=document.getElementById("iv_ro").value;
  if(!em){S.err="Type the email first.";S.msg="";render();return}

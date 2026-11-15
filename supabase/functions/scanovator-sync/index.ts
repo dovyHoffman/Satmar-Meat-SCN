@@ -220,9 +220,10 @@ Deno.serve(async (req) => {
     if (body.mode === "invite") {
       const email = String(body.email || "").trim().toLowerCase();
       const name = String(body.name || "").trim();
-      const role = ["owner", "secretary", "billing", "demo"].includes(body.role) ? body.role : "secretary";
+      const role = ["owner", "admin", "manager", "secretary", "billing", "demo"].includes(body.role) ? body.role : "secretary";
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ ok: false, error: "That email does not look right." });
-      const pages = role === "secretary" ? ["customers", "changes", "delivery", "menu"] : role === "billing" ? ["billing"] : [];
+      const ALLP = ["dashboard", "customers", "changes", "delivery", "delivery_prev", "menu", "raw", "kitchen", "meat", "chat", "menuchat", "billing"];
+      const pages = role === "admin" ? ALLP : role === "manager" ? ["dashboard", "customers", "changes", "delivery", "menu"] : role === "secretary" ? ["customers", "changes", "delivery", "menu"] : role === "billing" ? ["billing"] : [];
       const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
         data: { name: name || email.split("@")[0] },
         redirectTo: String(body.redirect || "https://dovyhoffman.github.io/Satmar-Meat-SCN/"),
