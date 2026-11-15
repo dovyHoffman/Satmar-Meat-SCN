@@ -6,7 +6,7 @@ alter table billing_snap enable trigger nd_billing_snap;
 insert into billing_snap (week, agency, agency_ref, name, base, food, hh, enh)
 select '2026-11-07', agency, agency_ref, name, base, food, hh, coalesce(enh, 0)
 from bk_20261114b_customers
-where active or (off_from is not null and off_from > '2026-11-07')
+where active
 on conflict do nothing;
 select 'snap_rows' k, count(*)::text v from billing_snap where week = '2026-11-07'
 union all select 'bk_active', count(*)::text from bk_20261114b_customers where active;
