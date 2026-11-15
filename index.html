@@ -43,7 +43,7 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 @media(max-width:900px){.g4{--n:2}.g4 .s2{grid-column:span 2}.cg{grid-template-columns:1fr!important}}
 @media(max-width:520px){.g4{--n:1}.g4 .s2{grid-column:auto}}
 .chk{display:flex;align-items:center;gap:6px;font-weight:600}.chk input{width:auto;margin:0}
-.sm input,.sm select,.sm textarea{font-size:13px;padding:3px 6px;height:28px;min-height:0;box-sizing:border-box;resize:none}.sm label{font-size:12px}
+.sm .g4 label input,.sm .g4 label select,.sm .g4 label textarea{font-size:12.5px;padding:2px 6px;height:26px;min-height:0;max-width:200px;box-sizing:border-box;resize:none;overflow:hidden}.sm label{font-size:12px}
 .cg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
 .pnl{background:color-mix(in srgb,var(--ac) 3%,var(--card));border:1px solid var(--ln);border-radius:14px;padding:12px 16px 14px;margin-bottom:0}
 .cg+.pnl,.pnl+.pnl{margin-top:14px}.cg .pnl{margin-top:0!important}
@@ -146,7 +146,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b326">
+<meta name="build" content="b327">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -383,10 +383,10 @@ const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn"
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
 const addrStr=(a,apt)=>a?[a.st,apt,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
 const ADDRMSG="Choose the address from the list that appears as you type, then enter the apartment in its own field.";
-const LBL={nosms:"No SMS",area:"Area",phone:"Phone",addr:"Delivery address",notes:"Delivery notes",note2:"Customer notes",food:"Food type"};
+const LBL={nosms:"No SMS to Phone",nosmsc:"No SMS to Cell",area:"Area",phone:"Phone",addr:"Delivery address",notes:"Delivery notes",note2:"Customer notes",food:"Food type"};
 const nlabel=v=>v=="mid"?"Middleton":F[v];
 const L=(c,f,o,n)=>log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:c.name,field:f,o:o,n:n});
-const summ=(c,x)=>["phone","addr","area","notes","note2","food","nosms"].filter(k=>x[k]!=null&&x[k]!=="").map(k=>LBL[k]+": "+(k=="nosms"?(x[k]?"on":"off"):k=="food"?F[c.food]+" → "+nlabel(x[k]):x[k])).join("; ");
+const summ=(c,x)=>["phone","addr","area","notes","note2","food","nosms","nosmsc"].filter(k=>x[k]!=null&&x[k]!=="").map(k=>LBL[k]+": "+(k=="nosms"||k=="nosmsc"?(x[k]?"on":"off"):k=="food"?F[c.food]+" → "+nlabel(x[k]):x[k])).join("; ");
 function opts(c){
  let o=c.food=="raw"||c.food=="rawnb"?["raw","rawnb"].filter(x=>x!=c.food):c.food=="meals"?(c.agency=="CCS"?["supper","shabbos"]:["raw","rawnb","supper","shabbos"]):[];
  return o.map(x=>[x,F[x]]).concat(S.allowMid&&!c.mid?[["mid","Middleton"]]:[])}
@@ -398,7 +398,7 @@ function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
  const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=false,dis=ed&&!lock?"":"disabled",o=opts(c);
  const ro=(l,v,w)=>`<label${w?` class="${w}"`:""}>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
- const fCell=own?`<label>Cell<input id="f_cell" value="${esc(c.cell)}"></label>`:ro("Cell",c.cell),fLegal=own?`<label class="s2">Legal address<input id="f_legal" value="${esc(c.legal)}"></label>`:ro("Legal address",c.legal,"s2"),fSms=own?`<label class="chk"><input type="checkbox" id="f_nosms" ${c.noSms?"checked":""}> No SMS</label>`:ro("No SMS",c.noSms?"Yes":"No");
+ const chkP=(id,on,t)=>`<label class="chk"><input type="checkbox" id="${id}" ${on?"checked":""}> ${t}</label>`,fCell=own?`<label>Cell<input id="f_cell" value="${esc(c.cell)}"></label>`:ro("Cell",c.cell),fLegal=own?`<label class="s2">Legal address<input id="f_legal" value="${esc(c.legal)}"></label>`:ro("Legal address",c.legal,"s2"),fSms=own?chkP("f_nosms",c.noSms,"No SMS to Phone")+chkP("f_nosmsc",c.noSmsC,"No SMS to Cell"):ro("No SMS",(c.noSms?"Phone ":"")+(c.noSmsC?"Cell":"")||"No");
  const fPhone=own?`<label>Phone<input id="f_phone" value="${esc(c.phone)}"></label>`:ro("Phone",c.phone);
  const fAddr=own?`<label class="ac s2">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr,"s2");
  const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
@@ -421,7 +421,7 @@ function vCard(){
 ${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}`}
 
  ${nf("nf_notes","New delivery notes (incl. door lock)",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New customer notes",stripCS(n.note2,c.note2,n.food),"Current: "+(c.note2||"none"))}
- <label class="chk" style="align-self:end"><input type="checkbox" id="nf_nosms" ${c.noSms?"checked":""} ${dis}> No SMS (tick = do not text this customer)</label>
+ <label class="chk" style="align-self:end"><input type="checkbox" id="nf_nosms" ${c.noSms?"checked":""} ${dis}> No SMS to Phone</label><label class="chk" style="align-self:end"><input type="checkbox" id="nf_nosmsc" ${c.noSmsC?"checked":""} ${dis}> No SMS to Cell</label>
  <input type="hidden" id="nf_base" value="">
  <label>Food type<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
  <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
@@ -1477,7 +1477,7 @@ async function loadDB(){
   const rows=await custRows();
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
-   cust.push({id:i+1,uuid:c.id,offFrom:c.off_from?new Date(c.off_from+"T00:00:00").getTime():0,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",noSms:!!c.no_sms,cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
+   cust.push({id:i+1,uuid:c.id,offFrom:c.off_from?new Date(c.off_from+"T00:00:00").getTime():0,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",noSms:!!c.no_sms,noSmsC:!!c.no_sms_cell,cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,enh:c.enh||0,food:c.food,base:c.base,codes:[],area:c.middleton?leaveMid({st:c.street,city:c.city,zip:c.zip}):(AREAL[c.area]||"Lee"),mid:!!c.middleton,lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const {data}=await pSet;(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
@@ -2617,7 +2617,7 @@ async function saveNow(id){
  const raw=g("f_addr").value.trim(),same=raw===fmtA(c.a),ad=same?{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""}:parseAddrSmart(raw),apt=g("f_apt").value.trim();
  if(!same){const miss=addrMissing(ad);if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY"}
  const ph=cleanPhones(g("f_phone").value);if(g("f_phone").value.trim()&&!ph.length){ce.textContent="Phone must be 10 digits.";return}
- const patch={phone:ph[0]?fmtPh(ph[0]):"",street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),area:AREA_KEY[g("f_area").value]||"lee",legal_address:g("f_legal").value.trim(),no_sms:g("f_nosms").checked};
+ const patch={phone:ph[0]?fmtPh(ph[0]):"",street:ad.street,apt:apt||ad.apt||"",city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip,notes_labels:g("f_notes").value.trim(),note2:g("f_notes2").value.trim(),area:AREA_KEY[g("f_area").value]||"lee",legal_address:g("f_legal").value.trim(),no_sms:g("f_nosms").checked,no_sms_cell:g("f_nosmsc").checked};
  const cl=cleanPhones(g("f_cell").value);if(g("f_cell").value.trim()&&!cl.length){ce.textContent="Cell must be 10 digits.";return}patch.cell=cl[0]?fmtPh(cl[0]):"";
  const hh=Math.round(+g("f_hh").value);if(!(hh>=1&&hh<=30)){ce.textContent="Household size must be a number from 1 to 30.";return}
  patch.hh=hh;patch.base=g("f_base").value;patch.food=g("f_food").value;
@@ -2625,7 +2625,7 @@ async function saveNow(id){
  const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
  if(error){ce.textContent="Not saved: "+dberr(error);return}
  const ac=addrStr({st:patch.street,city:patch.city,state:patch.state,zip:patch.zip},patch.apt)!==c.addr;
- c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;c.cell=patch.cell;c.legal=patch.legal_address;c.noSms=patch.no_sms;c.hh=patch.hh;c.base=patch.base;c.food=patch.food;
+ c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;c.cell=patch.cell;c.legal=patch.legal_address;c.noSms=patch.no_sms;c.noSmsC=patch.no_sms_cell;c.hh=patch.hh;c.base=patch.base;c.food=patch.food;
  S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
@@ -2634,6 +2634,7 @@ async function saveNext(id){
  if(nx.food=="mid"){const tag="CS "+nwk(),b2=(nx.note2||c.note2||"").trim();if(b2.indexOf(tag)<0)nx.note2=(b2?b2+" ":"")+tag}
  if(nx.food)nx.base=g("nf_base").value||c.base;
  if(g("nf_nosms")&&g("nf_nosms").checked!==!!c.noSms)nx.nosms=g("nf_nosms").checked?1:0;
+ if(g("nf_nosmsc")&&g("nf_nosmsc").checked!==!!c.noSmsC)nx.nosmsc=g("nf_nosmsc").checked?1:0;
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
  if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
@@ -2653,14 +2654,14 @@ async function saveNext(id){
  S.msg="Saved as changes for next week. This week is not changed.";S.err="";render()}
 async function applyNow(id,quiet){
  const c=cust.find(x=>x.id==id),x=c.next;if(!x||S.user.role!="owner")return false;
- const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;if(x.nosms!=null)p.no_sms=!!x.nosms;if(x.area)Object.assign(p,{area:AREA_KEY[x.area]||"lee"});
+ const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;if(x.nosms!=null)p.no_sms=!!x.nosms;if(x.nosmsc!=null)p.no_sms_cell=!!x.nosmsc;if(x.area)Object.assign(p,{area:AREA_KEY[x.area]||"lee"});
  if(x.a){p.street=x.a.st;p.city=x.a.city;p.state=x.a.state;p.zip=x.a.zip;p.apt=x.apt||""}
  if(x.food){if(x.food=="mid")p.middleton=true;else{p.food=x.food;p.base=x.base||c.base;if(c.mid)p.middleton=false}}
  if(x.food){try{await billFreeze()}catch(e){S.err="Not applied: last week could not be saved first ("+dberr(e)+")";S.msg="";render();return false}}
  let r=Object.keys(p).length?await sb.from("customers").update(p).eq("id",c.uuid):{error:null};
  if(!r.error)r=await sb.from("change_requests").update({status:"applied"}).eq("id",x.rid);
  if(r.error){S.err="Not applied: "+dberr(r.error);S.msg="";render();return false}
- if(x.phone)c.phone=x.phone;if(x.notes)c.notes=x.notes;if(x.note2)c.note2=x.note2;if(x.nosms!=null)c.noSms=!!x.nosms;if(x.area)c.area=x.area;
+ if(x.phone)c.phone=x.phone;if(x.notes)c.notes=x.notes;if(x.note2)c.note2=x.note2;if(x.nosms!=null)c.noSms=!!x.nosms;if(x.nosmsc!=null)c.noSmsC=!!x.nosmsc;if(x.area)c.area=x.area;
  if(x.a){c.a=x.a;c.apt=x.apt||"";c.addr=addrStr(c.a,c.apt)}
  if(x.food){if(x.food=="mid")c.mid=true;else{c.food=x.food;c.base=x.base||c.base;c.mid=false}}
  c.next=null;if(!quiet){S.msg="Applied. It is recorded in History.";S.err="";render()}return true}
