@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b305">
+<meta name="build" content="b306">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2946,7 +2946,7 @@ async function rwImportRun(){
  render()}
 
 /* ===== Office chat + Support (bubble for everyone signed in; Office chat only for people with the Chat page; Support = each user with the owner) ===== */
-const CH={open:false,tab:"team",sel:null,all:[],seen:{},err:"",t:null,busy:false,urls:{},rec:null,sig:""};
+const CH={prof:null,pick:false,pq:"",open:false,tab:"team",sel:null,all:[],seen:{},err:"",t:null,busy:false,urls:{},rec:null,sig:""};
 try{CH.seen=JSON.parse(localStorage.getItem("ch_seen2")||"{}")||{}}catch(e){}
 const chatOn=()=>!!S.user&&!!sb&&CH.enabled===true;
 const chTeam=()=>!!S.user&&(S.user.role=="owner"||upages(S.user).indexOf("chat")>=0);
@@ -2956,7 +2956,7 @@ const chRoom=()=>CH.tab=="team"?"team":(chOwner()?CH.sel:chMine());
 const chSaveSeen=()=>{try{localStorage.setItem("ch_seen2",JSON.stringify(CH.seen))}catch(e){}};
 const chIn=r=>CH.all.filter(m=>m.room==r);
 const chUnread=r=>chIn(r).filter(m=>m.id>(CH.seen[r]||0)&&m.sender!=(S.user||{}).id).length;
-const chRooms=()=>{const o={};CH.all.forEach(m=>{if(/^support:/.test(m.room)){const x=o[m.room]=o[m.room]||{room:m.room,name:"",last:m};if(m.id>x.last.id)x.last=m;if(m.sender&&("support:"+m.sender)==m.room&&m.sender_name)x.name=m.sender_name}});return Object.values(o).sort((a,b)=>b.last.id-a.last.id)};
+const chRooms=()=>{const o={};CH.all.forEach(m=>{if(/^support:/.test(m.room)){const x=o[m.room]=o[m.room]||{room:m.room,name:"",last:m};if(m.id>x.last.id)x.last=m;if(m.sender&&("support:"+m.sender)==m.room&&m.sender_name)x.name=m.sender_name}});Object.values(o).forEach(x=>{if(!x.name)x.name=((CH.prof||{})[x.room.slice(8)]||{}).name||""});return Object.values(o).sort((a,b)=>b.last.id-a.last.id)};
 const chTotalUnread=()=>{let n=0;if(chTeam())n+=chUnread("team");if(chOwner())chRooms().forEach(r=>n+=chUnread(r.room));else n+=chUnread(chMine());return n};
 async function chEnabledLoad(){if(CH.loadingE||!sb)return;CH.loadingE=true;try{const {data}=await sb.from("app_settings").select("value").eq("key","chat_enabled").maybeSingle();CH.enabled=!!(data&&data.value===true)}catch(e){CH.enabled=false}CH.loadingE=false;try{chSync()}catch(e){}}
 async function chSwitch(v){const {error}=await sb.from("app_settings").upsert({key:"chat_enabled",value:!!v,updated_at:new Date().toISOString()});if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{CH.enabled=!!v;S.msg=v?"Chat is ON. People with Chat access see Office chat; everyone signed in sees Support.":"Chat is OFF. Nobody sees the chat button.";S.err=""}render()}
@@ -2964,8 +2964,9 @@ const chTime=t=>{const d=new Date(t),n=new Date(),hm=d.toLocaleTimeString([],{ho
 const chSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
 const chDur=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
 async function chUrl(path){const c=CH.urls[path];if(c&&Date.now()-c.t<3000000)return c.u;const {data,error}=await sb.storage.from("chat-files").createSignedUrl(path,3600);if(error||!data)throw (error||new Error("no link"));CH.urls[path]={u:data.signedUrl,t:Date.now()};return data.signedUrl}
+async function chProf(){if(CH.prof||!chOwner())return;CH.prof={};try{const {data}=await sb.from("profiles").select("id,name,email,active,role");(data||[]).forEach(u=>CH.prof[u.id]=u)}catch(e){CH.prof=null}}
 async function chLoad(force){
- if(!chatOn())return;
+ if(!chatOn())return;chProf();
  try{const {data,error}=await sb.from("chat_messages").select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at").order("id",{ascending:false}).limit(500);
   if(error)throw error;CH.all=(data||[]).reverse();CH.err=""}
  catch(e){CH.err="Chat could not load ("+dberr(e)+"). The chat database update may not have been run yet."}
@@ -2981,13 +2982,14 @@ function chPaint(force){
  const b=document.getElementById("chat_b");if(!b)return;
  const un=chTotalUnread();b.innerHTML="💬"+(un&&!CH.open?`<i class="chn">${un>9?"9+":un}</i>`:"");
  const l=document.getElementById("chat_l");if(!l)return;
- const r=chRoom(),msgs=r?chIn(r):[],sig=[CH.tab,r,msgs.length,msgs.length?msgs[msgs.length-1].id:0,CH.err,chTotalUnread()].join("|");
+ const r=chRoom(),msgs=r?chIn(r):[],sig=[CH.tab,CH.pick,CH.pq,r,msgs.length,msgs.length?msgs[msgs.length-1].id:0,CH.err,chTotalUnread()].join("|");
  chTabs();
  if(!force&&sig==CH.sig)return;CH.sig=sig;
  const atEnd=l.scrollHeight-l.scrollTop-l.clientHeight<80;
  if(CH.err){l.innerHTML=`<p class="err">${esc(CH.err)}</p>`}
+ else if(!r&&CH.pick){const q=CH.pq.toLowerCase(),us=Object.values(CH.prof||{}).filter(u=>u.id!=S.user.id&&u.active!==false&&(!q||((u.name||"")+" "+(u.email||"")).toLowerCase().indexOf(q)>=0)).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email)));l.innerHTML=us.length?us.map(u=>`<div class="chrow" onclick="chStart('${esc(u.id)}')"><div><b>${esc(u.name||u.email)}</b><div class="note">${esc(u.email||"")}${u.role=="owner"?" · owner":""}</div></div><div class="note">${chIn("support:"+u.id).length?"open":"new"}</div></div>`).join(""):`<p class="note" style="text-align:center">${CH.prof?"No users found.":"Loading users…"}</p>`}
  else if(!r){const rs=chRooms();l.innerHTML=rs.length?rs.map(x=>{const u=chUnread(x.room),lm=x.last,prev=lm.kind=="voice"?"🎤 Voice note":lm.kind=="image"?"📷 Photo":lm.file_path?"📎 "+(lm.file_name||"file"):lm.body;return `<div class="chrow" onclick="chOpenRoom('${esc(x.room)}')"><div><b>${esc(x.name||"User")}</b><div class="note">${esc(String(prev).slice(0,70))}</div></div><div>${u?`<i class="chn" style="position:static;display:inline-block">${u}</i>`:""}<div class="note">${chTime(lm.created_at)}</div></div></div>`}).join(""):`<p class="note" style="text-align:center">No questions yet. When someone writes in Support it shows here.</p>`}
- else l.innerHTML=msgs.length?msgs.map(chMsgHtml).join(""):`<p class="note" style="text-align:center">${CH.tab=="team"?"No messages yet. Say hello.":"Write your question or problem here. The owner will answer."}</p>`;
+ else l.innerHTML=msgs.length?msgs.map(chMsgHtml).join(""):`<p class="note" style="text-align:center">${CH.tab=="team"?"No messages yet. Say hello.":chOwner()?"No messages yet. Write the first message below.":"Write your question or problem here. The owner will answer."}</p>`;
  l.querySelectorAll("[data-p]").forEach(e=>{if(e.getAttribute("src"))return;chUrl(e.getAttribute("data-p")).then(u=>{e.src=u}).catch(()=>{e.alt="could not load"})});
  if(atEnd||CH.justOpened||force){l.scrollTop=l.scrollHeight;CH.justOpened=false}}
 function chTabs(){const h=document.getElementById("chat_h");if(!h)return;const tt=chTeam(),us=chTotalUnread()-(tt?chUnread("team"):0),ut=tt?chUnread("team"):0,r=chRoom(),back=CH.tab=="sup"&&chOwner()&&CH.sel;
@@ -2995,14 +2997,16 @@ function chTabs(){const h=document.getElementById("chat_h");if(!h)return;const t
  const bt=(k,t,u)=>`<button class="${CH.tab==k?"pri":""}" onclick="chTab('${k}')">${t}${u?` <i class="chn" style="position:static;display:inline-block">${u}</i>`:""}</button>`;
  h.innerHTML=`<div class="chtabs">${tt?bt("team","Office chat",ut):""}${bt("sup",chOwner()?"Support inbox":"Support",us)}</div><button onclick="chToggle(false)" title="Close">✕</button>`}
 function chComposer(){const c=document.getElementById("chat_c");if(!c)return;const r=chRoom(),old=document.getElementById("chat_t"),draft=old?old.value:"";
- if(!r){c.innerHTML="";c.style.display="none";return}
+ if(!r){if(chOwner()&&CH.tab=="sup"){c.style.display="block";c.innerHTML=CH.pick?`<div class="chi"><button class="chb" onclick="chPick(false)" title="Back">←</button><input id="chat_q" placeholder="Search users" value="${esc(CH.pq)}" oninput="CH.pq=this.value;chPaint(true)" style="flex:1;font-size:16px"></div>`:`<div class="chi"><button class="pri" style="flex:1" onclick="chPick(true)">＋ New chat with a user</button></div>`}else{c.innerHTML="";c.style.display="none"}return}
  c.style.display="block";
- const sub=CH.tab=="sup"&&chOwner()&&CH.sel?`<div class="chsub"><button onclick="chOpenRoom(null)">← Inbox</button> <b>${esc(((chRooms().find(x=>x.room==CH.sel)||{}).name)||"User")}</b></div>`:CH.tab=="sup"&&!chOwner()?`<div class="chsub note">Questions or problems? Write here, only the owner sees it.</div>`:"";
+ const sub=CH.tab=="sup"&&chOwner()&&CH.sel?`<div class="chsub"><button onclick="chOpenRoom(null)">← Inbox</button> <b>${esc(((chRooms().find(x=>x.room==CH.sel)||{}).name)||((CH.prof||{})[CH.sel.slice(8)]||{}).name||"User")}</b></div>`:CH.tab=="sup"&&!chOwner()?`<div class="chsub note">Questions or problems? Write here, only the owner sees it.</div>`:"";
  if(CH.rec){c.innerHTML=sub+`<div class="chi"><button class="chb" onclick="chMicCancel()" title="Cancel">✕</button><div style="flex:1;align-self:center;color:#d92d20;font-weight:600">● Recording <span id="chat_rt">0:00</span></div><button class="pri" onclick="chMic()">Send</button></div>`;return}
  c.innerHTML=sub+`<div class="chi"><button class="chb" onclick="document.getElementById('chat_ph').click()" title="Photo">📷</button><button class="chb" onclick="document.getElementById('chat_f').click()" title="File">📎</button><input id="chat_ph" type="file" accept="image/*" multiple hidden onchange="chFiles(this.files);this.value=''"><input id="chat_f" type="file" multiple hidden onchange="chFiles(this.files);this.value=''"><textarea id="chat_t" rows="1" placeholder="Type a message" onkeydown="if(event.key=='Enter'&&!event.shiftKey){event.preventDefault();chSend()}"></textarea><button class="chb" onclick="chMic()" title="Voice note">🎤</button><button class="pri" onclick="chSend()">Send</button></div>`;
  const t=document.getElementById("chat_t");if(t&&draft)t.value=draft}
-function chTab(k){CH.tab=k;CH.sel=null;CH.sig="";CH.justOpened=true;chMarkSeen();chComposer();chPaint(true)}
-function chOpenRoom(r){CH.sel=r;CH.sig="";CH.justOpened=true;chMarkSeen();chComposer();chPaint(true)}
+function chPick(v){CH.pick=v;CH.pq="";CH.sig="";if(v)chProf();chComposer();chPaint(true);if(v)setTimeout(()=>{const q=document.getElementById("chat_q");q&&q.focus()},50)}
+async function chStart(id){await chProf();CH.pick=false;CH.pq="";chOpenRoom("support:"+id)}
+function chTab(k){CH.pick=false;CH.tab=k;CH.sel=null;CH.sig="";CH.justOpened=true;chMarkSeen();chComposer();chPaint(true)}
+function chOpenRoom(r){CH.pick=false;CH.sel=r;CH.sig="";CH.justOpened=true;chMarkSeen();chComposer();chPaint(true)}
 function chToggle(v){
  CH.open=v==null?!CH.open:v;let p=document.getElementById("chat_p");
  if(CH.open&&!p){p=document.createElement("div");p.id="chat_p";p.className="chatp";
