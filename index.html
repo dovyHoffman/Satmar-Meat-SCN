@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b324">
+<meta name="build" content="b325">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3037,12 +3037,12 @@ async function chProf(){if(CH.prof||!chOwner())return;CH.prof={};try{const {data
 async function chLoad(force){
  if(!chatOn())return;chProf();chGroupsLoad();
  try{const {data,error}=await sb.from("chat_messages").select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at,deleted_at").order("id",{ascending:false}).limit(500);
-  if(error)throw error;CH.all=(data||[]).reverse();CH.err="";if(chOwner())chReadsLoad()}
+  if(error)throw error;CH.all=(data||[]).reverse();CH.err="";if(chOwner()||!CH.rl){CH.rl=true;await chReadsLoad()}}
  catch(e){CH.err="Chat could not load ("+dberr(e)+"). The chat database update may not have been run yet."}
  chMarkSeen();chPaint(force)}
 function chMarkSeen(){if(!CH.open)return;const r=chRoom();if(!r)return;const l=chIn(r),id=l.length?l[l.length-1].id:0;if(id>(CH.seen[r]||0)){CH.seen[r]=id;chSaveSeen()}
  if(id&&sb&&S.user&&id>((CH.sent||{})[r]||0)){CH.sent=CH.sent||{};CH.sent[r]=id;sb.from("chat_reads").upsert({room:r,user_id:S.user.id,last_id:id,updated_at:new Date().toISOString()}).then(()=>{},()=>{})}}
-async function chReadsLoad(){try{const {data,error}=await sb.from("chat_reads").select("room,user_id,last_id");if(error)throw error;const o={};(data||[]).forEach(x=>{(o[x.room]=o[x.room]||{})[x.user_id]=+x.last_id});CH.reads=o;const k=JSON.stringify(o);if(k!=CH.rk){CH.rk=k;CH.sig="";chPaint(false)}}catch(e){}}
+async function chReadsLoad(){try{const {data,error}=await sb.from("chat_reads").select("room,user_id,last_id");if(error)throw error;const o={};(data||[]).forEach(x=>{(o[x.room]=o[x.room]||{})[x.user_id]=+x.last_id});CH.reads=o;(data||[]).forEach(x=>{if(S.user&&x.user_id==S.user.id&&+x.last_id>(CH.seen[x.room]||0)){CH.seen[x.room]=+x.last_id;CH.seenDb=1}});if(CH.seenDb){CH.seenDb=0;chSaveSeen()}const k=JSON.stringify(o);if(k!=CH.rk){CH.rk=k;CH.sig="";chPaint(false)}}catch(e){}}
 function chReaders(m){const r=m.room;let ids;if(/^support:/.test(r))ids=[r.slice(8)];else ids=((CH.mem||{})[r]||[]).map(u=>u.id);ids=ids.filter(id=>id!=m.sender);const rd=(CH.reads||{})[r]||{};return {all:ids,read:ids.filter(id=>(rd[id]||0)>=m.id)}}
 function chName(id){const g=Object.values(CH.mem||{}).flat().find(u=>u.id==id);return (g&&g.name)||((CH.prof||{})[id]||{}).name||"User"}
 function chMsgMenu(id){const m=CH.all.find(x=>x.id==id);if(!m||!chOwner())return;const rr=chReaders(m),del=!!m.deleted_at;
