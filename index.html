@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b319">
+<meta name="build" content="b320">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2427,11 +2427,22 @@ function vNewList0(){
 const goOld=go;go=function(v,id){goOld(v,id);if(v=="settings")loadUsers()};
 async function loadUsers(){
  if(!S.user||S.user.role!="owner")return;
- try{USERS=await fetchAll("profiles","id,email,name,role,pages,active",q=>q.order("email"))}catch(e){S.err="Could not load people: "+dberr(e)}render()}
+ try{USERS=await fetchAll("profiles","id,email,name,role,pages,active",q=>q.order("email"))}catch(e){S.err="Could not load people: "+dberr(e)}
+ if(!S.roleLoaded){S.roleLoaded=true;try{const {data}=await sb.from("app_settings").select("value").eq("key","role_pages").maybeSingle();S.rolePages=(data&&data.value)||{}}catch(e){S.rolePages={}}}
+ render()}
+const RD=r=>((S.rolePages||{})[r])||(ROLE_PAGES[r]||[]).filter(x=>x!="import"&&x!="settings"&&x!="newlist");
+async function roleTick(r,pgk,v){
+ const cur=RD(r).filter(x=>x!=pgk);if(v)cur.push(pgk);
+ const all=Object.assign({},S.rolePages||{});all[r]=cur;
+ const {error}=await sb.from("app_settings").upsert({key:"role_pages",value:all,updated_at:new Date().toISOString()});
+ if(error){S.err="Not saved: "+dberr(error);S.msg="";render();return}
+ S.rolePages=all;const who=USERS.filter(u=>u.role==r);
+ for(const u of who){const e2=await sb.from("profiles").update({pages:cur}).eq("id",u.id);if(e2.error){S.err="Saved for the category, but not for "+(u.name||u.email)+": "+dberr(e2.error);S.msg="";await loadUsers();return}}
+ S.msg="Saved. "+(who.length?who.length+" "+(who.length==1?"person":"people")+" in "+ROLE_NAMES[r]+" updated.":"No one is in "+ROLE_NAMES[r]+" yet.");S.err="";await loadUsers()}
 async function updProfile(id,patch){
  const {error}=await sb.from("profiles").update(patch).eq("id",id);
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S.msg="Saved.";S.err=""}await loadUsers()}
-function urole(i,v){const pg=(ROLE_PAGES[v]||[]).filter(x=>x!="import"&&x!="settings"&&x!="newlist");updProfile(USERS[i].id,{role:v,pages:pg})}
+function urole(i,v){updProfile(USERS[i].id,{role:v,pages:RD(v).slice()})}
 function upage(i,p,v){const u=USERS[i],cur=(u.pages||[]).filter(x=>x!=p);if(v)cur.push(p);updProfile(u.id,{pages:cur})}
 function uactive(i,v){updProfile(USERS[i].id,{active:!!v})}
 async function setOpt(k,v){
@@ -2451,6 +2462,11 @@ function vSettings(){
 <p class="note">${S.autoAt?"Last automatic check: "+new Date(S.autoAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+(S.autoErr?" · problem: "+esc(S.autoErr):""):"No automatic check yet in this session."}</p>
 <button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now (full, last 4 weeks)"}</button>
 </div>
+ <div class="card"><h2>Access by category</h2>
+ <p class="note">Choose which pages each category can open. Ticking a box changes it for <b>everyone in that category</b> right away. You can still change one person in the table below. Owner (you) always has everything.</p>
+ <div class="wrap pt"><table><tr><th class="sk">Category</th><th style="font-size:11px">People</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}</tr>
+ <tr><td class="sk"><b>Owner</b></td><td>${USERS.filter(u=>u.role=="owner").length}</td>${pg.map(p=>`<td style="text-align:center"><input type="checkbox" style="width:auto" checked disabled></td>`).join("")}</tr>
+ ${["admin","manager","secretary"].map(r=>`<tr><td class="sk"><b>${ROLE_NAMES[r]}</b></td><td>${USERS.filter(u=>u.role==r).length}</td>${pg.map(p=>`<td style="text-align:center"><input type="checkbox" style="width:auto" ${RD(r).indexOf(p[0])>=0?"checked":""} onchange="roleTick('${r}','${p[0]}',this.checked)"></td>`).join("")}</tr>`).join("")}</table></div></div>
  <div class="card"><h2>People and access</h2>
  <p class="note">Everyone here was invited by email. Choose a role and which pages each person can open. You can change a name, role or pages, turn someone Off (keeps their record), or Remove them completely.</p>
  <div class="wrap pt"><table><tr><th class="sk">Name</th><th></th><th>Email</th><th>Role</th>${pg.map(p=>`<th style="text-align:center;font-size:11px">${p[1]}</th>`).join("")}<th>Active</th></tr>
@@ -2468,7 +2484,7 @@ async function inviteUser(){
  if(ro=="owner"&&!await uiConfirm("Make "+em+" an Owner? An owner can see and change everything."))return;
  S.inviting=true;S.err="";S.msg="";render();
  try{const {data:ss}=await sb.auth.getSession(),r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((ss.session||{}).access_token||SB_KEY)},body:JSON.stringify({mode:"invite",email:em,name:nm,role:ro,redirect:location.origin+location.pathname})}),j=await r.json().catch(()=>({}));
-  if(j.ok){S.msg="Invitation sent to "+em+"."+(j.warning?" "+j.warning:"");LG("Access · "+em,"Invited","",ro);await loadUsers()}else S.err="Not sent: "+(j.error||("server answered "+r.status))}
+  if(j.ok){S.msg="Invitation sent to "+em+"."+(j.warning?" "+j.warning:"");LG("Access · "+em,"Invited","",ro);await loadUsers();try{const nu=USERS.find(u=>String(u.email).toLowerCase()==em.toLowerCase());if(nu&&nu.role!="owner"&&S.rolePages&&S.rolePages[nu.role])await sb.from("profiles").update({pages:RD(nu.role)}).eq("id",nu.id);await loadUsers()}catch(e){}}else S.err="Not sent: "+(j.error||("server answered "+r.status))}
  catch(e){S.err="Not sent: "+((e&&e.message)||e)}
  S.inviting=false;render()}
 
