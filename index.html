@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b322">
+<meta name="build" content="b323">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1357,7 +1357,7 @@ function vLogin(){
  <p class="note">We sent an email to <b>${esc(L.email)}</b>. Type the <b>6-digit code</b> from that email below.</p>
  <label>6-digit code<input id="lg_code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" onkeydown="if(event.key=='Enter')checkCode()"></label>
  <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="lg_rem" checked style="width:auto"> Remember this device for 30 days (no code needed)</label>
- <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.lg.need=false;S.err='';try{sb.auth.signOut()}catch(e){}render()">Back</button></div>${err}</div>`;
+ <div class="bar"><button class="pri" onclick="checkCode()" ${L.busy?"disabled":""}>${L.busy?"Checking…":"Sign in"}</button><button onclick="S.lg.step='email';S.lg.need=false;S.err='';try{sb.auth.signOut()}catch(e){}render()">Back</button></div><div style="margin-top:12px"><button onclick="resendCode()" ${L.busy?"disabled":""} style="width:100%">${L.sent?"✓ New code sent. Check your email":"Send me a new code"}</button></div>${err}</div>`;
  if(L.mode=="link")return `<div class="card" style="max-width:380px;margin:40px auto"><div style="text-align:center;margin-bottom:6px"><img src="logo.png" alt="Satmar Meats" style="height:110px;width:auto"></div><h2>Sign in</h2>
  <label>Email<input id="lg_em" type="email" autocomplete="email" value="${esc(L.email)}" onkeydown="if(event.key=='Enter')sendCode()"></label>
  <div class="bar"><button class="pri" onclick="sendCode()" ${L.busy?"disabled":""}>${L.busy?"Sending…":"Email me a code"}</button><button onclick="S.lg.mode='pw';S.err='';render()">Use my password</button></div>
@@ -1396,9 +1396,13 @@ async function sendCode(){
  S.lg.email=e;S.lg.busy=true;S.err="";render();
  const {error}=await sb.auth.signInWithOtp({email:e,options:{shouldCreateUser:false,emailRedirectTo:location.origin+BASE}});
  S.lg.busy=false;if(error){S.err=dberr(error)}else{S.lg.step="code"}render()}
+async function resendCode(){
+ if(!S.lg||!S.lg.email||S.lg.busy)return;S.lg.busy=true;S.lg.sent=false;S.err="";render();
+ const {error}=await sb.auth.signInWithOtp({email:S.lg.email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+BASE}});
+ S.lg.busy=false;if(error)S.err=dberr(error);else S.lg.sent=true;render();const i=document.getElementById("lg_code");if(i){i.value="";i.focus()}}
 async function checkCode(){
  const t=(document.getElementById("lg_code").value||"").trim();{const c=document.getElementById("lg_rem");S.lg.rem=!c||c.checked}if(!t){S.err="Enter the code from the email.";render();return}
- S.lg.busy=true;S.err="";render();
+ S.lg.busy=true;S.lg.sent=false;S.err="";render();
  const {error}=await sb.auth.verifyOtp({email:S.lg.email,token:t,type:"email"});
  S.lg.busy=false;if(error){S.err=dberr(error);render();return}
  const rm=document.getElementById("lg_rem");devTrust(S.lg.email,S.lg.rem!==false);S.lg.need=false;
