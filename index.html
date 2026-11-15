@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b320">
+<meta name="build" content="b321">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1592,6 +1592,7 @@ function crLines(c,x){const p=x.payload||{},o=[];
  if(p.note2)o.push("Customer notes: "+p.note2);
  return o}
 function whLoad(c){podsOld(c);billHist(c);crHist(c);
+ S.snapC=S.snapC||{};if(S.snapC[c.ref]===undefined&&sb){S.snapC[c.ref]=null;sb.from("billing_snap").select("week,base,food,hh").eq("agency",c.agency).eq("agency_ref",c.ref).then(r=>{S.snapC[c.ref]=r.error?[]:(r.data||[]);if(S.view=="card"&&S.sel==c.id)render()},()=>{S.snapC[c.ref]=[]})}
  S.wh=S.wh||{};if(S.wh[c.ref]!==undefined||!sb)return;S.wh[c.ref]=null;
  sb.rpc("week_history_for",{p:c.ref}).then(r=>{S.wh[c.ref]=r.error?{err:dberr(r.error)}:(r.data||[]);if(S.view=="card"&&S.sel==c.id)render()},e=>{S.wh[c.ref]={err:dberr(e)};if(S.view=="card"&&S.sel==c.id)render()})}
 function whWeeks(){
@@ -1620,6 +1621,7 @@ function pastReal(c){
   if(h&&!h.in_list)return `<div class="note">Not on the list</div>`+reqs(r);
   if(!h&&cur)return c.active===false?`<div class="note">Not on the list</div>`+reqs(r):top(optName(c.base,c.food),c.hh,c.base,codesFor(c.food,c.hh,c.area,c.mid),"On this week's list")+reqs(r);
   if(!h&&r.bh&&!r.list.length){const b=r.bh[0];return top(optName(b.base,b.food)||b.food,b.hh,b.base,"","From the billing sheet")+reqs(r)}
+  if(!h){const sn=((S.snapC||{})[c.ref]||[]).find(x=>x.week==isoD(new Date(+r.ws)));if(sn)return top(optName(sn.base,sn.food)||sn.food,sn.hh,sn.base,codesFor(sn.food,sn.hh,c.area,c.mid),"From that week's saved customers")+reqs(r)}
   if(!h)return (r.up&&whOk?`<div class="note">Not on the list</div>`:`<div class="note">${whOk?"No list saved for this week":""}</div>`)+reqs(r);
   const sel=String(h.flags||"").split(",").filter(Boolean).map(f=>NM[f]).filter(Boolean).join(" · ");
   return top(sel||h.food_type,h.hh,String(h.food_type||"").toLowerCase().indexOf("box")>=0?"box":"meals",h.box_codes,"")+reqs(r)};
