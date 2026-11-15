@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b308">
+<meta name="build" content="b309">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -339,8 +339,8 @@ const COLS=[
  {k:"email",l:"Email",v:c=>esc(c.email),s:c=>c.email||""},
  {k:"legal",l:"Legal address",cls:"adr",v:c=>esc(c.legal),s:c=>c.legal||""},
  {k:"apt",l:"Apartment",v:c=>esc(c.apt),s:c=>c.apt||""},
- {k:"notes",l:"Notes",cls:"adr",v:c=>esc(c.notes),s:c=>c.notes||""},
- {k:"note2",l:"Notes 2",cls:"adr",v:c=>esc(c.note2),s:c=>c.note2||""},
+ {k:"notes",l:"Delivery notes",cls:"adr",v:c=>esc(c.notes),s:c=>c.notes||""},
+ {k:"note2",l:"Customer notes",cls:"adr",v:c=>esc(c.note2),s:c=>c.note2||""},
  {k:"auth",l:"Authorization ends",v:c=>c.auth?esc(c.auth.toLocaleDateString("en-US")):"",s:c=>c.auth?+c.auth:0,num:1},
  {k:"active",l:"Status",v:c=>`<span class="ctag ${c.active?"t-ok":"t-no"}">${c.active?"Active":"Not in list"}</span>`,s:c=>c.active?1:0,num:1}];
 function myPrefs(){const u=S.user||{};let p=u.prefs&&Object.keys(u.prefs).length?u.prefs:null;
@@ -381,7 +381,7 @@ const SUG=[...Array(10).keys()].map(i=>({st:(100+i*7)+" Test St",city:"Brooklyn"
 const fmtA=a=>a?[a.st,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
 const addrStr=(a,apt)=>a?[a.st,apt,a.city,a.state,a.zip].filter(Boolean).join(", "):"";
 const ADDRMSG="Choose the address from the list that appears as you type, then enter the apartment in its own field.";
-const LBL={area:"Area",phone:"Phone",addr:"Delivery address",notes:"Notes",note2:"Notes 2",food:"Food type"};
+const LBL={area:"Area",phone:"Phone",addr:"Delivery address",notes:"Delivery notes",note2:"Customer notes",food:"Food type"};
 const nlabel=v=>v=="mid"?"Middleton":F[v];
 const L=(c,f,o,n)=>log.unshift({at:new Date().toLocaleString(),user:S.user.name,who:c.name,field:f,o:o,n:n});
 const summ=(c,x)=>["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+(k=="food"?F[c.food]+" → "+nlabel(x[k]):x[k])).join("; ");
@@ -400,7 +400,7 @@ function vCard(){
  const fAddr=own?`<label class="ac s2">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr,"s2");
  const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
- const fNotes=(own?`<label>Notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Notes",c.notes))+(own?`<label>Notes 2<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Notes 2",c.note2));
+ const fNotes=(own?`<label>Delivery notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Delivery notes",c.notes))+(own?`<label>Customer notes<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Customer notes",c.note2));
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
  return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area,c.mid))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto">${c.active===false?"Not active":"Active"}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
@@ -408,7 +408,7 @@ function vCard(){
   <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>${c.mid?` <span class="tag" style="background:#fff3cd;border:1px solid #e5a100;color:#7a5200">Middleton</span>`:""}</div></label></div>${casesPnl(c)}</div>
  </div>
  <div class="pnl"><h4>Delivery</h4><div class="grid g4" style="--n:4">${fAddr}${fApt}${fArea}</div></div>
- <div class="pnl"><h4>Notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
+ <div class="pnl"><h4>Delivery notes &amp; customer notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
  ${own?`<div class="bar"><button class="pri" onclick="saveNow(${c.id})">Save now (admin)</button></div><p class="note">Admin edits change this week immediately and are logged.</p>`:`<p class="note">This week is read-only. Use “Changes for next week” below.</p>`}
  <p class="err" id="ce"></p></div>
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
@@ -417,7 +417,7 @@ function vCard(){
  ${c.agency=="RY"?`<div style="grid-column:span 3"><b>New delivery address</b><input type="hidden" id="nf_addr" value="" disabled><input type="hidden" id="nf_apt" value=""><div class="card" style="margin:6px 0 0;background:var(--bg)"><b>RY customers cannot change the delivery address here.</b><div class="note" style="margin-top:4px">Ask the agency (RY) to change it. Customer phone number to give them: <b id="ry_ph">${esc(c.phone||"")}</b> <button type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('ry_ph').textContent);this.textContent='Copied'">Copy</button></div></div></div>`:`<label class="ac" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}><span id="nf_hint" class="note" style="display:block;margin-top:3px"></span></label>
 ${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}`}
 
- ${nf("nf_notes","New notes / door lock",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New notes 2",stripCS(n.note2,c.note2,n.food),"Current: "+(c.note2||"none"))}
+ ${nf("nf_notes","New delivery notes (incl. door lock)",n.notes,"Current: "+(c.notes||"none"))}${nf("nf_notes2","New customer notes",stripCS(n.note2,c.note2,n.food),"Current: "+(c.note2||"none"))}
  <input type="hidden" id="nf_base" value="">
  <label>Food type<select id="nf_opt" ${dis} onchange="prevCode()"></select></label>
  <label>Box code next week<div class="ro" id="nf_code"></div></label></div>
@@ -1556,8 +1556,8 @@ function crLines(c,x){const p=x.payload||{},o=[];
  if(p.food)o.push("Menu: "+(p.food=="mid"?"Middleton":(optName(p.base||c.base,p.food)||p.food)));
  if(p.addr||p.a)o.push("New address: "+(p.addr||[p.a.st,p.a.city,p.a.state,p.a.zip].filter(Boolean).join(", "))+(p.apt&&!(p.addr||"").includes(p.apt)?" apt "+p.apt:""));
  if(p.phone)o.push("New phone: "+p.phone);
- if(p.notes)o.push("Notes: "+p.notes);
- if(p.note2)o.push("Notes 2: "+p.note2);
+ if(p.notes)o.push("Delivery notes: "+p.notes);
+ if(p.note2)o.push("Customer notes: "+p.note2);
  return o}
 function whLoad(c){podsOld(c);billHist(c);crHist(c);
  S.wh=S.wh||{};if(S.wh[c.ref]!==undefined||!sb)return;S.wh[c.ref]=null;
