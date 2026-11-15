@@ -43,6 +43,7 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 @media(max-width:900px){.g4{--n:2}.g4 .s2{grid-column:span 2}.cg{grid-template-columns:1fr!important}}
 @media(max-width:520px){.g4{--n:1}.g4 .s2{grid-column:auto}}
 .inl{display:flex;align-items:center;gap:8px}.inl input:not([type=checkbox]){flex:1;min-width:0}.nsm{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--mut)}.g4 label .nsm input,.nsm input{width:auto;min-height:0;height:auto;margin:0}
+@media(max-width:900px){.sm .g4{--n:2!important}.sm .g4 label input,.sm .g4 label select,.sm .g4 label textarea{max-width:none;height:32px;font-size:14px}.inl{flex-wrap:wrap;gap:4px}.inl input:not([type=checkbox]){flex:1 1 100%}.g4 .ro{overflow-wrap:anywhere;font-size:13.5px}.cg .grid.g4 label input{font-size:14px}}
 .chk{display:flex;align-items:center;gap:6px;font-weight:600}.chk input{width:auto;margin:0}
 .sm .g4 label input,.sm .g4 label select,.sm .g4 label textarea{font-size:12.5px;padding:2px 6px;height:26px;min-height:0;max-width:200px;box-sizing:border-box;resize:none;overflow:hidden}.sm label{font-size:12px}
 .cg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
@@ -147,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b328">
+<meta name="build" content="b329">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
