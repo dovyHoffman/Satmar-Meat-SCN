@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b312">
+<meta name="build" content="b313">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -213,7 +213,7 @@ function upage(i,p,v){const u=USERS[i],has=u.pages.indexOf(p)>=0;if(v&&!has)u.pa
 function uname(i,v){const u=USERS[i];v=String(v).trim();if(v&&v!=u.name)updProfile(u.id,{name:v})}
 async function uremove(i){
  const u=USERS[i];if(!u||u.id==S.user.id)return;
- if(!confirm("Remove "+(u.name||u.email)+" ("+u.email+") completely?\n\nThey will no longer be able to sign in. Customer data is not touched. To bring them back you would invite them again.\n\nTip: turn them Off instead if you may want them back."))return;
+ if(!await uiConfirm("Remove "+(u.name||u.email)+" ("+u.email+") completely?\n\nThey will no longer be able to sign in. Customer data is not touched. To bring them back you would invite them again.\n\nTip: turn them Off instead if you may want them back."))return;
  try{const {data:ss}=await sb.auth.getSession(),r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((ss.session||{}).access_token||SB_KEY)},body:JSON.stringify({mode:"removeuser",id:u.id})}),j=await r.json().catch(()=>({}));
   if(j.ok){S.msg="Removed "+u.email+".";S.err="";LG("Access · "+u.email,"Removed","","")}else{S.err="Not removed: "+(j.error||("server answered "+r.status));S.msg=""}}
  catch(e){S.err="Not removed: "+((e&&e.message)||e);S.msg=""}
@@ -460,15 +460,23 @@ function vChanges(){
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by)}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button> <button onclick="cancelNext(${c.id})">Cancel</button>`:""}</td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 const DRV=["Driver A","Driver B","Driver C"];
 function podInfo(c,w){return{who:DRV[c.id%3],at:w+", "+(1+c.id%4)+":"+String(10+c.id*4).padStart(2,"0")+" PM"}}
+function uiConfirm(msg,o){o=o||{};return new Promise(res=>{
+ const d=document.createElement("div");d.className="ov";d.style.zIndex=60;
+ const t=String(msg||"").split("\n"),title=o.title||t[0],body=o.title?t.join("\n"):t.slice(1).join("\n").replace(/^\n+/,""),bad=o.danger!=null?o.danger:/remove|delete|throw away|void|not active|discard|replace|merge|combine/i.test(msg);
+ const esc2=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+ d.innerHTML=`<div class="mod" style="max-width:420px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.45)"><div style="font-size:18px;font-weight:700;line-height:1.3">${esc2(title)}</div>${body?`<div style="margin-top:10px;white-space:pre-line;opacity:.85;line-height:1.5;max-height:50vh;overflow:auto">${esc2(body)}</div>`:""}<div style="display:flex;gap:10px;margin-top:20px"><button data-r="0" style="flex:1;padding:13px;font-size:15px">${esc2(o.cancel||"Cancel")}</button><button data-r="1" class="pri" style="flex:1;padding:13px;font-size:15px;${bad?"background:#c0392b;border-color:#c0392b":""}">${esc2(o.ok||"Yes")}</button></div></div>`;
+ const done=v=>{d.remove();document.removeEventListener("keydown",kd);res(v)},kd=e=>{if(e.key=="Escape")done(false)};
+ d.onclick=e=>{if(e.target==d)done(false);const b=e.target.closest&&e.target.closest("button[data-r]");if(b)done(b.dataset.r=="1")};
+ document.addEventListener("keydown",kd);document.body.appendChild(d)})}
 async function toggleActive(id){
  const c=cust.find(x=>x.id==id);if(!c||!S.real||!sb||!S.user||S.user.role!="owner")return;
- const on=c.active!==false,pod=(c.pods||[]).find(x=>x.ts&&x.ts>=Date.now()-7*864e5);
- const q=on?"Make "+c.name+" NOT active?\n\nThe customer goes off the list and off the billing."+(pod?"\n\nThis customer already has a POD this week. The POD is NOT deleted. It comes back if you make the customer active again.":"")
-  :"Make "+c.name+" active again?\n\nThe customer goes back on the list and into the billing.";
- if(!confirm(q))return;
- const r=await sb.from("customers").update({active:!on}).eq("id",c.uuid);
- if(r.error){S.err="Not changed: "+dberr(r.error);S.msg="";render();return}
- c.active=!on;S.msg=c.name+(on?" is now NOT active.":" is active again.");S.err="";render()}
+ const on=c.active!==false,k=wkKey(Date.now()),mon=new Date(k.getTime()+2*864e5).toLocaleDateString("en-US",{month:"short",day:"numeric"}),pod=dpOf(c,k.getTime());
+ const ok=on?await uiConfirm("Make "+c.name+" not active?\n\nShe/he goes off the customer list and off the billing from the week of "+mon+". Earlier weeks keep their billing."+(pod?"\n\nThis customer already has a POD this week. The POD is not deleted. It comes back if you make the customer active again.":""),{ok:"Yes, make not active",danger:true})
+  :await uiConfirm("Make "+c.name+" active again?\n\nThe customer goes back on the list and into the billing.",{ok:"Yes, make active",danger:false});
+ if(!ok)return;
+ const r=await sb.from("customers").update(on?{active:false,off_from:k.getFullYear()+"-"+String(k.getMonth()+1).padStart(2,"0")+"-"+String(k.getDate()).padStart(2,"0")}:{active:true,off_from:null}).eq("id",c.uuid);
+ if(r.error){S.err="Not changed: "+dberr(r.error)+(/off_from/.test(String(r.error.message))?" (Database update 069 has not been run yet.)":"");S.msg="";render();return}
+ c.active=!on;c.offFrom=on?k.getTime():0;if(typeof billRelist=="function"&&BILL&&BILL.rowsBase)billRelist();S.msg=c.name+(on?" is now not active. Off the billing from the week of "+mon+".":" is active again.");S.err="";render()}
 function dlv(c){
  if(!c.delivered)return `<label>Delivery this week<div class="ro"><span class="ctag t-no">Not yet</span></div></label>`;
  const i=podInfo(c,"11/2");
@@ -991,7 +999,7 @@ async function payAdd(c){
   S.b.pco=co;await loadPayDb();S.msg="Payment of "+money2(amt)+" from "+coName(co)+" saved.";S.err="";render()}
  catch(e){bad("Not saved: "+dberr(e))}}
 async function payVoid(id){
- const p=BILL.pays.find(x=>x.id==id);if(!p||!confirm("Void this payment of "+money2(Number(p.amount))+" from "+coName(p.company)+" ("+p.paid_on+")? It stays in the list but is no longer counted."))return;
+ const p=BILL.pays.find(x=>x.id==id);if(!p||!await uiConfirm("Void this payment of "+money2(Number(p.amount))+" from "+coName(p.company)+" ("+p.paid_on+")? It stays in the list but is no longer counted."))return;
  try{const r=await sb.from("payments").update({voided:true}).eq("id",id);if(r.error)throw r.error;await loadPayDb();S.msg="Payment voided.";S.err="";render()}catch(e){S.err="Not saved: "+dberr(e);S.msg="";render()}}
 async function saveOpen(){
  const m=document.getElementById("ob_msg"),dt=document.getElementById("ob_dt").value;
@@ -1136,7 +1144,7 @@ async function invOpen(c,k){
   if(!r.no){invMsg("Type the invoice number first.",true);return}
   const M2=invModel(c,k,r);M2.co=Object.assign({},invCo(c),{name:r.name||coName(c),addr:r.addr,phone:r.phone});
   if(M2.missing){invMsg("Some lines have no price yet.",true);return}
-  if(!confirm((again?"Send again invoice ":"Send invoice ")+r.no+" ($"+inM2(M2.total)+") to "+to.join(", ")+(cc.length?" and cc "+cc.join(", "):"")+"?"))return;
+  if(!await uiConfirm((again?"Send again invoice ":"Send invoice ")+r.no+" ($"+inM2(M2.total)+") to "+to.join(", ")+(cc.length?" and cc "+cc.join(", "):"")+"?"))return;
   const b=G("iv_send");b.disabled=true;
   try{invMsg("Saving and sending…");await invPersist(c,r);
    const doc=await invPdf(M2),pdf=doc.output("datauristring").split(",")[1],xl=await billXlsxB64(c,k),subj="Invoice "+r.no+" · Satmar Meat · week of "+M2.range;
@@ -1244,7 +1252,7 @@ function billListRows(rows){
   if(H&&H.length){const nk=v=>String(v||"").toLowerCase().replace(/\s/g,""),byRef={};cust.forEach(c=>byRef[nk(c.ref)]=c);
    H.filter(h=>h.in_list).forEach(h=>{const c=byRef[nk(h.ref)]||{},pr=proof[t+"|"+h.company+"|"+h.ref],q=String(h.request||"").toLowerCase(),base=/box/i.test(h.food_type)?"box":"meals",hh=+h.hh||+c.hh||1,food=/raw/.test(q)?(/no\s*beef/.test(q)?"rawnb":"raw"):/shabbos/.test(q)?"shabbos":/supper/.test(q)?"supper":"meals";
     out.push({order_id:"sheet",delivered_at:mid.toISOString(),agency:h.company,agency_ref:h.ref,name:c.name||h.ref,base:base,food:food,hh:hh,enh:0,boxes:base=="box"?hh:1,letters:"",receipt_url:pr?pr.receipt_url||"":"",photo_urls:pr?pr.photo_urls||[]:[]})});return}
-  cust.filter(c=>c.active).forEach(c=>{const pr=proof[t+"|"+c.agency+"|"+c.ref];
+  cust.filter(c=>c.active||(c.offFrom&&t<c.offFrom)).forEach(c=>{const pr=proof[t+"|"+c.agency+"|"+c.ref];
    out.push({order_id:"sheet",delivered_at:mid.toISOString(),agency:c.agency,agency_ref:c.ref,name:c.name,base:c.base,food:c.food,hh:c.hh,enh:0,boxes:c.base=="box"?c.hh:1,letters:"",receipt_url:pr?pr.receipt_url||"":"",photo_urls:pr?pr.photo_urls||[]:[]})})});
  return out}
 function billRelist(){if(!BILL.rowsBase)return;BILL.rows=billListRows(BILL.rowsBase);BILL.weeks=buildWeeks(BILL.rows);BILL.det={};BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}))}
@@ -1446,7 +1454,7 @@ async function loadDB(){
   const rows=await custRows();
   cust.length=0;
   rows.forEach((c,i)=>{const a={st:c.street||"",city:c.city||"",state:c.state||"",zip:c.zip||""};
-   cust.push({id:i+1,uuid:c.id,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
+   cust.push({id:i+1,uuid:c.id,offFrom:c.off_from?new Date(c.off_from+"T00:00:00").getTime():0,name:c.name,ref:c.agency_ref,agency:c.agency,legal:c.legal_address||"",cell:c.cell||"",cin:c.cin||"",note2:c.note2||"",a:a,apt:c.apt||"",addr:addrStr(a,c.apt||""),phone:c.phone||"",email:c.email||"",
     auth:c.auth_end?new Date(c.auth_end+"T00:00:00"):null,hh:c.hh,enh:c.enh||0,food:c.food,base:c.base,codes:[],area:c.middleton?leaveMid({st:c.street,city:c.city,zip:c.zip}):(AREAL[c.area]||"Lee"),mid:!!c.middleton,lock:c.door_lock||"",notes:c.notes_labels||"",delivered:false,active:c.active,weeks:[],pods:[]})});
   const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const {data}=await pSet;(data||[]).forEach(r=>{if(r.key=="box_settings"&&r.value&&typeof r.value=="object"){for(let n=1;n<=10;n++)if(Array.isArray(r.value[n])&&r.value[n].length==4)SET[n]=r.value[n].map(String)}if(r.key=="box_extra"&&r.value&&typeof r.value=="object")EXTRA=r.value;if(r.key=="allow_middleton")S.allowMid=r.value===true;if(r.key=="cutoff_passed")S.cut=r.value===true;if(r.key=="next_week"&&typeof r.value=="string")S.nextWk=r.value})}catch(e){}
@@ -1666,7 +1674,7 @@ function vImport(){
  ${I.chg&&I.chg.length?`<div style="margin-top:12px"><b>${I.chg.length.toLocaleString()} customers already here are different in this file</b> <span class="note">(${I.nOn||0} switched on, ${I.nOff||0} switched off, ${(I.nNew||0).toLocaleString()} new customers)</span>
  <div class="wrap" style="max-height:260px;overflow:auto;margin-top:6px"><table style="font-size:12px"><tr><th>Customer</th><th>ID</th><th>What changes</th></tr>${I.chg.slice(0,200).map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.ref)}</td><td>${esc(x.d.join(" · "))}</td></tr>`).join("")}</table></div>${I.chg.length>200?`<p class="note">Showing the first 200.</p>`:""}
  <p class="note">This updates the <b>name, household size, Meals/Box, food type, area and who is on the list</b>. Phones, addresses and notes stay exactly as they are in the database. New customers in the file are added. Nobody is deleted, and every change is saved in History.</p>
- <div class="bar"><button class="pri" onclick="if(confirm('Apply this list? '+S.imp.chg.length+' customers change ('+(S.imp.nOff||0)+' switched off, '+(S.imp.nOn||0)+' switched on) and '+(S.imp.nNew||0)+' new customers are added. Phones, addresses and notes are not touched.'))doApplyList()" ${I.busy?"disabled":""}>Apply this week's list</button></div></div>`:I.chg?`<p class="note" style="margin-top:8px">The customers already here match this file.</p>`:""}</div>`:""}
+ <div class="bar"><button class="pri" onclick="uiConfirm('Apply this list? '+S.imp.chg.length+' customers change ('+(S.imp.nOff||0)+' switched off, '+(S.imp.nOn||0)+' switched on) and '+(S.imp.nNew||0)+' new customers are added. Phones, addresses and notes are not touched.',{ok:'Yes, apply',danger:false}).then(y=>{if(y)doApplyList()})" ${I.busy?"disabled":""}>Apply this week's list</button></div></div>`:I.chg?`<p class="note" style="margin-top:8px">The customers already here match this file.</p>`:""}</div>`:""}
  ${I&&I.ok?`<p class="msg">${esc(I.ok)}</p>`:""}</div>
  <div class="card"><h2>Order IDs and box letters (from Scanovator)</h2>
  <p class="note">Scanovator's delivery feed does not send the Application ID or the case description, but your billing sheet has both for every order. Upload them once and every delivery matches its customer by ID, with the real box letters.</p>
@@ -1998,7 +2006,7 @@ async function nlAddOns(files){
   plans.push({f:f,up:up,nw:nw,hh:hh,enh:enh})}
   if(plans.length){const tot={u:0,n:0};plans.forEach(p=>{tot.u+=p.up.length;tot.n+=p.nw.length});
    const msg="Add-ons check\n\n"+plans.map(p=>p.f.name+"\n  "+p.up.length+" households raised: "+p.up.slice(0,8).map(x=>x.name+" "+x.from+"→"+(x.from+x.add)).join(", ")+(p.up.length>8?", …":"")+"\n  "+p.nw.length+" new customers: "+p.nw.slice(0,8).map(x=>x.name).join(", ")+(p.nw.length>8?", …":"")).join("\n\n")+"\n\nApply to the draft?";
-   if(!confirm(msg)){NL.msg="Add-ons cancelled. Nothing was changed.";render();return}
+   if(!await uiConfirm(msg)){NL.msg="Add-ons cancelled. Nothing was changed.";render();return}
    plans.forEach(p=>{const log={file:p.f.name,at:new Date().toISOString(),up:[],added:[]},idx={};D.rows.forEach(r=>{if(!r.noId&&!r.dup&&r.agency_ref)idx[String(r.agency||"").toUpperCase()+"|"+nk(r.agency_ref)]=r});
     const done={};p.up.forEach(x=>{if(done[x.k])return;done[x.k]=1;const o=x.o,h0=Number(o.hh)||Number(o.enh)||0;o.hh=p.hh[x.k];if(p.enh[x.k]>0)o.enh=(Number(o.enh)||0)+p.enh[x.k];log.up.push([o.agency_ref,h0,o.hh])});
     p.nw.forEach(r=>{const k=String(r.agency||"").toUpperCase()+"|"+nk(r.agency_ref);if(idx[k]){const o=idx[k];o.hh=(Number(o.hh)||0)+(Number(r.hh)||Number(r.enh)||0);return}D.rows.push(r);idx[k]=r;log.added.push(r.agency_ref)});
@@ -2035,12 +2043,12 @@ async function nlReviewXlsx(){const R=nlCalc();if(!R)return;
  document.body.appendChild(d);const ok=d.querySelector("#nlRevOk");if(ok)ok.onclick=()=>{d.remove();nlApproveTicked()}}
 function nlTab(t){NL.tab=t;render()}
 async function nlDiscardCo(a){const D=NL.d;if(!D||!D.rows)return;const A=String(a||"").toUpperCase(),mine=D.rows.filter(r=>String(r.agency||"").toUpperCase()==A);if(!mine.length)return;
- if(!confirm("Throw away the "+A+" list ("+mine.length+" customers) from the demo?\n\n"+A+" goes back to last week's numbers. Other companies are not touched. Nothing in your customers changes."))return;
+ if(!await uiConfirm("Throw away the "+A+" list ("+mine.length+" customers) from the demo?\n\n"+A+" goes back to last week's numbers. Other companies are not touched. Nothing in your customers changes."))return;
  const ks=new Set(mine.map(nlKey));D.rows=D.rows.filter(r=>String(r.agency||"").toUpperCase()!=A);["skip","edit","dupOk","appr"].forEach(f=>{if(f=="appr")return;if(D[f])Object.keys(D[f]).forEach(k=>{if(ks.has(k)||String(k).split("|").some(x=>ks.has(x)))delete D[f][k]})});
  D.ag=(D.ag||[]).filter(x=>String(x).toUpperCase()!=A);D.files=(D.files||[]).filter(f=>{const m=/^\s*([A-Za-z]{2,4})\b/.exec(String(f));return !(m&&m[1].toUpperCase()==A)});
  if(!D.rows.length){NL.d=null}
  NL.msg=A+" list thrown away. "+A+" shows last week's numbers again.";await nlSave();render()}
-async function nlDiscard(){if(!confirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";await nlSave();render()}
+async function nlDiscard(){if(!await uiConfirm("Throw away this draft? Nothing in your customers changes."))return;NL.d=null;NL.msg="Draft thrown away.";await nlSave();render()}
 function nlN2(v){v=String(v||"");const i=v.search(/nutrition review/i);return i<0?v:v.slice(0,i).trim()}
 const NL_CATS=[["every","Everyone on this week's list"],["all","Everything below"],["nw","New customers"],["swap","Name only flipped (Last, First)"],["name","Name is different"],["type","Box / Meals changed"],["hh","Household number changed"],["fill","Phone / cell / note added"],["on","Turned back on"],["off","In our system, not in the file"],["skd","Rows the file had but we left out"]];
 function nlRows(R,cat){if(cat=="every"){const D=NL.d,sk=D.skip||{},nwS=new Set(R.nw.map(x=>x.k)),chS=new Set(R.chg.map(x=>x.k));return (D.rows||[]).filter(r=>!NL.co||String(r.agency||"").toUpperCase()==NL.co).map(r=>{const k=nlKey(r),e=nlEff({r:r,k:k});return {k:k,r:r,e:e,skipped:!!sk[k],st:r.cases?"Held back: two cases":sk[k]?"Skipped (you ticked skip)":nwS.has(k)?"New":chS.has(k)?"Changed":"Same, no change",wasNew:nwS.has(k)}})}
@@ -2050,13 +2058,13 @@ function nlApprove(cat){
  D.appr=D.appr||{};ks.forEach(k=>D.appr[k]=1);nlSave();
  NL.msg="Marked approved (green): "+ks.map(k=>(NL_CATS.find(c=>c[0]==k)||[0,k])[1]).join(", ")+". This only marks the box. Nothing has changed in your customers yet. Press the green \"Approve all ticked boxes\" button to update the customer list.";NL.err="";render()}
 function nlApplyApproved(){const D=NL.d,ks=NL_CATS.map(c=>c[0]).filter(k=>k!="all"&&k!="skd"&&k!="every"&&D&&D.appr&&D.appr[k]);if(!ks.length){NL.msg="No box is approved (green) yet.";render();return}nlApplyDo(ks)}
-function nlClearAppr(){const D=NL.d;if(!D||!confirm("Take the green approval off all boxes? Nothing in your customers changes."))return;D.appr={};nlSave();NL.msg="Approvals cleared.";render()}
+async function nlClearAppr(){const D=NL.d;if(!D||!await uiConfirm("Take the green approval off all boxes? Nothing in your customers changes."))return;D.appr={};nlSave();NL.msg="Approvals cleared.";render()}
 async function nlApplyDo(cat){
  cat=cat||"all";const SET=new Set(Array.isArray(cat)?cat:cat=="all"?["nw","swap","name","fill","on","off"]:[cat]);const R=nlCalc();if(!R||NL.busy)return;const live=a=>a.filter(x=>!x.sk),fa=a=>!NL.co||String(a||"").toUpperCase()==NL.co;
  const nw=SET.has("nw")?live(R.nw).filter(x=>fa(x.r.agency)&&!x.r.cases&&!nlBlank(x).t&&!nlBlank(x).h):[],of=SET.has("off")?live(R.off).filter(x=>fa(x.c.agency)):[],ch=live(R.chg.filter(x=>[...SET].some(k=>x.cats[k]))).filter(x=>fa(x.r.agency||x.c.agency)&&!x.r.cases);
  if(!nw.length&&!of.length&&!ch.length){NL.msg="Nothing to apply there.";render();return}
  const lab=(Array.isArray(cat)?"all the ticked boxes ("+cat.map(k=>(NL_CATS.find(c=>c[0]==k)||[0,k])[1]).join(", ")+")":cat=="all"?"everything in this list EXCEPT household and customer type (those you approve one by one)":(NL_CATS.find(c=>c[0]==cat)||[0,cat])[1])+(NL.co?" for "+NL.co+" only":"");
- if(!confirm("Approve "+lab+"?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated"+(cat=="all"?"":" ("+lab.toLowerCase()+" only)")+"\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
+ if(!await uiConfirm("Approve "+lab+"?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated"+(cat=="all"?"":" ("+lab.toLowerCase()+" only)")+"\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
  NL.busy=true;NL.err="";render();
  try{const ags=[...new Set(nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
@@ -2122,7 +2130,7 @@ async function prodMailOpen(g){
  G2("pm_send").onclick=async()=>{
   const kd=document.querySelector('input[name="pm_k"]:checked');if(!kd){msg("Choose Estimate or Final first.",true);return}
   const kind=kd.value,to=inMail(G2("pm_to").value),cc=inMail(G2("pm_cc").value);if(!to.length){msg("Add at least one email address.",true);return}
-  if(!confirm("Send the "+kind+" "+G.name+" numbers to "+to.join(", ")+"?"))return;
+  if(!await uiConfirm("Send the "+kind+" "+G.name+" numbers to "+to.join(", ")+"?"))return;
   const rows=G.letters.map(l=>{const b0=C.sum(C.cn[l])+C.ex(l),xx=Math.max(0,Math.round(+G2("pm_x_"+l).value||0)),was=C.sum(C.cx[l])+C.ex(l);return {l:l,t:b0+xx,b0:b0,x:xx,was:was}}),when=new Date().toLocaleString("en-US",{timeZone:"America/New_York",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
   const head=kind=="ESTIMATE"?"ESTIMATE – numbers can still change":"FINAL numbers",subj=kind+" · "+G.name+" · week of "+wk;
   const html=`<div style="font:14px Arial,sans-serif;color:#111;max-width:640px"><p style="font-size:18px;margin:0 0 6px"><b style="color:${kind=="ESTIMATE"?"#b45309":"#15803d"}">${head}</b></p><p>${esc(G.name)} · week of ${esc(wk)}<br><span style="color:#666">Sent ${esc(when)}${C.useDraft?" · includes the new customer list":""} · based on the customer list and the changes customers asked for.</span></p>
@@ -2214,10 +2222,10 @@ function nlDupSelAll(v){NL.dsel={};if(v)(NL.dg||[]).forEach(g=>NL.dsel[g.gid]=1)
 function nlDupPlan(g){const es=g.rows.map(nlEff);if(es.some(e=>!(Number(e.hh)>0)))return null;const hh=Math.min(30,es.reduce((t,e)=>t+Number(e.hh),0)),base=es.some(e=>e.base!="box")?"meals":"box",m=es.find(e=>e.base==base),food=m&&m.food?m.food:(base=="box"?"raw":"meals");return {hh:hh,base:base,food:food,nm:nlMergeName(es.map(e=>e.name))}}
 function dupSelBar(){const n=(NL.dg||[]).length;if(!n)return "";const k=(NL.dg||[]).filter(g=>NL.dsel&&NL.dsel[g.gid]).length;
  return `<div class="card"><div class="bar" style="flex-wrap:wrap;gap:6px"><button style="padding:5px 10px;font-size:12.5px" onclick="nlDupSelAll(true)">Select all (${n})</button><button style="padding:5px 10px;font-size:12.5px" onclick="nlDupSelAll(false)">Unselect all</button><button class="pri" style="padding:5px 10px;font-size:12.5px" onclick="nlDupMergeSel()" ${k?"":"disabled"}>Merge selected (${k})</button></div><p class="note" style="margin-top:6px">Tick the boxes next to the groups (untick any you want to leave out). <b>Merge selected</b> merges each ticked group into one customer: household = the total of its rows, type = Meals if any row is Meals (otherwise Box), the names combined, the first ID kept. A group with a blank household is skipped, so you can merge it by hand.</p></div>`}
-function nlDupMergeSel(){const sel=(NL.dg||[]).filter(g=>NL.dsel&&NL.dsel[g.gid]);if(!sel.length)return;
+async function nlDupMergeSel(){const sel=(NL.dg||[]).filter(g=>NL.dsel&&NL.dsel[g.gid]);if(!sel.length)return;
  const plans=sel.map(g=>({g:g,p:nlDupPlan(g)})),ok=plans.filter(x=>x.p),sk=plans.length-ok.length;
  if(!ok.length){NL.dm="Nothing merged: every ticked group has a blank household. Merge those one by one.";render();return}
- if(!confirm("Merge "+ok.length+" duplicate group"+(ok.length>1?"s":"")+" into one customer each?\n\nHousehold = the total of the rows, type = Meals if any row is Meals (otherwise Box), names combined, first ID kept."+(sk?"\n"+sk+" ticked group"+(sk>1?"s have":" has")+" a blank household and will be skipped.":"")+"\n\nYou can undo each one under Merged at the bottom. Nothing changes in your real customers until you approve the list."))return;
+ if(!await uiConfirm("Merge "+ok.length+" duplicate group"+(ok.length>1?"s":"")+" into one customer each?\n\nHousehold = the total of the rows, type = Meals if any row is Meals (otherwise Box), names combined, first ID kept."+(sk?"\n"+sk+" ticked group"+(sk>1?"s have":" has")+" a blank household and will be skipped.":"")+"\n\nYou can undo each one under Merged at the bottom. Nothing changes in your real customers until you approve the list."))return;
  ok.forEach(x=>{nlDupMergeG(x.g,x.p.hh,x.p.base,x.p.food,x.p.nm);delete NL.dsel[x.g.gid]});
  NL.dm="Merged ✓ "+ok.length+" group"+(ok.length>1?"s":"")+(sk?" ("+sk+" skipped: household is blank, merge them one by one)":"")+". They are listed under Merged at the bottom (you can undo each one there).";nlSave();render();try{window.scrollTo(0,0)}catch(e){}}
 function nlMergeUndo(i){const D=NL.d,m=(D.mlog||[])[i];if(!m)return;if(m.prev)D.edit[m.k]=m.prev;else delete D.edit[m.k];m.o.forEach(k=>delete D.skip[k]);D.mlog.splice(i,1);nlSave();render()}
@@ -2276,7 +2284,7 @@ async function dupMailOpen(ag){
  const G=id=>document.getElementById(id),msg=(t,bad)=>{G("dm_msg").textContent=t;G("dm_msg").style.color=bad?"#b42318":"var(--ok)"};
  G("dm_send").onclick=async()=>{
   const to=inMail(G("dm_to").value),cc=inMail(G("dm_cc").value);if(!to.length){msg("Add at least one email address.",true);return}
-  if(!confirm("Send the duplicates ("+gs.length+" groups) to "+to.join(", ")+"?"))return;
+  if(!await uiConfirm("Send the duplicates ("+gs.length+" groups) to "+to.join(", ")+"?"))return;
   const b=G("dm_send");b.disabled=true;
   try{msg("Sending…");const xl=await dupXlsx(ag,gs),txt=G("dm_body").value,subj=G("dm_sub").value.trim()||"Duplicate customers",html='<div style="font:14px Arial,sans-serif;color:#111;max-width:640px">'+esc(txt).replace(/\n/g,"<br>")+"</div>";
    const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
@@ -2337,7 +2345,7 @@ function idxPlan(){const ag=IDX.ag,cs=cust.filter(c=>String(c.agency||"").toUppe
   const clash=used[nk(r.nw)];if(clash&&clash.uuid!=pick.uuid){o.st="skip:the new ID already belongs to another customer";return o}
   o.c=pick;o.st="ok:will change";return o})}
 async function idxApply(){const P=idxPlan().filter(x=>x.c);if(!P.length||IDX.busy)return;
- if(!confirm("Replace the ID of "+P.length+" "+IDX.ag+" customers with the new ID from the file?\n\nOnly the ID changes (nothing else). The old ID is kept in History. Nobody is deleted."))return;
+ if(!await uiConfirm("Replace the ID of "+P.length+" "+IDX.ag+" customers with the new ID from the file?\n\nOnly the ID changes (nothing else). The old ID is kept in History. Nobody is deleted."))return;
  IDX.busy=true;IDX.err="";IDX.msg="";render();let n=0;
  try{for(const x of P){const r=await sb.from("customers").update({agency_ref:x.r.nw}).eq("id",x.c.uuid);if(r.error)throw r.error;x.c.ref=x.r.nw;n++}
   IDX.msg="Done: "+n+" IDs replaced. They are saved in History with the old ID.";IDX.rows=null;try{await loadDB()}catch(e){}}
@@ -2441,7 +2449,7 @@ function vSettings(){
 async function inviteUser(){
  const em=document.getElementById("iv_em").value.trim(),nm=document.getElementById("iv_nm").value.trim(),ro=document.getElementById("iv_ro").value;
  if(!em){S.err="Type the email first.";S.msg="";render();return}
- if(ro=="owner"&&!confirm("Make "+em+" an Owner? An owner can see and change everything."))return;
+ if(ro=="owner"&&!await uiConfirm("Make "+em+" an Owner? An owner can see and change everything."))return;
  S.inviting=true;S.err="";S.msg="";render();
  try{const {data:ss}=await sb.auth.getSession(),r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((ss.session||{}).access_token||SB_KEY)},body:JSON.stringify({mode:"invite",email:em,name:nm,role:ro,redirect:location.origin+location.pathname})}),j=await r.json().catch(()=>({}));
   if(j.ok){S.msg="Invitation sent to "+em+"."+(j.warning?" "+j.warning:"");LG("Access · "+em,"Invited","",ro);await loadUsers()}else S.err="Not sent: "+(j.error||("server answered "+r.status))}
@@ -2623,7 +2631,7 @@ function vChanges(){
  const own=S.user.role=="owner",rows=cust.filter(c=>c.next);
  return `<div class="card"><h2>Changes for next week (${esc(nwk())})</h2>
  <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>every Sunday 7:00pm</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
- ${own&&rows.length?`<div class="bar"><button onclick="if(confirm('Apply all ${rows.length} waiting changes now?'))applyAll()">Apply all ${rows.length} now</button></div>`:""}
+ ${own&&rows.length?`<div class="bar"><button onclick="uiConfirm('Apply all ${rows.length} waiting changes now?',{ok:'Yes, apply all',danger:false}).then(y=>{if(y)applyAll()})">Apply all ${rows.length} now</button></div>`:""}
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" >Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
@@ -2752,7 +2760,7 @@ function rwMgPanel(){
  return `<div class="rwform"><b>Combine ${sel.length} items into one</b><p class="note">Keep which name? All weeks that used the others will show this one.</p>${sel.map(x=>`<label class="ck" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="radio" name="mgk" ${RW.mgKeep==x.id?"checked":""} onclick="RW.mgKeep=${x.id}"> <span>${x.code?`<span class="tag">${esc(x.code)}</span> `:""}<b>${esc(x.name)}</b> <span class="note">${x.uses||0} week${x.uses==1?"":"s"}</span></span></label>`).join("")}<button class="pri rwbig" onclick="rwMerge()">Combine into one</button></div>`}
 async function rwMerge(){
  const keep=RW.lib.find(x=>x.id==RW.mgKeep);if(!keep||RW.mgSel.length<2)return;const dupes=RW.mgSel.filter(id=>id!=keep.id),dl=RW.lib.filter(x=>dupes.indexOf(x.id)>=0);
- if(!confirm("Combine "+RW.mgSel.length+" items into “"+keep.name+"”? The other spellings are hidden from the library, and every week that used them will show “"+keep.name+"”."))return;
+ if(!await uiConfirm("Combine "+RW.mgSel.length+" items into “"+keep.name+"”? The other spellings are hidden from the library, and every week that used them will show “"+keep.name+"”."))return;
  const code=keep.code||(dl.find(x=>x.code)||{}).code||null;
  try{
   const a=await sb.from("raw_week_items").update({item_id:keep.id,name:keep.name}).in("item_id",dupes);if(a.error)throw a.error;
@@ -2764,7 +2772,7 @@ async function rwMerge(){
   Object.assign(keep,patch);RW.lib=RW.lib.filter(x=>dupes.indexOf(x.id)<0);RW.mg=false;RW.mgSel=[];RW.mgKeep=null;RW.msg="Combined into “"+keep.name+"”.";RW.err="";render()}
  catch(e){rwSaveErr(e)}}
 const RW_MCATS=["Chicken","Turkey","Beef","Ready to bake","Dips"];
-async function rwLibDel(id){const li=RW.lib.find(x=>x.id==id);if(!li||!confirm("Delete “"+li.name+"” from the library? Past weeks keep their lines. It will not show in the library or the add-item search anymore."))return;
+async function rwLibDel(id){const li=RW.lib.find(x=>x.id==id);if(!li||!await uiConfirm("Delete “"+li.name+"” from the library? Past weeks keep their lines. It will not show in the library or the add-item search anymore."))return;
  const {error}=await sb.from("raw_items").update({hidden:true,code:null}).eq("id",id);if(error)return rwSaveErr(error);RW.lib=RW.lib.filter(x=>x.id!=id);RW.ex=null;RW.msg="Deleted “"+li.name+"” from the library.";RW.err="";render()}
 async function rwTblAdd(wid){const e=document.getElementById("rw_tq"),v=e?e.value.trim():"";if(!v)return;const q=rwNk(v),m=RW.lib.filter(x=>x.section=="meat"),hit=m.find(x=>rwNk(x.code||"")==q)||m.find(x=>rwNk(x.name)==q);
  if(hit)return rwAddItem(wid,hit.id,"meat");return rwAddItem(wid,null,"meat",v)}
@@ -2777,7 +2785,7 @@ async function rwAddItem(wid,libId,section,name){
  const {data,error}=await sb.from("raw_week_items").insert(row).select().single();if(error)return rwSaveErr(error);
  RW.wi.push(data);{const wk=RW.weeks.find(x=>x.id==wid);if(li&&wk&&wk.week_date&&(!li.last_used||String(wk.week_date)>String(li.last_used))){li.last_used=wk.week_date;sb.from("raw_items").update({last_used:wk.week_date}).eq("id",li.id).then(()=>{},()=>{})}}RW.ex=data.id;RW.add=false;RW.addq="";RW.msg="Added "+nm+". Set the quantity per box below.";RW.err="";render()}
 async function rwRemoveItem(id){
- const it=RW.wi.find(x=>x.id==id);if(!it||!confirm("Remove "+it.name+" from this week? (It stays in the item library.)"))return;
+ const it=RW.wi.find(x=>x.id==id);if(!it||!await uiConfirm("Remove "+it.name+" from this week? (It stays in the item library.)"))return;
  const {error}=await sb.from("raw_week_items").delete().eq("id",id);if(error)return rwSaveErr(error);RW.wi=RW.wi.filter(x=>x.id!=id);RW.ex=null;render()}
 async function rwCreateWeek(){
  const lab=(document.getElementById("rw_nl").value||"").trim(),dt=document.getElementById("rw_nd").value||null,from=document.getElementById("rw_nf").value;
