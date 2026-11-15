@@ -144,7 +144,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b323">
+<meta name="build" content="b324">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3121,7 +3121,8 @@ function chToggle(v){
  if(CH.open&&!p){p=document.createElement("div");p.id="chat_p";p.className="chatp";
   p.innerHTML=`<div class="chh" id="chat_h"></div><div id="chat_s"></div><div id="chat_l" class="chl"></div><div id="chat_c"></div>`;document.body.appendChild(p)}
  if(p)p.style.display=CH.open?"flex":"none";
- if(CH.open){if((CH.tab=="team"&&!chTeam())||(CH.tab=="menus"&&!chMenu()))CH.tab=chFirstTab();CH.justOpened=true;CH.sig="";const h=document.getElementById("chat_h");if(h)h.removeAttribute("data-s");chMarkSeen();chComposer();chLoad(true);setTimeout(()=>{const t=document.getElementById("chat_t");t&&t.focus()},50)}
+ if(CH.open){if((CH.tab=="team"&&!chTeam())||(CH.tab=="menus"&&!chMenu()))CH.tab=chFirstTab();{const ut=chTeam()?chUnread("team"):0,um=chMenu()?chUnread("menus"):0,us=chTotalUnread()-ut-um,cd=[["team",ut],["menus",um],["sup",us]],cu=cd.find(x=>x[0]==CH.tab);if(!cu||!cu[1]){const o=cd.find(x=>x[1]>0);if(o){CH.tab=o[0];if(o[0]=="sup"&&chOwner())CH.sel=null}}}
+ CH.justOpened=true;CH.sig="";const h=document.getElementById("chat_h");if(h)h.removeAttribute("data-s");chMarkSeen();chComposer();chLoad(true);setTimeout(()=>{const t=document.getElementById("chat_t");t&&t.focus()},50)}
  chPaint();chTimer()}
 async function chPost(row){
  const {data,error}=await sb.from("chat_messages").insert(Object.assign({sender_name:S.user.name||S.user.email},row)).select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at,deleted_at").single();
