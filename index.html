@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b340">
+<meta name="build" content="b341">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1187,6 +1187,10 @@ function invRead(c,k){
  const g=i=>document.getElementById(i);return {no:g("iv_no").value.trim(),date:g("iv_dt").value||undefined,name:g("iv_nm").value.trim(),addr:g("iv_ad").value,phone:(g("iv_ph")||{value:""}).value.trim(),emails:g("iv_to").value,cc:g("iv_cc").value}}
 async function invPersist(c,r){await invSave(c,{name:r.name||coName(c),addr:r.addr,phone:r.phone,emails:r.emails,cc:r.cc})}
 function invMsg(t,bad){const e=document.getElementById("iv_msg");if(e){e.textContent=t;e.style.color=bad?"#b42318":"var(--ok)"}}
+function invCounts(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const cu=Object.keys(w.cust).map(z=>w.cust[z]).filter(z=>z.co==c);
+ const ml=cu.filter(z=>z.base!="box"),bx=cu.filter(z=>z.base=="box"),en=bx.filter(z=>(z.enh||0)>0),hh=bx.filter(z=>(z.hh||1)>1),mq=ml.reduce((t,z)=>t+21*(z.hh||1),0);
+ const chip=(n,l,sub)=>`<span style="display:inline-block;background:#eef1ff;border-radius:10px;padding:8px 12px;margin:0 8px 8px 0"><b style="font-size:18px">${inQ(n)}</b> <span style="font-weight:600">${l}</span>${sub?`<br><span class="note">${sub}</span>`:""}</span>`;
+ return `<div style="margin:10px 0 4px">${chip(ml.length,"Meals customers",inQ(mq)+" meals")}${chip(bx.length,"Raw (box) customers",hh.length?inQ(hh.length)+" with HH 2+":"")}${chip(en.length,"Enhanced",bx.length?"box customers with enhanced members":"")}</div>`}
 async function invOpen(c,k){
  const ce=invCo(c);let M=invModel(c,k);if(!M){bmsg("Nothing to invoice for this week.",true);return}
  const gap=podGap(c,k),dup=(BILL.inv||[]).find(i=>i.company==c&&!i.voided&&i.note==="Week "+k),again=!!dup,nxt=again?String(dup.inv_no||""):INV.last==null?"":String(INV.last+1);
@@ -1198,7 +1202,7 @@ async function invOpen(c,k){
  <div class="rwfld"><label>Bill to · name<input id="iv_nm" value="${esc(ce.name)}"></label><label>Bill to · address<textarea id="iv_ad" rows="3" style="width:100%">${esc(ce.addr)}</textarea></label><label>Phone<input id="iv_ph" value="${esc(ce.phone||"")}" placeholder="optional"></label></div>
  <div class="rwfld"><label>Send to (emails, separated by comma)<input id="iv_to" value="${esc(ce.emails)}" placeholder="name@company.com, other@company.com"></label><label>CC<input id="iv_cc" value="${esc(ce.cc)}" placeholder="optional, separated by comma"></label></div>
  <p class="note" style="margin:2px 0 8px">The names and emails are saved for ${esc(coName(c))}, so next week they are already filled in.</p>
- <div class="wrap"><table><tr><th style="text-align:right">Qty</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr>${M.lines.map(l=>`<tr><td style="text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td>${esc(l.desc)}</td><td style="text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:inM2(l.rate)}</td><td style="text-align:right">${l.amt==null?"—":inM2(l.amt)}</td></tr>`).join("")}<tr><td></td><td><b>Total</b></td><td></td><td style="text-align:right"><b>$${inM2(M.total)}</b></td></tr></table></div>
+ ${invCounts(c,k)}<div class="wrap"><table><tr><th style="text-align:right">Qty</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr>${M.lines.map(l=>`<tr><td style="text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td>${esc(l.desc)}</td><td style="text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:inM2(l.rate)}</td><td style="text-align:right">${l.amt==null?"—":inM2(l.amt)}</td></tr>`).join("")}<tr><td></td><td><b>Total</b></td><td></td><td style="text-align:right"><b>$${inM2(M.total)}</b></td></tr></table></div>
  ${M.missing?`<p class="err">No price is set for some lines. Set it on the Dashboard first.</p>`:""}
  ${block?`<p class="err">${esc(block)}</p>`:""}${gap.length||again||true?`<p><button id="iv_mp">Add / edit POD links by hand</button></p>`:""}
  ${block?"":`<p class="note">All customers in this week have a POD ✓ · invoice #${esc(nxt)}${again?" · already created, sending again keeps the same number":""}</p>`}
