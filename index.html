@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b333">
+<meta name="build" content="b334">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2638,6 +2638,8 @@ async function saveNext(id){
  if(nx.food)nx.base=g("nf_base").value||c.base;
  if(g("nf_nosms")&&g("nf_nosms").checked!==!!c.noSms)nx.nosms=g("nf_nosms").checked?1:0;
  if(g("nf_nosmsc")&&g("nf_nosmsc").checked!==!!c.noSmsC)nx.nosmsc=g("nf_nosmsc").checked?1:0;
+ if(nx.nosms==1&&!(nx.phone||c.phone)){ce.textContent="There is no phone number on file to mark No SMS. Enter a new phone first.";return}
+ if(nx.nosmsc==1&&!(nx.cell||c.cell)){ce.textContent="There is no cell number on file to mark No SMS. Enter a new cell first.";return}
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
  if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
@@ -2654,7 +2656,8 @@ async function saveNext(id){
  else{const r=await sb.from("change_requests").insert({customer_id:c.uuid,effective_week:nwk(),payload:nx,requested_by:S.user.id}).select("id").single();error=r.error;rid=r.data&&r.data.id}
  if(error){ce.textContent="Not saved: "+dberr(error);return}
  c.next=Object.assign({},nx,{rid:rid,at:new Date().toLocaleDateString()});
- S.msg="Saved as changes for next week. This week is not changed.";S.err="";render()}
+ const sm=[];if(nx.nosms!=null)sm.push((nx.nosms?"No SMS saved for ":"No SMS removed for ")+(nx.phone||c.phone));if(nx.nosmsc!=null)sm.push((nx.nosmsc?"No SMS saved for ":"No SMS removed for ")+(nx.cell||c.cell));
+ S.msg=(sm.length?sm.join(". ")+". ":"")+"Saved as changes for next week. This week is not changed.";S.err="";render()}
 async function applyNow(id,quiet){
  const c=cust.find(x=>x.id==id),x=c.next;if(!x||S.user.role!="owner")return false;
  const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;if(x.cell)p.cell=x.cell;if(x.nosms!=null)p.no_sms=!!x.nosms;if(x.nosmsc!=null)p.no_sms_cell=!!x.nosmsc;if(x.area)Object.assign(p,{area:AREA_KEY[x.area]||"lee"});
