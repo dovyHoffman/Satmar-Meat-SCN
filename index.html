@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b384">
+<meta name="build" content="b385">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2874,13 +2874,13 @@ const rwIsM=k=>rwMeatCode(k)||(RW.types[k]||{}).kind=="meat",rwMM=()=>RW.mode=="
 async function rwLoad(force){
  if(!sb||RW.loading||(RW.ok&&!force))return;RW.loading=true;RW.err="";
  try{const [w,t,l,i,c]=await Promise.all([fetchAll("raw_weeks","*",q=>q.order("week_date",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_box_types","*",q=>q.order("sort").order("code")),fetchAll("raw_items","*",q=>q.order("last_used",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_week_items","*",q=>q.order("id")),fetchAll("raw_week_counts","*",q=>q.order("week_id").order("code"))]);
-  RW.weeks=w;RW.types={};t.forEach(x=>RW.types[x.code]=x);RW.lib=l.filter(x=>!x.merged_into&&!x.hidden);RW.wi=i;RW.cnt=c;RW.ok=true}
+  RW.weeks=w;RW.types={};t.forEach(x=>RW.types[x.code]=x);RW.lib=l.filter(x=>!x.merged_into&&!x.hidden);RW.wi=i;RW.cnt=c;RW.ok=true;rwLoadBc()}
  catch(e){RW.err="Could not load the Raw Menu ("+dberr(e)+")."}
  RW.loading=false;render()}
 /* Boxes to make of a size: what was typed for the week; if nothing is typed, the count from the dashboard (today's active customers) */
 function rwCalc(wid){
  const cm={};RW.cnt.filter(x=>x.week_id==wid).forEach(x=>cm[x.code]=x);
- const cn0=(S.real&&cust.length)?rwBoxNow():null,effC={},autoC={},eff=k=>{if(k in effC)return effC[k];const x=cm[k];let v;if(x&&x.ordered!=null&&x.ordered!==""&&+x.ordered>0){v=+x.ordered}else{v=dash(k);if(v)autoC[k]=1}return effC[k]=v},dash=k=>{const l=cn0&&rwLoc(cn0,k);return l?l.tot:0};
+ const cn0=rwHasCn()?rwBoxNow():null,effC={},autoC={},eff=k=>{if(k in effC)return effC[k];const x=cm[k];let v;if(x&&x.ordered!=null&&x.ordered!==""&&+x.ordered>0){v=+x.ordered}else{v=dash(k);if(v)autoC[k]=1}return effC[k]=v},dash=k=>{const l=cn0&&rwLoc(cn0,k);return l?l.tot:0};
  const its=RW.wi.filter(x=>x.week_id==wid).sort((a,b)=>a.sort-b.sort||a.id-b.id);
  const rows=its.map(it=>{let n=0;Object.keys(it.qty||{}).forEach(c=>{n+=(+it.qty[c]||0)*eff(c)});
   const cp=+it.case_price||0,upc=+it.units_per_case||0;
@@ -2911,14 +2911,18 @@ const rwMeatCodes=c=>[...new Set(c.codes.filter(rwIsM).concat(Object.keys(RW.typ
 const rwLibOf=it=>RW.lib.find(x=>x.id==it.item_id)||(it.name&&RW.lib.find(x=>x.code&&String(x.code).trim()==String(it.name).trim()&&(!it.section||x.section==it.section)))||null,
 rwCodeOf=it=>(rwLibOf(it)||{}).code||"",
 rwNameOf=it=>{const l=rwLibOf(it);return l&&l.name&&String(it.name).trim()==String(l.code||"").trim()?l.name:it.name};
-function rwBoxNow(){const cn={};LET.forEach(l=>cn[l]={});cust.filter(c=>c.active).forEach(c=>String(codesFor(c.food,c.hh,c.area,c.mid)).split(" ").forEach(l=>{if(cn[l])cn[l][c.area]=(cn[l][c.area]||0)+1}));return cn}
+function rwHasCn(){return !!((S.real&&cust.length)||RW.bcn)}
+function rwBoxNow(){if(!(S.real&&cust.length))return RW.bcn||null;const cn={};LET.forEach(l=>cn[l]={});cust.filter(c=>c.active).forEach(c=>String(codesFor(c.food,c.hh,c.area,c.mid)).split(" ").forEach(l=>{if(cn[l])cn[l][c.area]=(cn[l][c.area]||0)+1}));
+ try{if(S.user&&S.user.role=="owner"){const j=JSON.stringify(cn);if(j!==RW.bcSent){RW.bcSent=j;clearTimeout(RW.bcT);RW.bcT=setTimeout(()=>{try{sb.from("app_settings").upsert({key:"box_counts",value:{cn:cn,at:new Date().toISOString()},updated_at:new Date().toISOString()}).then(()=>{},()=>{})}catch(e){}},2500)}}}catch(e){}
+ return cn}
+async function rwLoadBc(){if(S.real&&cust.length)return;try{const r=await sb.from("app_settings").select("value").eq("key","box_counts").limit(1);const v=r.data&&r.data[0]&&r.data[0].value;if(v&&v.cn){RW.bcn=v.cn;RW.bcAt=v.at;render()}}catch(e){}}
 function rwLoc(cn,k){const x=cn[k];if(!x)return null;const ex=Object.keys(EXTRA[k]||{}).reduce((t,a)=>t+(+EXTRA[k][a]||0),0),lee=(x.Lee||0)+(x.BP||0)+(x["Monsey/Monroe"]||0)+ex;return {lee:lee,bed:x.Bedford||0,tot:lee+(x.Bedford||0),ex:ex}}
 function rwLocStrip(w,codes){
- if(!S.real||!cust.length||!codes.length)return "";const cn=rwBoxNow(),rows=codes.map(k=>({k:k,l:rwLoc(cn,k)})).filter(r=>r.l);if(!rows.length)return "";
+ if(!rwHasCn()||!codes.length)return "";const cn=rwBoxNow(),rows=codes.map(k=>({k:k,l:rwLoc(cn,k)})).filter(r=>r.l);if(!rows.length)return "";
  return `<div class="card"><b>Boxes to make</b> <span class="note">from today's active customers · Lee includes BP, Monsey/Monroe and the extra boxes</span>
  <div class="rwbxs" style="margin-top:8px">${rows.map(r=>`<div class="rwbx2"><span class="tag">${esc(r.k)}</span><div><b>Lee ${rwN(r.l.lee,0)}</b></div><div><b>Bedford ${rwN(r.l.bed,0)}</b></div><div class="note">total ${rwN(r.l.tot,0)}</div></div>`).join("")}</div>
  <button style="margin-top:8px" onclick="rwUseCounts(${w.id})">Use these totals as the box counts</button></div>`}
-async function rwUseCounts(wid){const codes=rwMeatCodes(rwCalc(wid)),cn=rwBoxNow();for(const k of codes){const l=rwLoc(cn,k);if(l)await rwCount(wid,k,"ordered",l.tot)}RW.msg="Box counts set from the customer list.";render()}
+async function rwUseCounts(wid){const codes=rwMeatCodes(rwCalc(wid)),cn=rwBoxNow()||{};for(const k of codes){const l=rwLoc(cn,k);if(l)await rwCount(wid,k,"ordered",l.tot)}RW.msg="Box counts set from the customer list.";render()}
 RW.mg=false;RW.mgSel=[];RW.mgKeep=null;
 function rwMgTog(id){const a=RW.mgSel,i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);if(a.indexOf(RW.mgKeep)<0)RW.mgKeep=a[0]||null;render()}
 function rwMgPanel(){
@@ -3079,7 +3083,7 @@ function rwTblRefresh(wid){const c=rwCalc(wid);c.rows.forEach(r=>{const v=rwTblC
 function rwTable(w,c,rows,codes,meat){
  if(!rows.length&&!meat)return "";
  const inp=(id,f,v,wd)=>`<input class="rwti" style="width:${wd||70}px" type="number" inputmode="decimal" step="any" value="${v==null?"":v}" onchange="rwTblSet(${id},'${f}',this.value)">`;
- const LC2=(meat&&S.real&&cust.length)?rwBoxNow():null,lh=k=>{const l=LC2&&rwLoc(LC2,k);return l?`<small>Lee ${rwN(l.lee,0)} · Bed ${rwN(l.bed,0)}</small>`:""};
+ const LC2=(meat&&rwHasCn())?rwBoxNow():null,lh=k=>{const l=LC2&&rwLoc(LC2,k);return l?`<small>Lee ${rwN(l.lee,0)} · Bed ${rwN(l.bed,0)}</small>`:""};
  const dl=meat?`<datalist id="rw_dl">${RW.lib.filter(x=>x.section=="meat").map(x=>`<option value="${esc(x.code||x.name)}" label="${esc(x.name)}"></option>`).join("")}</datalist>`:"";
  const addRow=meat?`<tr><td colspan="${codes.length+5}" style="padding:8px 4px"><input id="rw_tq" class="rwti" list="rw_dl" style="width:min(320px,70%)" placeholder="Type an item code or name, then Enter" onkeydown="if(event.key==='Enter')rwTblAdd(${w.id})"> <button class="pri" onclick="rwTblAdd(${w.id})">+ Add item</button> <span class="note">A new name is added to the library too.</span></td></tr>`:"";
  const c0=meat?rwCalc(w.id):null;
@@ -3094,7 +3098,7 @@ function rwOrder(w,c){
  <div class="rwbudg">${gcodes.map(k=>{const x=c.cm[k]||{},bud=x.budget==null?(RW.types[k]||{}).budget:x.budget,pb=c.perBox[k]||0,rem=bud==null?null:bud-pb;return `<div><span class="tag">${esc(k)}</span> ${rwMoney(pb)}${bud==null?"":` of ${rwMoney(bud)}`}<div class="note">${rwNIt(c,k)} items</div><div class="${rem==null?"note":rem<0?"bad":"ok"}">${rem==null?"no budget":rem<0?"over by "+rwMoney(-rem):rwMoney(rem)+" left"}</div></div>`}).join("")}</div></div>`;
  return sum+names.map(v=>{const l=vs[v],tot=l.reduce((s,r)=>s+r.cost,0);return `<div class="card"><div class="rwvh"><b>${esc(v)}</b><b>${rwMoney(tot)}</b></div>${l.map(r=>`<div class="rwor${r.short?" short":""}"><div><b>${esc(r.it.name)}</b><div class="note">Need ${rwN(r.need,0)} units${r.upc?` · ${r.upc} per case = ${rwN(r.cn,2)} cases`:" · units per case missing"}${r.cp?` · ${rwMoney(r.cp)} a case`:""}</div>${r.co!=null&&r.upc?`<div class="note ${r.left<0?"bad":""}">${r.left<0?"Short by "+rwN(-r.left,0)+" units = "+rwN(-r.left/r.upc,2)+" cases (order "+Math.ceil(-r.left/r.upc-1e-9)+" more)":"Extra "+rwN(r.left,0)+" units left over"}</div>`:""}</div>
  <div class="rwcs"><input type="number" inputmode="decimal" value="${r.co==null?"":r.co}" placeholder="${r.sug||""}" onchange="rwItemPatch(${r.it.id},{cases_ordered:rwNum(this.value)})"><small>${r.co==null&&r.sug?"suggest "+r.sug:"cases"}</small></div></div>`).join("")}</div>`}).join("")||`<div class="card"><p class="note">Add items and box counts first.</p></div>`}
-function rwLB(it){const cn=(S.real&&cust.length)?rwBoxNow():null;let L=0,B=0;Object.keys(it.qty||{}).forEach(k=>{const l=cn&&rwLoc(cn,k);if(l){L+=(+it.qty[k]||0)*l.lee;B+=(+it.qty[k]||0)*l.bed}});
+function rwLB(it){const cn=rwHasCn()?rwBoxNow():null;let L=0,B=0;Object.keys(it.qty||{}).forEach(k=>{const l=cn&&rwLoc(cn,k);if(l){L+=(+it.qty[k]||0)*l.lee;B+=(+it.qty[k]||0)*l.bed}});
  return `<div class="rwlb"><span><small>Lee</small> <b>${rwN(L,0)}</b></span><span><small>Bedford</small> <b>${rwN(B,0)}</b></span></div>`}
 function rwMeat(w,c){
  const mcodes=rwMeatCodes(c);
