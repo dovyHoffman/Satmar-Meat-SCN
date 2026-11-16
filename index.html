@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b357">
+<meta name="build" content="b358">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -782,7 +782,7 @@ function enhPrice(c){const t=HHP[c]||{};return t[0]!=null?t[0]:hhPrice(c,1)}
 /* companies billed raw food per PERSON (raw price x household, no household-size table): CCS */
 const FLATPP={CCS:"Raw Food"};
 const boxPersons=x=>(x.boxflat||0)+(x.enhn||0)+Object.keys(x.boxh||{}).reduce((t,h)=>t+(+h)*x.boxh[h],0);
-function boxAmt(c,x){if(!x)return 0;const raw=(PR[c]||{}).raw;let t=0;if(FLATPP[c]){return raw==null?null:boxPersons(x)*raw}if(x.boxflat){if(raw==null)return null;t+=x.boxflat*raw}if(x.enhn){const ep=enhPrice(c);if(ep==null)return null;t+=x.enhn*ep}if(!x.boxh)return t;for(const h of Object.keys(x.boxh)){const a=hhPrice(c,+h);if(a==null)return null;t+=a*x.boxh[h]}return t}
+function boxAmt(c,x){if(!x)return 0;const raw=(PR[c]||{}).raw;let t=0;if(FLATPP[c]){if(raw==null)return null;let e=0;for(const h of Object.keys(x.hhE||{})){const a=hhPrice(c,+h);if(a==null)return null;e+=a*x.hhE[h]}return boxPersons(x)*raw+e}if(x.boxflat){if(raw==null)return null;t+=x.boxflat*raw}if(x.enhn){const ep=enhPrice(c);if(ep==null)return null;t+=x.enhn*ep}if(!x.boxh)return t;for(const h of Object.keys(x.boxh)){const a=hhPrice(c,+h);if(a==null)return null;t+=a*x.boxh[h]}return t}
 const dcount=x=>x?x.meals+x.mraw+(x.boxn!=null?x.boxn:x.box):0;
 const coName=c=>c=="?"?"No company":c;
 function estA(c,x){if(!x)return 0;const p=PR[c]||{};if(p.meals==null)return null;const b=boxAmt(c,x);if(b==null)return null;return 21*(x.mhh||0)*p.meals+b}
@@ -1100,7 +1100,7 @@ async function saveOpen(){
 /* ---- billing downloads: Excel and invoice ---- */
 function billCust(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return [];
  return Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>!c||x.co==c).sort((a,b)=>(a.co+a.name).localeCompare(b.co+b.name))}
-function billAmt(r){const p=PR[r.co]||{},mp=r.mealsEn?(p.meals==null?null:21*r.mealsEn*p.meals):0;if(mp==null)return null;if(r.shE){const b=r.boxh&&Object.keys(r.boxh).length?boxAmt(r.co,{boxh:r.boxh}):0;return b==null?null:mp+b}const a=r.base=="box"?(r.boxh?boxAmt(r.co,{boxh:r.boxh,enhn:r.enhn,boxflat:r.boxflat}):(p.raw==null?null:r.boxes*p.raw)):(p.meals==null?null:21*(r.hh||1)*p.meals);return a==null?null:a+mp}
+function billAmt(r){const p=PR[r.co]||{},mp=r.mealsEn?(p.meals==null?null:21*r.mealsEn*p.meals):0;if(mp==null)return null;if(r.shE){const b=(r.boxh&&Object.keys(r.boxh).length)||r.hhE?boxAmt(r.co,{boxh:r.boxh,hhE:r.hhE}):0;return b==null?null:mp+b}const a=r.base=="box"?(r.boxh?boxAmt(r.co,{boxh:r.boxh,enhn:r.enhn,boxflat:r.boxflat}):(p.raw==null?null:r.boxes*p.raw)):(p.meals==null?null:21*(r.hh||1)*p.meals);return a==null?null:a+mp}
 const fdt=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
 function weekRange(k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const d0=new Date(w.t),a=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+2),b=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+8),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
 function bmsg(t,bad){const el=document.getElementById("bill_msg");if(el){el.textContent=t;el.style.color=bad?"#b42318":"var(--ok)"}}
@@ -1160,7 +1160,7 @@ function invModel(c,k,o){
  o=o||{};const w=BILL.weeks.find(x=>x.k==k),x=w&&w.a[c];if(!x)return null;
  const p=PR[c]||{},ce=invCo(c),L=[];
  const add=(qty,desc,rate)=>L.push({qty,desc,rate,amt:rate==null?null:Math.round(qty*rate*100)/100,tax:true});
- if(FLATPP[c]){if(x.mhh)add(x.mhh*21,"Ready Prepared Meals",p.meals);if(boxPersons(x))add(boxPersons(x),FLATPP[c],p.raw)}else{
+ if(FLATPP[c]){if(x.mhh)add(x.mhh*21,"Ready Prepared Meals",p.meals);if(boxPersons(x))add(boxPersons(x),FLATPP[c],p.raw);Object.keys(x.hhE||{}).map(Number).sort((a,b)=>a-b).forEach(h=>add(x.hhE[h],"Raw Grocery Box Household - "+h+" HH Member",hhPrice(c,h)))}else{
  if(x.mhh)add(x.mhh*21,"Ready Prepared Meals",p.meals);
  const enS=x.enhn&&p.raw!=null&&enhPrice(c)==p.raw,hs=Object.keys(x.boxh||{}).map(Number).sort((a,b)=>a-b),pl=h=>p.raw!=null&&Math.abs(hhPrice(c,h)-p.raw*h)<0.005,rq=(x.boxflat||0)+(enS?x.enhn:0)+hs.filter(pl).reduce((t,h)=>t+h*x.boxh[h],0);
  /* a household size only gets its own line when it has its own price; otherwise it is just raw boxes in the one Raw Grocery Box total */
@@ -1209,7 +1209,7 @@ function invRead(c,k){
 async function invPersist(c,r){await invSave(c,{name:r.name||coName(c),addr:r.addr,phone:r.phone,emails:r.emails,cc:r.cc})}
 function invMsg(t,bad){const e=document.getElementById("iv_msg");if(e){e.textContent=t;e.style.color=bad?"#b42318":"var(--ok)"}}
 function invCounts(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const cu=Object.keys(w.cust).map(z=>w.cust[z]).filter(z=>z.co==c);
- const ml=cu.filter(z=>z.base!="box"),bx=cu.filter(z=>z.base=="box"),en=bx.filter(z=>(z.enhn||0)>0),hh=cu.filter(z=>z.boxh&&Object.keys(z.boxh).length),rg=bx.length-bx.filter(z=>z.boxh&&Object.keys(z.boxh).length).length-bx.filter(z=>(z.enhn||0)>0&&!(z.boxh&&Object.keys(z.boxh).length)).length,mq=ml.reduce((t,z)=>t+21*(z.shE?z.mealsEn:(z.hh||1)),0)+bx.reduce((t,z)=>t+21*(z.mealsEn||0),0);
+ const ml=cu.filter(z=>z.base!="box"),bx=cu.filter(z=>z.base=="box"),en=bx.filter(z=>(z.enhn||0)>0),hh=cu.filter(z=>(z.boxh&&Object.keys(z.boxh).length)||z.hhE),rg=bx.length-bx.filter(z=>z.boxh&&Object.keys(z.boxh).length).length-bx.filter(z=>(z.enhn||0)>0&&!(z.boxh&&Object.keys(z.boxh).length)).length,mq=ml.reduce((t,z)=>t+21*(z.shE?z.mealsEn:(z.hh||1)),0)+bx.reduce((t,z)=>t+21*(z.mealsEn||0),0);
  const chip=(n,l,sub)=>`<span style="display:inline-block;background:#eef1ff;border-radius:10px;padding:8px 12px;margin:0 8px 8px 0"><b style="font-size:18px">${inQ(n)}</b> <span style="font-weight:600">${l}</span>${sub?`<br><span class="note">${sub}</span>`:""}</span>`;
  return `<div style="margin:10px 0 4px">${chip(ml.length,"Meals customers",inQ(mq)+" meals")}${chip(rg,"Raw (regular box)","flat Raw box price")}${chip(en.length,"Enhanced","meals + raw")}${chip(hh.length,"Household (HH)","charged by household size")}</div>`}
 async function invOpen(c,k){
@@ -1367,7 +1367,7 @@ function buildWeeks(rows){
   cu.dl.push(r);cu.boxes+=Math.max(1,r.boxes||0)});
  Object.keys(W).forEach(k=>{const w=W[k];Object.keys(w.cust).forEach(key=>{const cu=w.cust[key],x=w.a[cu.co];
   const shE=cu.base!="box"&&cu.enh>0&&cu.dl[0]&&cu.dl[0].order_id=="sheet";/* a Meals family that has Enhanced members: billed like the box families (Enhanced price + household price), not per meal */
-  if(cu.base=="box"||shE){if(!shE){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1}if(cu.dl[0]&&cu.dl[0].order_id=="sheet"){const en=Math.min(cu.enh||0,cu.hh||1),rg=Math.max(0,(cu.hh||1)-en);cu.boxh={};if(rg>0){if(rg==1&&en==0){x.boxflat=(x.boxflat||0)+cu.dl.length;cu.boxflat=cu.dl.length}else{x.boxh=x.boxh||{};x.boxh[rg]=(x.boxh[rg]||0)+cu.dl.length;cu.boxh[rg]=cu.dl.length}}if(shE){cu.shE=1;cu.mealsEn=en*cu.dl.length;x.mhh+=cu.mealsEn;x.meals=(x.meals||0)}else if(rg==0&&en>0){x.boxflat=(x.boxflat||0)+en*cu.dl.length;cu.boxflat=(cu.boxflat||0)+en*cu.dl.length}else{x.enhn=(x.enhn||0)+en*cu.dl.length;cu.enhn=en*cu.dl.length}}else x.boxflat=(x.boxflat||0)+cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
+  if(cu.base=="box"||shE){if(!shE){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1}if(cu.dl[0]&&cu.dl[0].order_id=="sheet"){const en=Math.min(cu.enh||0,cu.hh||1),rg=Math.max(0,(cu.hh||1)-en);cu.boxh={};if(rg>0){if(shE&&FLATPP[cu.co]){x.hhE=x.hhE||{};x.hhE[rg]=(x.hhE[rg]||0)+cu.dl.length;cu.hhE={};cu.hhE[rg]=cu.dl.length}else if(rg==1&&en==0){x.boxflat=(x.boxflat||0)+cu.dl.length;cu.boxflat=cu.dl.length}else{x.boxh=x.boxh||{};x.boxh[rg]=(x.boxh[rg]||0)+cu.dl.length;cu.boxh[rg]=cu.dl.length}}if(shE){cu.shE=1;cu.mealsEn=en*cu.dl.length;x.mhh+=cu.mealsEn;x.meals=(x.meals||0)}else if(rg==0&&en>0){x.boxflat=(x.boxflat||0)+en*cu.dl.length;cu.boxflat=(cu.boxflat||0)+en*cu.dl.length}else{x.enhn=(x.enhn||0)+en*cu.dl.length;cu.enhn=en*cu.dl.length}}else x.boxflat=(x.boxflat||0)+cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
  return Object.keys(W).map(k=>W[k]).sort((a,b)=>b.t-a.t).slice(0,12)}
 function bDb(c,k){
  const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const B=S.b,q=(B.q||"").toLowerCase();
