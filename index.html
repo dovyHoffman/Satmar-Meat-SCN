@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b342">
+<meta name="build" content="b343">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -824,13 +824,24 @@ function impDate(v){if(v instanceof Date&&!isNaN(v))return isoD(v);if(typeof v==
  const m=String(v||"").trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return y+"-"+String(m[1]).padStart(2,"0")+"-"+String(m[2]).padStart(2,"0")}
  const i=String(v||"").trim().match(/^(\d{4})-(\d{2})-(\d{2})/);return i?i[0]:""}
 function impInvOpen(){document.getElementById("imp_inv_file").value="";document.getElementById("imp_inv_file").click()}
+/* a sheet that is ONE invoice (a template, tab named by the invoice number): find date, number and total by their labels */
+function impOneInv(A,sn){
+ const t=v=>String(v==null?"":v).trim(),cells=[];A.forEach((r,i)=>r.forEach((v,j)=>{if(t(v)!=="")cells.push({i:i,j:j,v:v,s:t(v)})}));
+ const right=(c)=>{const same=cells.filter(x=>x.i==c.i&&x.j>c.j).sort((a,b)=>a.j-b.j)[0];return same||cells.filter(x=>x.j==c.j&&x.i>c.i).sort((a,b)=>a.i-b.i)[0]};
+ const lab=rx=>cells.filter(c=>typeof c.v=="string"&&rx.test(c.s)&&c.s.length<40);
+ let date="";for(const c of lab(/\bdate\b/i)){const inl=impDate(c.s.replace(/^[^0-9]*/,""));const r=right(c);const d=inl||(r&&impDate(r.v));if(d){date=d;break}}
+ if(!date){const d=cells.find(c=>impDate(c.v));if(d)date=impDate(d.v)}
+ let amt=NaN;for(const c of lab(/(amount due|balance due|total due|grand total|^total\b|invoice total)/i).reverse()){const inl=impNum(c.s.replace(/^[^0-9(\-]*/,""));const r=right(c);const a=!isNaN(inl)&&/\d/.test(c.s)?inl:(r?impNum(r.v):NaN);if(!isNaN(a)&&a>0){amt=a;break}}
+ let no="";for(const c of lab(/invoice\s*(#|no\.?|number|num)|^invoice$/i)){const inl=c.s.replace(/^.*?(#|no\.?|number|num)\s*:?\s*/i,"");const r=right(c);const v=/\d/.test(inl)&&inl!=c.s?inl:(r?t(r.v):"");if(v&&v.length<20){no=v;break}}
+ if(!no&&/^\d+$/.test(sn.trim()))no=sn.trim();
+ return date&&!isNaN(amt)?{date:date,amt:Math.round(amt*100)/100,no:no}:null}
 async function impInvRead(files){
  const rows=[],skipped=[];
  try{await loadXlsx();for(const f of files){const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});
   for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:""});if(!A.length)continue;
    const hint=(f.name+" "+sn).toLowerCase();let hi=-1;
    for(let i=0;i<Math.min(A.length,40);i++){const t=A[i].map(x=>String(x).toLowerCase());if(t.some(x=>/date/.test(x))&&t.some(x=>/amount|balance|payment/.test(x))){hi=i;break}}
-   if(hi<0){skipped.push(f.name+" / "+sn);continue}
+   if(hi<0){const one=impOneInv(A,sn);if(one){rows.push({kind:/payment|received/.test(hint)&&!/invoice/.test(hint)?"pay":"inv",raw:impCo(f.name)||sn,co:impCo(f.name),date:one.date,no:one.no,amt:one.amt,neg:false,pt:"other",memo:"",file:f.name})}else skipped.push(f.name+" / "+sn);continue}
    const H=A[hi].map(x=>String(x).toLowerCase().trim()),find=(...rx)=>{for(const r of rx){const k=H.findIndex(h=>r.test(h));if(k>=0)return k}return -1};
    const cD=find(/date/),cN=find(/^(num|no\.?|number|invoice( no\.?| number| #| num)?|ref|reference|check( no\.?| #| number)?)$/,/num|invoice|check|ref/),cA=find(/original amount/,/^amount$/,/payment amount/,/^total$/,/^payment$/,/amount/,/open balance|balance/),cC=find(/customer|company|payer|agency|^name$/),cT=find(/^type$|transaction type/),cM=find(/method|payment type|pay type/),cNo=find(/memo|note|description/);
    let cur="";const fileCo=impCo(f.name);
