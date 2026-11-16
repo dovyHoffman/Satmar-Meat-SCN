@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b343">
+<meta name="build" content="b344">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1141,6 +1141,9 @@ function billInvoice(c,k,brief){
 /* ===== Invoice in the old QuickBooks layout + emailing it ===== */
 const INV={cos:{},sent:[],busy:false,last:null};
 const INV_DEF={UJO:{name:"Care Meals NY",addr:"27 Satmar Drive #421\nMonroe NY 10950"}};
+/* who the invoice comes from: Satmar Meats, except PT which goes out as Hearty Meals (purple name instead of the logo) */
+const BRAND={PT:{name:"Hearty Meals",lines:["199 Lee Ave. #809","Brooklyn NY 11211","718-963-1100"],color:"#6c5ce7",phone:"718-963-1100"}};
+const brandOf=c=>BRAND[c]||{name:"Satmar Meats",lines:["82 Lee Avenue","Brooklyn, NY 11211","718-963-1100"],color:"",phone:"718-963-1100"};
 const invCo=c=>Object.assign({name:coName(c),addr:"",phone:"",emails:"",cc:""},INV_DEF[c]||{},INV.cos[c]||{});
 async function invLoad(){try{const r=await sb.from("app_settings").select("key,value").eq("key","invoice_cos").maybeSingle();if(r.data&&r.data.value&&typeof r.data.value=="object"){INV.cos={};Object.keys(r.data.value).forEach(k=>{if(/^[A-Za-z]{2,5}$/.test(k)&&typeof r.data.value[k]=="object")INV.cos[k]=r.data.value[k]})}}catch(e){}}
 async function invLastLoad(){try{const r=await sb.from("app_settings").select("value").eq("key","invoice_last").maybeSingle();const n=r.data&&r.data.value&&Number(r.data.value.n);INV.last=n>0?n:null}catch(e){}}
@@ -1162,25 +1165,26 @@ function invModel(c,k,o){
  const d=o.date||isoD(new Date(new Date(w.t).setDate(new Date(w.t).getDate()+3))),dm=d.split("-"),no=o.no!=null?o.no:((invFor(c,w)[0]||{}).inv_no||"");
  return {c,k,co:ce,date:dm[1]*1+"/"+dm[2]*1+"/"+dm[0],iso:d,no,lines:L,total:L.reduce((t,l)=>t+(l.amt||0),0),missing:L.some(l=>l.amt==null),range:weekRange(k)}}
 function invHtml(M){
+ const BR=brandOf(M.c);
  const td="padding:9px 10px;border-bottom:1px solid #ddd;font:14px/1.4 Inter,Arial,sans-serif;vertical-align:top",th="padding:8px 10px;background:#f6f6f6;border-bottom:1px solid #ddd;font:600 12px Inter,Arial,sans-serif;text-transform:uppercase;color:#555";
  const rows=M.lines.map(l=>`<tr><td style="${td};text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td style="${td}${l.tax?"":";color:#666;font-size:12px"}">${esc(l.desc)}</td><td style="${td};text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:"$"+inM2(l.rate)}</td><td style="${td};text-align:right">${l.amt==null?"—":"$"+inM2(l.amt)}</td></tr>`).join("");
  return `<div style="max-width:720px;margin:0 auto;font-family:Inter,Arial,sans-serif;color:#111;line-height:1.45">
- <table width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle"><img src="${LOGO}" alt="Satmar Meats" style="height:72px;width:auto;vertical-align:middle"><span style="display:inline-block;vertical-align:middle;margin-left:14px"><span style="font:700 26px Inter,Arial,sans-serif">Invoice</span><br><span style="font-size:12px;color:#666">No. ${esc(M.no||"—")}</span></span></td><td valign="top" align="right" style="font-size:13px"><b>Satmar Meats</b><br>82 Lee Avenue<br>Brooklyn, NY 11211<br>718-963-1100</td></tr></table>
+ <table width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle">${BR.color?`<span style="font:500 30px Roboto,Inter,Arial,sans-serif;color:${BR.color};vertical-align:middle">${esc(BR.name)}</span>`:`<img src="${LOGO}" alt="Satmar Meats" style="height:72px;width:auto;vertical-align:middle">`}<span style="display:inline-block;vertical-align:middle;margin-left:14px"><span style="font:700 26px Inter,Arial,sans-serif">Invoice</span><br><span style="font-size:12px;color:#666">No. ${esc(M.no||"—")}</span></span></td><td valign="top" align="right" style="font-size:13px"><b>${esc(BR.name)}</b><br>${BR.lines.map(esc).join("<br>")}</td></tr></table>
  <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 8px"><tr><td valign="top"><div style="font-size:12px;color:#666">Bill to</div><b style="font-size:18px">${esc(M.co.name)}</b><div style="font-size:13px;white-space:pre-line;color:#333">${esc(M.co.addr||"")}${M.co.phone?"\n"+esc(M.co.phone):""}</div></td><td valign="top" align="right"><div style="font-size:12px;color:#666">Delivery week</div><b>${esc(M.range)}</b><div style="font-size:12px;color:#666;margin-top:4px">Date: ${esc(M.date)}</div></td></tr></table>
  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:14px 0"><tr><td style="${th};text-align:right;width:12%">Quantity</td><td style="${th}">Description</td><td style="${th};text-align:right;width:15%">Rate</td><td style="${th};text-align:right;width:17%">Amount</td></tr>${rows}
  <tr><td colspan="3" style="padding:12px 10px;border-top:2px solid #111;font:700 17px Inter,Arial,sans-serif">Total</td><td style="padding:12px 10px;border-top:2px solid #111;text-align:right;font:700 17px Inter,Arial,sans-serif">$${inM2(M.total)}</td></tr></table>
  ${M.missing?`<p style="font:12px Arial;color:#b42318">No price is set for some lines yet; those amounts show —.</p>`:""}
- <p style="font-size:12px;color:#666;margin-top:18px">Thank you · Satmar Meats · 718-963-1100</p></div>`}
+ <p style="font-size:12px;color:#666;margin-top:18px">Thank you · ${esc(BR.name)} · ${esc(BR.phone)}</p></div>`}
 function invPage(M){return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${esc(M.no||M.c)}</title><style>body{margin:24px}@media print{.nb{display:none}body{margin:0}}</style></head><body><div class="nb" style="max-width:720px;margin:0 auto 16px"><button onclick="window.print()" style="font:14px Arial;padding:8px 16px">Print / Save as PDF</button></div>${invHtml(M)}</body></html>`}
 function loadPdfLib(){return window.jspdf?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=ok;s.onerror=()=>no(new Error("The PDF tool could not be loaded. Check the internet connection."));document.head.appendChild(s)})}
 let _invLogo=null;
 async function invLogoData(){if(_invLogo)return _invLogo;try{const b=await (await fetch(LOGO)).blob(),u=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)}),im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u});_invLogo={u,w:im.naturalWidth,h:im.naturalHeight}}catch(e){_invLogo={u:null}}return _invLogo}
 async function invPdf(M){
  await loadPdfLib();const lg=await invLogoData(),doc=new window.jspdf.jsPDF({unit:"pt",format:"letter"}),X0=40,X1=572,tx=(t,x,y,o)=>doc.text(String(t),x,y,o||{});
- doc.setTextColor(17);let hx=X0;
- if(lg.u){const h=54,w=h*lg.w/lg.h;try{doc.addImage(lg.u,"PNG",X0,36,w,h);hx=X0+w+12}catch(e){}}
+ const BR=brandOf(M.c);doc.setTextColor(17);let hx=X0;
+ if(BR.color){doc.setTextColor(BR.color);doc.setFont("helvetica","normal");doc.setFontSize(20);tx(BR.name,X0,66);hx=X0+doc.getTextWidth(BR.name)+22;doc.setTextColor(17)}else if(lg.u){const h=54,w=h*lg.w/lg.h;try{doc.addImage(lg.u,"PNG",X0,36,w,h);hx=X0+w+12}catch(e){}}
  doc.setFont("helvetica","bold");doc.setFontSize(22);tx("Invoice",hx,62);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(100);tx("No. "+(M.no||"-"),hx,78);
- doc.setTextColor(17);doc.setFont("helvetica","bold");doc.setFontSize(10);tx("Satmar Meats",X1,50,{align:"right"});doc.setFont("helvetica","normal");doc.setFontSize(9);["82 Lee Avenue","Brooklyn, NY 11211","718-963-1100"].forEach((t,i)=>tx(t,X1,63+i*12,{align:"right"}));
+ doc.setTextColor(17);doc.setFont("helvetica","bold");doc.setFontSize(10);tx(BR.name,X1,50,{align:"right"});doc.setFont("helvetica","normal");doc.setFontSize(9);BR.lines.forEach((t,i)=>tx(t,X1,63+i*12,{align:"right"}));
  doc.setTextColor(100);doc.setFontSize(8.5);tx("Bill to",X0,122);tx("Delivery week",X1,122,{align:"right"});
  doc.setTextColor(17);doc.setFont("helvetica","bold");doc.setFontSize(14);tx(M.co.name,X0,139);doc.setFontSize(10);tx(M.range,X1,139,{align:"right"});
  doc.setFont("helvetica","normal");doc.setFontSize(9);String(M.co.addr||"").split("\n").filter(Boolean).concat(M.co.phone?[M.co.phone]:[]).forEach((t,i)=>tx(t,X0,154+i*12));doc.setTextColor(100);tx("Date: "+M.date,X1,153,{align:"right"});doc.setTextColor(17);
@@ -1191,7 +1195,7 @@ async function invPdf(M){
   if(l.qty!=="")tx(inQ(l.qty),cx[1]-8,y+16,{align:"right"});tx(l.desc,cx[1]+8,y+16);tx(l.rate==null?"-":typeof l.rate=="string"?l.rate:"$"+inM2(l.rate),cx[3]-8,y+16,{align:"right"});tx(l.amt==null?"-":"$"+inM2(l.amt),cx[4]-8,y+16,{align:"right"});y+=26;doc.line(X0,y,X1,y)});
  doc.setTextColor(17);doc.setDrawColor(17);doc.setLineWidth(1.4);doc.line(X0,y+6,X1,y+6);y+=28;
  doc.setFont("helvetica","bold");doc.setFontSize(14);tx("Total",X0+8,y);tx("$"+inM2(M.total),X1-8,y,{align:"right"});
- doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(110);tx("Thank you · Satmar Meats · 718-963-1100",X0,y+40);
+ doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(110);tx("Thank you · "+BR.name+" · "+BR.phone,X0,y+40);
  return doc}
 function invFile(M){return "Invoice "+(M.no||M.c+" "+M.k.replace("/","-"))+" - "+M.co.name.replace(/[^A-Za-z0-9 ]/g,"")+".pdf"}
 function invRead(c,k){
@@ -1211,7 +1215,7 @@ async function invOpen(c,k){
  d.innerHTML=`<div class="mod" style="max-width:720px;max-height:92vh;overflow:auto"><b style="font-size:17px">Invoice · ${esc(coName(c))} · week of ${esc(M.range)}</b>
  <div class="rwfld" style="margin-top:8px"><label>Invoice #<input id="iv_no" value="${esc(nxt)}" readonly style="background:#f3f4f6"></label><label>Date<input id="iv_dt" type="date" value="${esc(M.iso)}"></label></div>
  <div class="rwfld"><label>Bill to · name<input id="iv_nm" value="${esc(ce.name)}"></label><label>Bill to · address<textarea id="iv_ad" rows="3" style="width:100%">${esc(ce.addr)}</textarea></label><label>Phone<input id="iv_ph" value="${esc(ce.phone||"")}" placeholder="optional"></label></div>
- <div class="rwfld"><label>Send to (emails, separated by comma)<input id="iv_to" value="${esc(ce.emails)}" placeholder="name@company.com, other@company.com"></label><label>CC<input id="iv_cc" value="${esc(ce.cc)}" placeholder="optional, separated by comma"></label></div>
+ <div class="rwfld"><label>Send to (emails, separated by comma)<textarea id="iv_to" rows="2" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="name@company.com, other@company.com" style="width:100%">${esc(ce.emails)}</textarea></label><label>CC<textarea id="iv_cc" rows="2" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="optional, separated by comma" style="width:100%">${esc(ce.cc)}</textarea></label></div>
  <p class="note" style="margin:2px 0 8px">The names and emails are saved for ${esc(coName(c))}, so next week they are already filled in.</p>
  ${invCounts(c,k)}<div class="wrap"><table><tr><th style="text-align:right">Qty</th><th>Description</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr>${M.lines.map(l=>`<tr><td style="text-align:right">${l.qty===""?"":inQ(l.qty)}</td><td>${esc(l.desc)}</td><td style="text-align:right">${l.rate==null?"—":typeof l.rate=="string"?l.rate:inM2(l.rate)}</td><td style="text-align:right">${l.amt==null?"—":inM2(l.amt)}</td></tr>`).join("")}<tr><td></td><td><b>Total</b></td><td></td><td style="text-align:right"><b>$${inM2(M.total)}</b></td></tr></table></div>
  ${M.missing?`<p class="err">No price is set for some lines. Set it on the Dashboard first.</p>`:""}
@@ -1235,11 +1239,11 @@ async function invOpen(c,k){
   if(!await uiConfirm((again?"Send again invoice ":"Send invoice ")+r.no+" ($"+inM2(M2.total)+") to "+to.join(", ")+(cc.length?" and cc "+cc.join(", "):"")+"?"))return;
   const b=G("iv_send");b.disabled=true;
   try{invMsg("Saving and sending…");await invPersist(c,r);
-   const doc=await invPdf(M2),pdf=doc.output("datauristring").split(",")[1],xl=await billXlsxB64(c,k),subj="Invoice "+r.no+" · Satmar Meat · week of "+M2.range;
-   const html=`<div style="font:14px Arial,sans-serif;color:#111;max-width:720px;margin:0 auto"><p>Hello,</p><p>Please find attached invoice <b>${esc(r.no)}</b> for the week of ${esc(M2.range)}. Total: <b>$${inM2(M2.total)}</b>.</p><p>Thank you,<br>Satmar Meat<br>718-963-1100</p><hr style="border:0;border-top:1px solid #ddd;margin:18px 0">${invHtml(M2)}</div>`;
-   const text="Hello,\n\nPlease find attached invoice "+r.no+" for the week of "+M2.range+". Total: $"+inM2(M2.total)+".\n\nThank you,\nSatmar Meat\n718-963-1100";
+   const doc=await invPdf(M2),pdf=doc.output("datauristring").split(",")[1],xl=await billXlsxB64(c,k),BR=brandOf(c),subj="Invoice "+r.no+" · "+(BR.color?BR.name:"Satmar Meat")+" · week of "+M2.range;
+   const html=`<div style="font:14px Arial,sans-serif;color:#111;max-width:720px;margin:0 auto"><p>Hello,</p><p>Please find attached invoice <b>${esc(r.no)}</b> for the week of ${esc(M2.range)}. Total: <b>$${inM2(M2.total)}</b>.</p><p>Thank you,<br>${esc(BR.color?BR.name:"Satmar Meat")}<br>${esc(BR.phone)}</p><hr style="border:0;border-top:1px solid #ddd;margin:18px 0">${invHtml(M2)}</div>`;
+   const text="Hello,\n\nPlease find attached invoice "+r.no+" for the week of "+M2.range+". Total: $"+inM2(M2.total)+".\n\nThank you,\n"+(BR.color?BR.name:"Satmar Meat")+"\n"+BR.phone;
    const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token;
-   const res=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"sendinvoice",to,cc,subject:subj,html,text,pdf_b64:pdf,filename:invFile(M2),xlsx_b64:xl.b64,xlsx_name:xl.name,company:c,week:k,inv_no:r.no,amount:M2.total})});
+   const res=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"sendinvoice",from_name:BR.color?BR.name:undefined,to,cc,subject:subj,html,text,pdf_b64:pdf,filename:invFile(M2),xlsx_b64:xl.b64,xlsx_name:xl.name,company:c,week:k,inv_no:r.no,amount:M2.total})});
    const j=await res.json().catch(()=>({}));
    if(!j.ok)throw new Error(j.error||("Not sent ("+res.status+")"));
    if(!again)try{const ins=await sb.from("invoices").insert({company:c,inv_date:r.date||M2.iso,inv_no:r.no,amount:M2.total,note:"Week "+k});if(ins.error)throw ins.error;await sb.from("app_settings").upsert({key:"invoice_last",value:{n:Number(r.no)},updated_at:new Date().toISOString()});INV.last=Number(r.no);await loadPayDb();G("iv_no").value=""}catch(e2){invMsg("Sent, but the invoice was not saved in the list: "+dberr(e2),true);b.disabled=true;return}
@@ -1281,7 +1285,7 @@ function invNumCard(){
 function invSetCard(){
  const own=!!S.user&&(S.user.role=="owner"||upages(S.user).indexOf("billing")>=0),d=own?"":"disabled";
  return `<div class="card"><h2>Invoice details by company</h2><p class="note">Each company's name, address and phone, who its invoice is sent to, and who is copied. Separate several emails with a comma. The name, address and phone are printed on every invoice, invoice list and payments list of that company. The emails are filled in automatically when you press <b>Send invoice</b> on a week.</p>
- <div class="wrap"><table><tr><th>Company</th><th>Name on invoice</th><th>Address</th><th>Phone</th><th>Send to</th><th>CC</th></tr>${COS.map(c=>{const ce=invCo(c);return `<tr><td><b>${esc(coName(c))}</b></td><td><input id="is_nm_${c}" value="${esc(ce.name)}" style="width:150px" ${d}></td><td><textarea id="is_ad_${c}" rows="2" style="width:210px" placeholder="street, city, state, zip" ${d}>${esc(ce.addr||"")}</textarea></td><td><input id="is_ph_${c}" value="${esc(ce.phone||"")}" style="width:130px" placeholder="phone" ${d}></td><td><input id="is_to_${c}" value="${esc(ce.emails)}" style="width:220px" placeholder="email@company.com" ${d}></td><td><input id="is_cc_${c}" value="${esc(ce.cc)}" style="width:180px" placeholder="optional" ${d}></td></tr>`}).join("")}</table></div>
+ <div class="wrap"><table><tr><th>Company</th><th>Name on invoice</th><th>Address</th><th>Phone</th><th>Send to</th><th>CC</th></tr>${COS.map(c=>{const ce=invCo(c);return `<tr><td><b>${esc(coName(c))}</b></td><td><input id="is_nm_${c}" value="${esc(ce.name)}" style="width:150px" ${d}></td><td><textarea id="is_ad_${c}" rows="2" style="width:210px" placeholder="street, city, state, zip" ${d}>${esc(ce.addr||"")}</textarea></td><td><input id="is_ph_${c}" value="${esc(ce.phone||"")}" style="width:130px" placeholder="phone" ${d}></td><td><textarea id="is_to_${c}" rows="2" spellcheck="false" autocapitalize="off" style="width:220px" placeholder="email@company.com" ${d}>${esc(ce.emails)}</textarea></td><td><textarea id="is_cc_${c}" rows="2" spellcheck="false" autocapitalize="off" style="width:180px" placeholder="optional" ${d}>${esc(ce.cc)}</textarea></td></tr>`}).join("")}</table></div>
  <p><button class="pri" onclick="invSetSave()" ${d}>Save invoice details</button> <span id="is_msg" class="note"></span></p></div>`}
 async function invSetSave(){
  const g=i=>document.getElementById(i),m=g("is_msg");
