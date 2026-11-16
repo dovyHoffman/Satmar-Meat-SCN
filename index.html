@@ -152,7 +152,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b373">
+<meta name="build" content="b374">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2871,7 +2871,7 @@ async function rwLoad(force){
 /* Boxes to make of a size: what was typed for the week; if nothing is typed, the count from the dashboard (today's active customers) */
 function rwCalc(wid){
  const cm={};RW.cnt.filter(x=>x.week_id==wid).forEach(x=>cm[x.code]=x);
- const cn0=(S.real&&cust.length)?rwBoxNow():null,effC={},autoC={},eff=k=>{if(k in effC)return effC[k];const x=cm[k];let v;if(x&&x.ordered!=null&&x.ordered!==""){v=+x.ordered||0}else{const l=cn0&&rwLoc(cn0,k);v=l?l.tot:0;if(v)autoC[k]=1}return effC[k]=v};
+ const cn0=(S.real&&cust.length)?rwBoxNow():null,effC={},autoC={},eff=k=>{if(k in effC)return effC[k];const x=cm[k];let v;if(x&&x.ordered!=null&&x.ordered!==""&&+x.ordered>0){v=+x.ordered}else{v=dash(k);if(v)autoC[k]=1}return effC[k]=v},dash=k=>{const l=cn0&&rwLoc(cn0,k);return l?l.tot:0};
  const its=RW.wi.filter(x=>x.week_id==wid).sort((a,b)=>a.sort-b.sort||a.id-b.id);
  const rows=its.map(it=>{let n=0;Object.keys(it.qty||{}).forEach(c=>{n+=(+it.qty[c]||0)*eff(c)});
   const cp=+it.case_price||0,upc=+it.units_per_case||0;
@@ -2880,7 +2880,7 @@ function rwCalc(wid){
   return {it,need:n,upc,cp,cn,sug,co,use,left:upc?use*upc-n:0,cost:use*cp,short:!!upc&&co!=null&&co<cn-1e-9,nocase:co==null&&n>0}});
  const perBox={};rows.forEach(r=>{const u=r.meat?r.cp:(r.upc?r.cp/r.upc:0);Object.keys(r.it.qty||{}).forEach(c=>{perBox[c]=(perBox[c]||0)+(+r.it.qty[c]||0)*u})});
  const g=rows.filter(r=>!r.meat),m=rows.filter(r=>r.meat);
- return {cm,eff,auto:k=>(eff(k),!!autoC[k]),rows,g,m,perBox,total:g.reduce((s,r)=>s+r.cost,0),meatTotal:m.reduce((s,r)=>s+r.cost,0),codes:Object.keys(cm).concat(rows.reduce((a,r)=>a.concat(Object.keys(r.it.qty||{})),[])).filter((c,i,a)=>a.indexOf(c)===i).filter(rwKeep).sort((a,b)=>((RW.types[a]||{}).sort||100)-((RW.types[b]||{}).sort||100)||a.localeCompare(b))}}
+ return {cm,eff,dash,auto:k=>(eff(k),!!autoC[k]),rows,g,m,perBox,total:g.reduce((s,r)=>s+r.cost,0),meatTotal:m.reduce((s,r)=>s+r.cost,0),codes:Object.keys(cm).concat(rows.reduce((a,r)=>a.concat(Object.keys(r.it.qty||{})),[])).filter((c,i,a)=>a.indexOf(c)===i).filter(rwKeep).sort((a,b)=>((RW.types[a]||{}).sort||100)-((RW.types[b]||{}).sort||100)||a.localeCompare(b))}}
 function rwSaveErr(e){RW.err="Not saved: "+dberr(e);RW.msg="";render()}
 async function rwItemPatch(id,p,rerender){
  const it=RW.wi.find(x=>x.id==id);if(!it)return;Object.assign(it,p);if(rerender!==false)render();
@@ -3007,8 +3007,8 @@ function rwBoxes(w,c){
  const types=Object.keys(RW.types).filter(k=>rwKeep(k)&&(c.cm[k]||c.rows.some(r=>(r.it.qty||{})[k])));
  const grp=(title,list)=>list.length?`<h3 class="rwh">${title}</h3>`+list.map(k=>{const x=c.cm[k]||{},pb=c.perBox[k]||0,bud=x.budget==null?(RW.types[k]||{}).budget:x.budget,rem=bud==null?null:bud-pb;
   return `<div class="card rwbx"><div class="rwbxh"><span class="tag">${esc(k)}</span><b>${esc((RW.types[k]||{}).name||k)}</b></div>
-  <div class="rwfld"><label>Boxes to order${x.ordered==null&&c.auto(k)?` <small class="note">(dashboard: ${c.eff(k)})</small>`:""}<input type="number" inputmode="decimal" value="${x.ordered==null?"":x.ordered}" placeholder="${c.auto(k)?c.eff(k):""}" onchange="rwCount(${w.id},'${esc(k)}','ordered',this.value)"></label>
-  <label>Counted on dashboard<input type="number" inputmode="decimal" value="${x.counted==null?"":x.counted}" placeholder="optional" onchange="rwCount(${w.id},'${esc(k)}','counted',this.value)"></label>
+  <div class="rwfld"><label>Boxes to order${c.auto(k)?` <small class="note">(from dashboard)</small>`:""}<input type="number" inputmode="decimal" value="${c.eff(k)||""}" placeholder="0" onchange="rwCount(${w.id},'${esc(k)}','ordered',this.value)"></label>
+  <label>Counted on dashboard${x.counted==null&&c.dash(k)?` <small class="note">(live)</small>`:""}<input type="number" inputmode="decimal" value="${x.counted==null?(c.dash(k)||""):x.counted}" placeholder="optional" onchange="rwCount(${w.id},'${esc(k)}','counted',this.value)"></label>
   <label>Budget per box $<input type="number" inputmode="decimal" value="${bud==null?"":bud}" onchange="rwCount(${w.id},'${esc(k)}','budget',this.value)"></label></div>
   <div class="rwres"><span>Cost per box <b>${rwMoney(pb)}</b></span>${rem==null?"":`<span class="${rem<0?"bad":"ok"}">${rem<0?"Over budget by "+rwMoney(-rem):"Left in budget "+rwMoney(rem)}</span>`}</div></div>`}).join(""):"";
  return `<div class="card"><p class="note">Type how many boxes of each kind you are ordering this week. Later this can come from the dashboard.</p></div>`
