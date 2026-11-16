@@ -1,1 +1,0 @@
-select coalesce(company,'?')||' | '||coalesce(left(note,40),'') k, count(*)::text||' · '||coalesce(sum(amount),0)::text||' · '||min(created_at)::date||'..'||max(created_at)::date v from invoices where company='PT' group by 1;
