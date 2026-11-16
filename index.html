@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b345">
+<meta name="build" content="b346">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -779,7 +779,10 @@ const money=n=>n==null?"—":"$"+Math.round(n).toLocaleString();
 const HHP={};
 function hhPrice(c,h){h=Math.max(1,Math.round(h||1));const t=HHP[c]||{},p=(PR[c]||{}).raw;if(h<=10&&t[h]!=null)return t[h];if(h>10&&t[10]!=null)return t[10]*h/10;return p==null?null:p*h}
 function enhPrice(c){const t=HHP[c]||{};return t[0]!=null?t[0]:hhPrice(c,1)}
-function boxAmt(c,x){if(!x)return 0;const raw=(PR[c]||{}).raw;let t=0;if(x.boxflat){if(raw==null)return null;t+=x.boxflat*raw}if(x.enhn){const ep=enhPrice(c);if(ep==null)return null;t+=x.enhn*ep}if(!x.boxh)return t;for(const h of Object.keys(x.boxh)){const a=hhPrice(c,+h);if(a==null)return null;t+=a*x.boxh[h]}return t}
+/* companies billed raw food per PERSON (raw price x household, no household-size table): CCS */
+const FLATPP={CCS:"Raw Food"};
+const boxPersons=x=>(x.boxflat||0)+(x.enhn||0)+Object.keys(x.boxh||{}).reduce((t,h)=>t+(+h)*x.boxh[h],0);
+function boxAmt(c,x){if(!x)return 0;const raw=(PR[c]||{}).raw;let t=0;if(FLATPP[c]){return raw==null?null:boxPersons(x)*raw}if(x.boxflat){if(raw==null)return null;t+=x.boxflat*raw}if(x.enhn){const ep=enhPrice(c);if(ep==null)return null;t+=x.enhn*ep}if(!x.boxh)return t;for(const h of Object.keys(x.boxh)){const a=hhPrice(c,+h);if(a==null)return null;t+=a*x.boxh[h]}return t}
 const dcount=x=>x?x.meals+x.mraw+(x.boxn!=null?x.boxn:x.box):0;
 const coName=c=>c=="?"?"No company":c;
 function estA(c,x){if(!x)return 0;const p=PR[c]||{};if(p.meals==null)return null;const b=boxAmt(c,x);if(b==null)return null;return 21*(x.mhh||0)*p.meals+b}
@@ -1157,10 +1160,11 @@ function invModel(c,k,o){
  o=o||{};const w=BILL.weeks.find(x=>x.k==k),x=w&&w.a[c];if(!x)return null;
  const p=PR[c]||{},ce=invCo(c),L=[];
  const add=(qty,desc,rate)=>L.push({qty,desc,rate,amt:rate==null?null:Math.round(qty*rate*100)/100,tax:true});
+ if(FLATPP[c]){if(boxPersons(x))add(boxPersons(x),FLATPP[c],p.raw);if(x.mhh)add(x.mhh*21,"Ready Prepared Meals",p.meals)}else{
  if(x.boxflat)add(x.boxflat,"Raw Grocery Box",p.raw);
  if(x.mhh)add(x.mhh*21,"Ready Prepared Meals",p.meals);
  if(x.enhn)add(x.enhn,"Ready Prepared Meals - Enhanced",enhPrice(c));
- if(x.boxh)Object.keys(x.boxh).map(Number).sort((a,b)=>a-b).forEach(h=>add(x.boxh[h],"Ready Prepared Meals-"+h+" HH "+(h==1?"member":"Member"),hhPrice(c,h)));
+ if(x.boxh)Object.keys(x.boxh).map(Number).sort((a,b)=>a-b).forEach(h=>add(x.boxh[h],"Ready Prepared Meals-"+h+" HH "+(h==1?"member":"Member"),hhPrice(c,h)))}
  L.push({qty:"",desc:"Out-of-state sale, exempt from sales tax",rate:"0.00%",amt:0,tax:false});
  const d=o.date||isoD(new Date(new Date(w.t).setDate(new Date(w.t).getDate()+3))),dm=d.split("-"),no=o.no!=null?o.no:((invFor(c,w)[0]||{}).inv_no||"");
  return {c,k,co:ce,date:dm[1]*1+"/"+dm[2]*1+"/"+dm[0],iso:d,no,lines:L,total:L.reduce((t,l)=>t+(l.amt||0),0),missing:L.some(l=>l.amt==null),range:weekRange(k)}}
