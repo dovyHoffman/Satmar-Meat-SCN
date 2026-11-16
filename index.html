@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b334">
+<meta name="build" content="b335">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -406,7 +406,7 @@ function vCard(){
  const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fNotes=(own?`<label>Delivery notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Delivery notes",c.notes))+(own?`<label>Customer notes<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Customer notes",c.note2));
- const nfs=(id,l,v,ph,cid,on)=>`<label>${l}<div class="inl"><input id="${id}" value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}><span class="nsm"><input type="checkbox" id="${cid}" ${on?"checked":""} ${dis}> No SMS</span></div></label>`;
+ const nfs=(id,l,v,ph,cid,on)=>`<label>${l}<div class="inl"><input id="${id}" value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}><span class="nsm"><input type="checkbox" id="${cid}" ${on?"checked":""} ${dis} onchange="saveNext(${c.id},1)"> No SMS</span></div></label>`;
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
  return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area,c.mid))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto${own&&S.real?";cursor:pointer":""}" ${own&&S.real?`onclick="toggleActive(${c.id})" title="Click to switch this customer on or off"`:""}>${c.active===false?"Not active":"Active"}${own&&S.real?" ▾":""}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
@@ -466,6 +466,7 @@ function vChanges(){
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by)}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button> <button onclick="cancelNext(${c.id})">Cancel</button>`:""}</td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
 const DRV=["Driver A","Driver B","Driver C"];
 function podInfo(c,w){return{who:DRV[c.id%3],at:w+", "+(1+c.id%4)+":"+String(10+c.id*4).padStart(2,"0")+" PM"}}
+function uiToast(msg,bad){const d=document.createElement("div");d.textContent=msg;d.style.cssText="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);max-width:90vw;z-index:70;padding:14px 20px;border-radius:14px;font:600 15px/1.4 system-ui;color:#fff;box-shadow:0 10px 36px rgba(0,0,0,.4);background:"+(bad?"#c0392b":"#1f8a4c");document.body.appendChild(d);setTimeout(()=>d.remove(),4500)}
 function uiConfirm(msg,o){o=o||{};return new Promise(res=>{
  const d=document.createElement("div");d.className="ov";d.style.zIndex=60;
  const t=String(msg||"").split("\n"),title=o.title||t[0],body=o.title?t.join("\n"):t.slice(1).join("\n").replace(/^\n+/,""),bad=o.danger!=null?o.danger:/remove|delete|throw away|void|not active|discard|replace|merge|combine/i.test(msg);
@@ -2630,7 +2631,7 @@ async function saveNow(id){
  const ac=addrStr({st:patch.street,city:patch.city,state:patch.state,zip:patch.zip},patch.apt)!==c.addr;
  c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;c.cell=patch.cell;c.legal=patch.legal_address;c.noSms=patch.no_sms;c.noSmsC=patch.no_sms_cell;c.hh=patch.hh;c.base=patch.base;c.food=patch.food;if(patch.middleton!=null)c.mid=patch.middleton;
  S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
-async function saveNext(id){
+async function saveNext(id,fromBox){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  const v={phone:g("nf_phone").value.trim(),cell:g("nf_cell").value.trim(),notes:g("nf_notes")?g("nf_notes").value.trim():"",note2:g("nf_notes2")?stripCS(g("nf_notes2").value.trim(),c.note2,"mid"):"",food:g("nf_opt").value},nx={};
  for(const k in v)if(v[k]&&(v[k]!==(k=="food"?c.food:c[k])||(k=="food"&&c.mid&&v[k]!="mid")))nx[k]=v[k];
@@ -2638,8 +2639,8 @@ async function saveNext(id){
  if(nx.food)nx.base=g("nf_base").value||c.base;
  if(g("nf_nosms")&&g("nf_nosms").checked!==!!c.noSms)nx.nosms=g("nf_nosms").checked?1:0;
  if(g("nf_nosmsc")&&g("nf_nosmsc").checked!==!!c.noSmsC)nx.nosmsc=g("nf_nosmsc").checked?1:0;
- if(nx.nosms==1&&!(nx.phone||c.phone)){ce.textContent="There is no phone number on file to mark No SMS. Enter a new phone first.";return}
- if(nx.nosmsc==1&&!(nx.cell||c.cell)){ce.textContent="There is no cell number on file to mark No SMS. Enter a new cell first.";return}
+ if(nx.nosms==1&&!(nx.phone||c.phone)){ce.textContent="There is no phone number on file to mark No SMS. Enter a new phone first.";if(fromBox){uiToast(ce.textContent,1);render()}return}
+ if(nx.nosmsc==1&&!(nx.cell||c.cell)){ce.textContent="There is no cell number on file to mark No SMS. Enter a new cell first.";if(fromBox){uiToast(ce.textContent,1);render()}return}
  const at=g("nf_addr").value.trim(),apt=g("nf_apt").value.trim();
  if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
@@ -2657,7 +2658,7 @@ async function saveNext(id){
  if(error){ce.textContent="Not saved: "+dberr(error);return}
  c.next=Object.assign({},nx,{rid:rid,at:new Date().toLocaleDateString()});
  const sm=[];if(nx.nosms!=null)sm.push((nx.nosms?"No SMS saved for ":"No SMS removed for ")+(nx.phone||c.phone));if(nx.nosmsc!=null)sm.push((nx.nosmsc?"No SMS saved for ":"No SMS removed for ")+(nx.cell||c.cell));
- S.msg=(sm.length?sm.join(". ")+". ":"")+"Saved as changes for next week. This week is not changed.";S.err="";render()}
+ S.msg=(sm.length?sm.join(". ")+". ":"")+"Saved as changes for next week. This week is not changed.";S.err="";render();if(sm.length)uiToast(sm.join(". ")+" (starts next week)")}
 async function applyNow(id,quiet){
  const c=cust.find(x=>x.id==id),x=c.next;if(!x||S.user.role!="owner")return false;
  const p={};if(x.phone)p.phone=x.phone;if(x.notes)p.notes_labels=x.notes;if(x.note2)p.note2=x.note2;if(x.cell)p.cell=x.cell;if(x.nosms!=null)p.no_sms=!!x.nosms;if(x.nosmsc!=null)p.no_sms_cell=!!x.nosmsc;if(x.area)Object.assign(p,{area:AREA_KEY[x.area]||"lee"});
