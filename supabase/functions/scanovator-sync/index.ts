@@ -154,6 +154,29 @@ Deno.serve(async (req) => {
       const orders = (j.data || []).slice(0, 12).map((o: any) => { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o)) { if (v === null || v === undefined) continue; const t = typeof v === "object" ? JSON.stringify(v) : String(v); if (t !== "" && t !== "{}" && t !== "[]") r[k] = t.slice(0, typeof v === "object" ? 600 : 60); } return r; });
       return json({ ok: true, count: (j.data || []).length, orders });
     }
+    // ---- mode "optlook": owner only. Shows what OptimoRoute (Motty's delivery system for BP / Monsey / Monroe) sends: a few orders and their completion details. ----
+    if (body.mode === "optlook") {
+      const key = String(Deno.env.get("OPTIMOROUTE_KEY") ?? "").trim();
+      if (!key) return json({ ok: false, error: "Secret OPTIMOROUTE_KEY is not set in Supabase (Edge Functions > Secrets)." });
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const days = Math.min(Math.max(Number(body.days) || 7, 1), 30), to = new Date(), from = new Date(Date.now() - days * 864e5);
+      const cut = (o: any): any => { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o || {})) { if (v === null || v === undefined) continue; const t = typeof v === "object" ? JSON.stringify(v) : String(v); if (t !== "" && t !== "{}" && t !== "[]") r[k] = t.slice(0, typeof v === "object" ? 700 : 80); } return r; };
+      try {
+        const sr = await fetch("https://api.optimoroute.com/v1/search_orders?key=" + encodeURIComponent(key), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dateRange: { from: iso(from), to: iso(to) }, includeOrderData: true, includeScheduleInformation: true }) });
+        const sj: any = await sr.json().catch(() => ({}));
+        if (!sj.success) return json({ ok: false, error: "search_orders: " + (sj.code || sr.status) + " " + String(sj.message || "").slice(0, 200) });
+        const list: any[] = sj.orders || [];
+        const nos = list.map((o: any) => String((o.data && o.data.orderNo) || o.orderNo || "")).filter(Boolean).slice(0, 3);
+        let comp: any[] = [];
+        if (nos.length) {
+          const cr = await fetch("https://api.optimoroute.com/v1/get_completion_details?key=" + encodeURIComponent(key) + nos.map((n) => "&orderNo=" + encodeURIComponent(n)).join(""));
+          const cj: any = await cr.json().catch(() => ({}));
+          comp = (cj.orders || []).map(cut);
+          if (!cj.success) comp = [{ error: String(cj.code || cr.status) + " " + String(cj.message || "").slice(0, 200) }];
+        }
+        return json({ ok: true, count: list.length, orders: list.slice(0, 3).map((o: any) => cut({ ...o, ...(o.data || {}), data: undefined })), completion: comp });
+      } catch (e) { return json({ ok: false, error: String((e as any)?.message || e) }); }
+    }
     // ---- mode "smtptest": owner only. Checks whether this server can reach the mail server (no password used). ----
     if (body.mode === "smtptest") {
       if (!me.owner) return json({ ok: false, error: "Only the owner." });
