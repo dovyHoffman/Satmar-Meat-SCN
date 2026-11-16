@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       if (p) { paths[idx] = p; await sb.from("deliveries").update({ photo_paths: paths }).eq("order_id", d.order_id); }
       return json({ ok: true, path: p || "", info: p ? "" : photoInfo });
     }
-    if (!me.owner) return json({ error: "not allowed" }, 403);
+    if (!me.owner && body.mode !== "sendinvoice") return json({ error: "not allowed" }, 403);
     // ---- mode "probe": owner only, read only. Sends the given extra search fields to Scanovator to learn what it accepts (e.g. a date filter without phones). Returns counts and field names only. ----
     if (body.mode === "probe") {
       const r = await fetch(API, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, page: 1, limit: 5, ...(body.q || {}) }) });
