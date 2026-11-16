@@ -1,1 +1,0 @@
-select batch||'|'||rowno||'|'||ref k, base||' hh'||hh||' enh'||enh||' links'||cardinality(links) v from billing_import where tab_date='2026-11-10' and company='UJO' and base='box' order by batch, rowno;
