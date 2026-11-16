@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b341">
+<meta name="build" content="b342">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1086,7 +1086,7 @@ async function saveOpen(){
 /* ---- billing downloads: Excel and invoice ---- */
 function billCust(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return [];
  return Object.keys(w.cust).map(x=>w.cust[x]).filter(x=>!c||x.co==c).sort((a,b)=>(a.co+a.name).localeCompare(b.co+b.name))}
-function billAmt(r){const p=PR[r.co]||{};return r.base=="box"?(r.boxh?boxAmt(r.co,{boxh:r.boxh,enhn:r.enhn}):(p.raw==null?null:r.boxes*p.raw)):(p.meals==null?null:21*(r.hh||1)*p.meals)}
+function billAmt(r){const p=PR[r.co]||{};return r.base=="box"?(r.boxh?boxAmt(r.co,{boxh:r.boxh,enhn:r.enhn,boxflat:r.boxflat}):(p.raw==null?null:r.boxes*p.raw)):(p.meals==null?null:21*(r.hh||1)*p.meals)}
 const fdt=t=>{const d=new Date(t);return isNaN(d)?"":d.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
 function weekRange(k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const d0=new Date(w.t),a=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+2),b=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+8),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
 function bmsg(t,bad){const el=document.getElementById("bill_msg");if(el){el.textContent=t;el.style.color=bad?"#b42318":"var(--ok)"}}
@@ -1188,9 +1188,9 @@ function invRead(c,k){
 async function invPersist(c,r){await invSave(c,{name:r.name||coName(c),addr:r.addr,phone:r.phone,emails:r.emails,cc:r.cc})}
 function invMsg(t,bad){const e=document.getElementById("iv_msg");if(e){e.textContent=t;e.style.color=bad?"#b42318":"var(--ok)"}}
 function invCounts(c,k){const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const cu=Object.keys(w.cust).map(z=>w.cust[z]).filter(z=>z.co==c);
- const ml=cu.filter(z=>z.base!="box"),bx=cu.filter(z=>z.base=="box"),en=bx.filter(z=>(z.enh||0)>0),hh=bx.filter(z=>(z.hh||1)>1),mq=ml.reduce((t,z)=>t+21*(z.hh||1),0);
+ const ml=cu.filter(z=>z.base!="box"),bx=cu.filter(z=>z.base=="box"),en=bx.filter(z=>(z.enhn||0)>0),hh=bx.filter(z=>z.boxh&&Object.keys(z.boxh).length),rg=bx.length-hh.length-bx.filter(z=>(z.enhn||0)>0&&!(z.boxh&&Object.keys(z.boxh).length)).length,mq=ml.reduce((t,z)=>t+21*(z.hh||1),0);
  const chip=(n,l,sub)=>`<span style="display:inline-block;background:#eef1ff;border-radius:10px;padding:8px 12px;margin:0 8px 8px 0"><b style="font-size:18px">${inQ(n)}</b> <span style="font-weight:600">${l}</span>${sub?`<br><span class="note">${sub}</span>`:""}</span>`;
- return `<div style="margin:10px 0 4px">${chip(ml.length,"Meals customers",inQ(mq)+" meals")}${chip(bx.length,"Raw (box) customers",hh.length?inQ(hh.length)+" with HH 2+":"")}${chip(en.length,"Enhanced",bx.length?"box customers with enhanced members":"")}</div>`}
+ return `<div style="margin:10px 0 4px">${chip(ml.length,"Meals customers",inQ(mq)+" meals")}${chip(rg,"Raw (regular box)","flat Raw box price")}${chip(en.length,"Enhanced","meals + raw")}${chip(hh.length,"Household (HH)","charged by household size")}</div>`}
 async function invOpen(c,k){
  const ce=invCo(c);let M=invModel(c,k);if(!M){bmsg("Nothing to invoice for this week.",true);return}
  const gap=podGap(c,k),dup=(BILL.inv||[]).find(i=>i.company==c&&!i.voided&&i.note==="Week "+k),again=!!dup,nxt=again?String(dup.inv_no||""):INV.last==null?"":String(INV.last+1);
@@ -1345,7 +1345,7 @@ function buildWeeks(rows){
   const key=co+"|"+r.agency_ref,cu=w.cust[key]=w.cust[key]||{co:co,id:r.agency_ref,name:r.name,base:r.base,food:r.food,hh:r.hh,enh:r.enh||0,dl:[],boxes:0};
   cu.dl.push(r);cu.boxes+=Math.max(1,r.boxes||0)});
  Object.keys(W).forEach(k=>{const w=W[k];Object.keys(w.cust).forEach(key=>{const cu=w.cust[key],x=w.a[cu.co];
-  if(cu.base=="box"){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1;if(cu.dl[0]&&cu.dl[0].order_id=="sheet"){const en=Math.min(cu.enh||0,cu.hh||1),rg=Math.max(0,(cu.hh||1)-en);cu.boxh={};if(rg>0){x.boxh=x.boxh||{};x.boxh[rg]=(x.boxh[rg]||0)+cu.dl.length;cu.boxh[rg]=cu.dl.length}x.enhn=(x.enhn||0)+en*cu.dl.length;cu.enhn=en*cu.dl.length}else x.boxflat=(x.boxflat||0)+cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
+  if(cu.base=="box"){x.box+=cu.boxes;x.boxn=(x.boxn||0)+1;if(cu.dl[0]&&cu.dl[0].order_id=="sheet"){const en=Math.min(cu.enh||0,cu.hh||1),rg=Math.max(0,(cu.hh||1)-en);cu.boxh={};if(rg>0){if(rg==1&&en==0){x.boxflat=(x.boxflat||0)+cu.dl.length;cu.boxflat=cu.dl.length}else{x.boxh=x.boxh||{};x.boxh[rg]=(x.boxh[rg]||0)+cu.dl.length;cu.boxh[rg]=cu.dl.length}}x.enhn=(x.enhn||0)+en*cu.dl.length;cu.enhn=en*cu.dl.length}else x.boxflat=(x.boxflat||0)+cu.boxes}else{if(/raw/i.test(cu.food||""))x.mraw++;else x.meals++;x.mhh+=cu.hh||1}})});
  return Object.keys(W).map(k=>W[k]).sort((a,b)=>b.t-a.t).slice(0,12)}
 function bDb(c,k){
  const w=BILL.weeks.find(x=>x.k==k);if(!w)return "";const B=S.b,q=(B.q||"").toLowerCase();
