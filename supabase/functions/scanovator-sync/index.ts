@@ -361,7 +361,7 @@ Deno.serve(async (req) => {
     const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
     const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
     const since = Date.now() - daysBack * 864e5;
-    let seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
+    let notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;
     const word = body.word === true;
     const dbg = { try: 0, hit: 0, many: 0, none: 0, wk: "" };
@@ -418,6 +418,8 @@ Deno.serve(async (req) => {
           const created = new Date(o.createdAtIso).getTime();
           if (created < oldest) oldest = created;
           if (created < since) continue;
+          // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
+          if (body.mapOnly !== false && !om.has(String(o.order_id))) { notInExport++; continue; }
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
           if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
