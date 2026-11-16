@@ -832,7 +832,7 @@ function impOneInv(A,sn){
  let date="";for(const c of lab(/\bdate\b/i)){const inl=impDate(c.s.replace(/^[^0-9]*/,""));const r=right(c);const d=inl||(r&&impDate(r.v));if(d){date=d;break}}
  if(!date){const d=cells.find(c=>impDate(c.v));if(d)date=impDate(d.v)}
  let amt=NaN;for(const c of lab(/(amount due|balance due|total due|grand total|^total\b|invoice total)/i).reverse()){const inl=impNum(c.s.replace(/^[^0-9(\-]*/,""));const r=right(c);const a=!isNaN(inl)&&/\d/.test(c.s)?inl:(r?impNum(r.v):NaN);if(!isNaN(a)&&a>0){amt=a;break}}
- let no="";for(const c of lab(/invoice\s*(#|no\.?|number|num)|^invoice$/i)){const inl=c.s.replace(/^.*?(#|no\.?|number|num)\s*:?\s*/i,"");const r=right(c);const v=/\d/.test(inl)&&inl!=c.s?inl:(r?t(r.v):"");if(v&&v.length<20){no=v;break}}
+ let no="";for(const c of lab(/invoice\s*(#|no\.?|number|num)|^invoice$/i)){const inl=c.s.replace(/^.*?(#|no\.?|number|num)\s*:?\s*/i,"");const r=right(c);const v=/\d/.test(inl)&&inl!=c.s?inl:(r?t(r.v):"");if(v&&v.length<20&&/\d/.test(v)){no=v;break}}
  if(!no&&/^\d+$/.test(sn.trim()))no=sn.trim();
  return date&&!isNaN(amt)?{date:date,amt:Math.round(amt*100)/100,no:no}:null}
 async function impInvRead(files){
