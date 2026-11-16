@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b332">
+<meta name="build" content="b333">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -411,7 +411,7 @@ function vCard(){
  return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area,c.mid))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto${own&&S.real?";cursor:pointer":""}" ${own&&S.real?`onclick="toggleActive(${c.id})" title="Click to switch this customer on or off"`:""}>${c.active===false?"Not active":"Active"}${own&&S.real?" ▾":""}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
   <div class="pnl"><h4>Contact</h4><div class="grid g4" style="--n:2">${fPhone}${fCell}${ro("Email",c.email,"s2")}${fLegal}</div></div>
-  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).map(o=>`<option value="${o[0]}" ${o[0]==c.food?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>${c.mid?` <span class="tag" style="background:#fff3cd;border:1px solid #e5a100;color:#7a5200">Middleton</span>`:""}</div></label></div>${casesPnl(c)}</div>
+  <div class="pnl"><h4>Food</h4><div class="grid g4" style="--n:2">${own?`<label>Total household (HH)<input id="f_hh" type="number" min="1" max="30" value="${esc(c.hh)}"></label><label>Type<select id="f_base" onchange="fillFood()"><option value="meals" ${c.base!="box"?"selected":""}>Meals</option><option value="box" ${c.base=="box"?"selected":""}>Box</option></select></label><label>Food type<select id="f_food">${optList(c.base,c.agency).concat([["mid","Middleton"]]).map(o=>`<option value="${o[0]}" ${(c.mid?o[0]=="mid":o[0]==c.food)?"selected":""}>${o[1]}</option>`).join("")}</select></label>`:ro("Total household (HH)",c.hh)+ro("Type",c.base=="box"?"Box":"Meals")+ro("Food type",c.mid?"Middleton":optName(c.base,c.food))}<label>Box code (click to see the menu)<div class="ro"><span class="tag" style="cursor:pointer" onclick="showMenu(${c.id})">${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>${c.mid?` <span class="tag" style="background:#fff3cd;border:1px solid #e5a100;color:#7a5200">Middleton</span>`:""}</div></label></div>${casesPnl(c)}</div>
  </div>
  <div class="pnl sm"><h4>Delivery</h4><div class="grid g4" style="--n:4">${fAddr}${fApt}${fArea}</div></div>
  <div class="pnl sm"><h4>Delivery notes &amp; customer notes</h4><div class="grid g4" style="--n:2">${fNotes}</div></div>
@@ -2612,7 +2612,7 @@ function addrSuggest(inp){
 function setupAC(){
  [["f_addr","f_apt"],["nf_addr","nf_apt"]].forEach(([ai,pi])=>{const inp=document.getElementById(ai);if(!inp||inp.disabled)return;
   inp.addEventListener("blur",()=>{const v=inp.value.trim();if(!v)return;const a=parseAddrSmart(v);if(!a.street)return;inp.value=addrFmtLine(a);const ap=document.getElementById(pi);if(ap&&!ap.disabled&&!ap.value.trim()&&a.apt)ap.value=a.apt;nfHint()});if(ai=="nf_addr"){inp.addEventListener("input",nfHint);nfHint()}if(!inp.dataset.sg){inp.dataset.sg="1";addrSuggest(inp)}})}
-function fillFood(){const c=cust.find(x=>x.id==S.sel),b=document.getElementById("f_base").value,f=document.getElementById("f_food"),cur=f.value,l=optList(b,c.agency);f.innerHTML=l.map(o=>`<option value="${o[0]}" ${o[0]==cur?"selected":""}>${o[1]}</option>`).join("")}
+function fillFood(){const c=cust.find(x=>x.id==S.sel),b=document.getElementById("f_base").value,f=document.getElementById("f_food"),cur=f.value,l=optList(b,c.agency).concat([["mid","Middleton"]]);f.innerHTML=l.map(o=>`<option value="${o[0]}" ${o[0]==cur?"selected":""}>${o[1]}</option>`).join("")}
 async function saveNow(id){
  const c=cust.find(x=>x.id==id),ce=document.getElementById("ce"),g=i=>document.getElementById(i);
  if(S.user.role!="owner")return;
@@ -2623,11 +2623,12 @@ async function saveNow(id){
  const cl=cleanPhones(g("f_cell").value);if(g("f_cell").value.trim()&&!cl.length){ce.textContent="Cell must be 10 digits.";return}patch.cell=cl[0]?fmtPh(cl[0]):"";
  const hh=Math.round(+g("f_hh").value);if(!(hh>=1&&hh<=30)){ce.textContent="Household size must be a number from 1 to 30.";return}
  patch.hh=hh;patch.base=g("f_base").value;patch.food=g("f_food").value;
- if(patch.hh!==c.hh||patch.base!==c.base||patch.food!==c.food){try{await billFreeze()}catch(e){ce.textContent="Not saved: last week could not be saved first ("+dberr(e)+")";return}}
+ if(patch.food=="mid"){patch.middleton=true;patch.food=c.food}else if(c.mid){patch.middleton=false}
+ if(patch.hh!==c.hh||patch.base!==c.base||patch.food!==c.food||patch.middleton===false){try{await billFreeze()}catch(e){ce.textContent="Not saved: last week could not be saved first ("+dberr(e)+")";return}}
  const {error}=await sb.from("customers").update(patch).eq("id",c.uuid);
  if(error){ce.textContent="Not saved: "+dberr(error);return}
  const ac=addrStr({st:patch.street,city:patch.city,state:patch.state,zip:patch.zip},patch.apt)!==c.addr;
- c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;c.cell=patch.cell;c.legal=patch.legal_address;c.noSms=patch.no_sms;c.noSmsC=patch.no_sms_cell;c.hh=patch.hh;c.base=patch.base;c.food=patch.food;
+ c.phone=patch.phone;c.a={st:patch.street,city:patch.city,state:patch.state,zip:patch.zip};c.apt=patch.apt;c.addr=addrStr(c.a,c.apt);c.notes=patch.notes_labels;c.note2=patch.note2;c.area=g("f_area").value;c.cell=patch.cell;c.legal=patch.legal_address;c.noSms=patch.no_sms;c.noSmsC=patch.no_sms_cell;c.hh=patch.hh;c.base=patch.base;c.food=patch.food;if(patch.middleton!=null)c.mid=patch.middleton;
  S.msg="Saved."+(ac?" The address changed: please check that the area ("+c.area+") still matches the street.":" It is recorded in History.");S.err="";render()}
 async function saveNext(id){
  const c=cust.find(x=>x.id==id),own=S.user.role=="owner",ce=document.getElementById("ce"),g=i=>document.getElementById(i);
