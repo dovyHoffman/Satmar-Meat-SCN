@@ -495,7 +495,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, dbg, have_week: haveWeek.size, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, not_in_export: notInExport, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, dbg, have_week: haveWeek.size, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
