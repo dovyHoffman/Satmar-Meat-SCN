@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b363">
+<meta name="build" content="b364">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1001,7 +1001,7 @@ const AGEK=[["cur","Current"],["d30","30 days"],["d60","60 days"],["d90","90 day
 function aging(c){
  const ob=BILL.open[c],asOf=ob?Date.parse(ob.as_of):0,items=[],now=Date.now();let missing=false,charged=0;
  if(ob)[["cur",15],["d30",45],["d60",75],["d90",105],["d120",135]].forEach(([k,off])=>{const v=Number(ob[k])||0;if(v)items.push({t:asOf-off*864e5,a:v})});
- BILL.weeks.forEach(w=>{const x=w.a[c];if(!x)return;const end=w.t+6*864e5;if(ob&&end<=asOf)return;const iv=invFor(c,w),e=iv.length?iv.reduce((t,i)=>t+Number(i.amount),0):estA(c,x);if(e==null){missing=true;return}items.push({t:end,a:e});charged+=e});
+ BILL.weeks.forEach(w=>{const x=w.a[c];if(!x)return;const end=w.t+6*864e5;if(ob&&end<=asOf)return;const iv=invFor(c,w);if(!iv.length)return;/* only real invoices are charges; a week that is not invoiced yet is not counted */const e=iv.reduce((t,i)=>t+Number(i.amount),0);items.push({t:end,a:e});charged+=e});
  {/* every other invoice (older than the 12 weeks, newer, or in a week with no deliveries) is a charge too: the balance counts ALL invoices and ALL payments */
   const inW=i=>BILL.weeks.some(w=>w.a[c]&&dT(i.inv_date)>=w.t&&dT(i.inv_date)<w.t+7*864e5&&!(ob&&w.t+6*864e5<=asOf));
   (BILL.inv||[]).filter(i=>i.company==c&&!i.voided&&!inW(i)&&(!ob||dT(i.inv_date)>=asOf)).forEach(i=>{const a=Number(i.amount)||0;if(a){items.push({t:dT(i.inv_date)+6*864e5,a:a});charged+=a}})}
