@@ -1,1 +1,0 @@
-select json_build_object('inv',(select json_agg(x) from (select company,note,count(*) n from invoices group by 1,2) x),'pay',(select json_agg(x) from (select company,note,count(*) n from payments group by 1,2) x)) as r;
