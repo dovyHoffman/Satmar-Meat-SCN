@@ -361,7 +361,7 @@ Deno.serve(async (req) => {
     const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
     const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
     const since = Date.now() - daysBack * 864e5;
-    let notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
+    let viaCf = 0, notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;
     const word = body.word === true;
     const dbg = { try: 0, hit: 0, many: 0, none: 0, wk: "" };
@@ -401,6 +401,16 @@ Deno.serve(async (req) => {
       if (typeof v === "object") { if (d >= 3) return; const ent = Array.isArray(v) ? v.slice(0, 3).map((x, i) => [String(i), x]) : Object.entries(v); for (const [k, x] of ent as any[]) flat(x, path ? path + "." + k : String(k), out, d + 1); return; }
       const t = String(v); if (t !== "") out.push([path, t]);
     };
+    // Custom fields of an order (Application ID, Case description, Total Family, Food Type ...). They may be flat keys, a nested object, or a list of {name, value}.
+    const cfAll = (o: any): Map<string, string> => {
+      const m = new Map<string, string>(); const nk = (x: unknown) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const walk = (v: any, d: number) => {
+        if (v === null || v === undefined || d > 5) return;
+        if (Array.isArray(v)) { for (const x of v.slice(0, 80)) { if (x && typeof x === "object" && !Array.isArray(x)) { const nm = x.name ?? x.label ?? x.key ?? x.field ?? x.title; const val = x.value ?? x.val ?? x.answer ?? x.text; if (nm !== undefined && val !== undefined && typeof val !== "object") { const t = String(val).trim(); if (t && !m.has(nk(nm))) m.set(nk(nm), t); continue; } } walk(x, d + 1); } return; }
+        if (typeof v === "object") { for (const [k, x] of Object.entries(v)) { if (x !== null && x !== undefined && typeof x !== "object") { const t = String(x).trim(); if (t && !m.has(nk(k))) m.set(nk(k), t); } else walk(x, d + 1); } }
+      };
+      walk(o, 0); return m;
+    };
     if (chunk.length) {
       for (let page = 1; page <= 6; page++) {
         const j = await search(chunk, page);
@@ -419,7 +429,8 @@ Deno.serve(async (req) => {
           if (created < oldest) oldest = created;
           if (created < since) continue;
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
-          if (body.mapOnly !== false && !om.has(String(o.order_id))) { notInExport++; continue; }
+          const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || "";
+          if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
           if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
@@ -427,6 +438,7 @@ Deno.serve(async (req) => {
           let c: any = null;
           const mp = om.get(String(o.order_id));
           if (mp && idKey(mp.app_id)) { const hit = byId.get(idKey(mp.app_id)); if (hit) { c = hit; viaId++; } }
+          if (!c && cfId) { const hit = byId.get(idKey(cfId)); if (hit) { c = hit; viaId++; viaCf++; } }
           if (!c) for (const f of [o.customercode, o.online_order_id]) { const hit = byId.get(idKey(f)); if (hit && idKey(f)) { c = hit; viaId++; break; } }
                     if (!c && loose) { const h = byNamePhone(o); if (h) { c = h; viaName++; } }
           // phone + at least one shared name word, ONE customer only, and ONLY for deliveries of this week to customers that have no delivery yet this week
@@ -495,7 +507,7 @@ Deno.serve(async (req) => {
       }
     }
     const next = offset + CHUNK < phones.length ? offset + CHUNK : null;
-    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, not_in_export: notInExport, deliveries_saved: saved, via_id: viaId, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, dbg, have_week: haveWeek.size, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
+    return json({ ok: true, mode, offset, next, total: phones.length, orders_seen: seen, not_in_export: notInExport, deliveries_saved: saved, via_id: viaId, via_custom_id: viaCf, via_phone: viaPhone, via_name: viaName, with_code: withCode, with_online: withOnline, delivered_n: deliveredN, code_examples: [...codeEx], delivered_sample: deliveredSample, in_window: 0, no_match: noMatch, diag, found, dbg, have_week: haveWeek.size, phone_match_codes: examples, case_keys: caseKeys, id_paths: idPaths, sample_paths: samplePaths });
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);
   }
