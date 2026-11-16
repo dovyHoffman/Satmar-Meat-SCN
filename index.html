@@ -45,7 +45,7 @@ label{display:block;font-size:13px;color:var(--mut)}label input,label textarea,l
 .inl{display:flex;align-items:center;gap:8px}.inl input:not([type=checkbox]){flex:1;min-width:0}.nsm{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--mut)}.g4 label .nsm input,.nsm input{width:auto;min-height:0;height:auto;margin:0}
 @media(max-width:900px){.sm .g4{--n:2!important}.sm .g4 label input,.sm .g4 label select,.sm .g4 label textarea{max-width:none;height:32px;font-size:14px}.inl{flex-wrap:wrap;gap:4px}.inl input:not([type=checkbox]){flex:1 1 100%}.g4 .ro{overflow-wrap:anywhere;font-size:13.5px}.cg .grid.g4 label input{font-size:14px}}
 .chk{display:flex;align-items:center;gap:6px;font-weight:600}.chk input{width:auto;margin:0}
-.sm .g4 label input,.sm .g4 label select,.sm .g4 label textarea{font-size:12.5px;padding:2px 6px;height:26px;min-height:0;max-width:200px;box-sizing:border-box;resize:none;overflow:hidden}.sm label{font-size:12px}
+.sm .g4 label{display:flex;flex-direction:column;gap:4px}.sm .g4 label.ac input{max-width:none;width:100%}.sm .g4 label input,.sm .g4 label select,.sm .g4 label textarea{font-size:12.5px;padding:2px 6px;height:26px;min-height:0;max-width:260px;box-sizing:border-box;resize:none;overflow:hidden}.sm label{font-size:12px}
 .cg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
 .pnl{background:color-mix(in srgb,var(--ac) 3%,var(--card));border:1px solid var(--ln);border-radius:14px;padding:12px 16px 14px;margin-bottom:0}
 .cg+.pnl,.pnl+.pnl{margin-top:14px}.cg .pnl{margin-top:0!important}
@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b336">
+<meta name="build" content="b337">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -406,7 +406,7 @@ function vCard(){
  const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fNotes=(own?`<label>Delivery notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Delivery notes",c.notes))+(own?`<label>Customer notes<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Customer notes",c.note2));
- const nfs=(id,l,v,ph,cid,on)=>`<label>${l}<div class="inl"><input id="${id}" value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}><span class="nsm"><input type="checkbox" id="${cid}" ${on?"checked":""} ${dis} onchange="saveNext(${c.id},1)"> No SMS</span></div></label>`;
+ const nfs=(id,l,v,ph,cid,on0,pv)=>{const on=pv!=null?!!pv:on0;return `<label>${l}<div class="inl"><input id="${id}" value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}><span class="nsm"><input type="checkbox" id="${cid}" ${on?"checked":""} ${dis} onchange="saveNext(${c.id},1)"> No SMS</span></div></label>`};
  const nf=(id,l,v,ph,l2)=>`<label>${l}<input id="${id}" ${l2||""} value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}></label>`;
  return `<div class="card cstick"><div class="chd"><button onclick="go('customers')">← Customer list</button><h2>${esc(c.name)}</h2>${c.active===false&&S.real?"":`<span class="ctag" style="--c:${codeColor(codesFor(c.food,c.hh,c.area,c.mid))};cursor:pointer" title="Click to see the menu" onclick="showMenu(${c.id})">${esc(optName(c.base,c.food))} · ${esc(codesFor(c.food,c.hh,c.area,c.mid))}</span>`}<span class="sub">${esc(c.ref)} · ${esc(c.agency)} · ${esc(c.hh)} in household · ${esc(c.area)}</span><span class="ctag ${c.active===false?"t-no":"t-ok"}" style="margin-left:auto${own&&S.real?";cursor:pointer":""}" ${own&&S.real?`onclick="toggleActive(${c.id})" title="Click to switch this customer on or off"`:""}>${c.active===false?"Not active":"Active"}${own&&S.real?" ▾":""}</span></div>${dlv(c)}</div>
  <div class="card"><div class="cg">
@@ -419,7 +419,7 @@ function vCard(){
  <p class="err" id="ce"></p></div>
  <div class="card"><h2>Changes for next week (${nwk()})</h2>
  ${lock?`<p class="err">The cut-off has passed. Only the admin can add changes now.</p>`:""}
- <div class="grid">${nfs("nf_phone","New phone",n.phone,"Current: "+c.phone,"nf_nosms",c.noSms,"No SMS")}${nfs("nf_cell","New cell",n.cell,"Current: "+(c.cell||"none"),"nf_nosmsc",c.noSmsC,"No SMS")}
+ <div class="grid">${nfs("nf_phone","New phone",n.phone,"Current: "+c.phone,"nf_nosms",c.noSms,n.nosms)}${nfs("nf_cell","New cell",n.cell,"Current: "+(c.cell||"none"),"nf_nosmsc",c.noSmsC,n.nosmsc)}
  ${c.agency=="RY"?`<div style="grid-column:span 3"><b>New delivery address</b><input type="hidden" id="nf_addr" value="" disabled><input type="hidden" id="nf_apt" value=""><div class="card" style="margin:6px 0 0;background:var(--bg)"><b>RY customers cannot change the delivery address here.</b><div class="note" style="margin-top:4px">Ask the agency (RY) to change it. Customer phone number to give them: <b id="ry_ph">${esc(c.phone||"")}</b> <button type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('ry_ph').textContent);this.textContent='Copied'">Copy</button></div></div></div>`:`<label class="ac" style="grid-column:span 2">New delivery address<input id="nf_addr" autocomplete="off" value="${esc(n.a?fmtA(n.a):"")}" placeholder="street, city, state, zip" ${dis}><span id="nf_hint" class="note" style="display:block;margin-top:3px"></span></label>
 ${nf("nf_apt","New apartment",n.apt,"Current: "+(c.apt||"none"))}`}
 
