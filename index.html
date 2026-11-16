@@ -152,7 +152,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b375">
+<meta name="build" content="b376">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2936,13 +2936,31 @@ async function rwNamePick(id,el){
  const it=RW.wi.find(x=>x.id==id),v=el.value.trim();if(!it)return;if(!v){render();return}
  const q=rwNk(v),m=RW.lib.filter(x=>x.section=="meat"),hit=m.find(x=>rwNk(x.code||"")==q)||m.find(x=>rwNk(x.name)==q);
  if(hit)return rwLinkItem(it,hit);
- if(!await uiConfirm("“"+v+"” is not in the Library. Is it a new item? It will be added to the Library.")){render();return}
- const nk=rwNk(v),r=await sb.from("raw_items").insert({name:v,name_key:nk,section:"meat",units_per_case:1}).select().single();if(r.error)return rwSaveErr(r.error);
- RW.lib.push(r.data);return rwLinkItem(it,r.data)}
+ const li=await rwNewItem(v);if(!li){render();return}
+ return rwLinkItem(it,li)}
+function rwNewDlg(v){return new Promise(res=>{
+ const d=document.createElement("div");d.className="ov";d.style.zIndex=60;const e2=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),isCode=/^\d+$/.test(v);
+ d.innerHTML=`<div class="mod" style="max-width:420px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.45)"><div style="font-size:18px;font-weight:700">New item</div><p class="note" style="margin:6px 0 10px">“${e2(v)}” is not in the Library. Fill it in to add it.</p>
+ <div class="rwfld"><label>Code<input id="ni_c" value="${isCode?e2(v):""}" inputmode="numeric" placeholder="e.g. 109"></label><label>Name<input id="ni_n" value="${isCode?"":e2(v)}" placeholder="Item name"></label><label>Price each $<input id="ni_p" type="number" inputmode="decimal" step="any"></label><label>Vendor (optional)<input id="ni_v"></label></div>
+ <p class="note bad" id="ni_e" style="min-height:18px;margin:6px 0 0"></p>
+ <div style="display:flex;gap:10px;margin-top:10px"><button data-r="0" style="flex:1;padding:13px;font-size:15px">Cancel</button><button data-r="1" class="pri" style="flex:1;padding:13px;font-size:15px">Add to Library</button></div></div>`;
+ const g=id=>d.querySelector("#"+id),done=x=>{d.remove();res(x)};
+ d.onclick=ev=>{if(ev.target==d)done(null);const b=ev.target.closest&&ev.target.closest("button[data-r]");if(!b)return;if(b.dataset.r!="1")return done(null);
+  const code=g("ni_c").value.trim(),name=g("ni_n").value.trim();if(!name){g("ni_e").textContent="Type the item name.";return}
+  if(code&&RW.lib.some(x=>x.section=="meat"&&String(x.code||"").trim()==code)){g("ni_e").textContent="Code "+code+" is already used in the Library.";return}
+  done({code:code||null,name,price:rwNum(g("ni_p").value),vendor:g("ni_v").value.trim()})};
+ document.body.appendChild(d);setTimeout(()=>{const f=g(isCode?"ni_n":"ni_c");if(f)f.focus()},50)})}
+async function rwNewItem(v){
+ const f=await rwNewDlg(v);if(!f)return null;const nk=rwNk(f.name),row={name:f.name,name_key:nk,section:"meat",units_per_case:1,code:f.code,case_price:f.price,vendor:f.vendor};
+ let r=await sb.from("raw_items").insert(row).select().single();
+ if(r.error){const ex=await sb.from("raw_items").select("*").eq("name_key",nk).limit(1);
+  if(ex.data&&ex.data[0]){const u=await sb.from("raw_items").update({hidden:false,merged_into:null,code:f.code||ex.data[0].code,case_price:f.price==null?ex.data[0].case_price:f.price,vendor:f.vendor||ex.data[0].vendor}).eq("id",ex.data[0].id).select().single();if(u.error){rwSaveErr(u.error);return null}r=u}
+  else{rwSaveErr(r.error);return null}}
+ const li=r.data,k=RW.lib.findIndex(x=>x.id==li.id);if(k>=0)RW.lib[k]=li;else RW.lib.push(li);return li}
 async function rwLinkItem(it,li){
  await rwItemPatch(it.id,{item_id:li.id,name:li.name,vendor:li.vendor||"",units_per_case:li.units_per_case||1,case_price:li.case_price==null?it.case_price:li.case_price,nutrient:li.nutrient||"",credits:li.credits==null?null:li.credits},false);render()}
 async function rwTblAdd(wid){const e=document.getElementById("rw_tq"),v=e?e.value.trim():"";if(!v)return;const q=rwNk(v),m=RW.lib.filter(x=>x.section=="meat"),hit=m.find(x=>rwNk(x.code||"")==q)||m.find(x=>rwNk(x.name)==q);
- if(hit)return rwAddItem(wid,hit.id,"meat");if(!await uiConfirm("“"+v+"” is not in the Library. Is it a new item? It will be added to the Library."))return;return rwAddItem(wid,null,"meat",v)}
+ if(hit)return rwAddItem(wid,hit.id,"meat");const li=await rwNewItem(v);if(!li)return;return rwAddItem(wid,li.id,"meat")}
 async function rwAddItem(wid,libId,section,name){
  let li=libId?RW.lib.find(x=>x.id==libId):null;const nm=(li?li.name:name||"").trim();if(!nm)return;
  if(!li&&section=="meat"){const nk=rwNk(nm);li=RW.lib.find(x=>x.name_key==nk)||null;if(!li){const r=await sb.from("raw_items").insert({name:nm,name_key:nk,section:"meat",units_per_case:1}).select().single();if(r.error)return rwSaveErr(r.error);li=r.data;RW.lib.push(li)}}
