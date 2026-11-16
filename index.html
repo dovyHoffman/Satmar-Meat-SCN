@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b361">
+<meta name="build" content="b362">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2547,6 +2547,13 @@ async function setOpt(k,v){
  const key=k=="allowMid"?"allow_middleton":"cutoff_passed";
  const {error}=await sb.from("app_settings").update({value:!!v,updated_at:new Date().toISOString()}).eq("key",key);
  if(error){S.err="Not saved: "+dberr(error);S.msg=""}else{S[k]=!!v;S.msg="Saved.";S.err=""}render()}
+async function scanLook(){
+ const o=document.getElementById("sl_out"),ph=(document.getElementById("sl_ph").value||"").trim();if(!o)return;if(!ph){o.textContent="Type a phone number first.";return}
+ o.textContent="Looking…";
+ try{const {data:ss}=await sb.auth.getSession(),tok=ss&&ss.session&&ss.session.access_token,res=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{Authorization:"Bearer "+tok,apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({mode:"lookup",phones:[ph]})}),j=await res.json().catch(()=>({}));
+  if(!j.ok){o.textContent=j.error||("Not allowed ("+res.status+")");return}
+  o.textContent=j.count+" order(s) found. Showing "+(j.orders||[]).length+"\n\n"+(j.orders||[]).map((r,i)=>"#"+(i+1)+"\n"+Object.keys(r).map(k=>"  "+k+": "+r[k]).join("\n")).join("\n\n")}
+ catch(e){o.textContent=String(e&&e.message||e)}}
 function vSettings(){
  if(S.user.role!="owner")return `<div class="card"><p class="err">Only the owner can open Settings.</p></div>`;
  const pg=(o=>PAGES.filter(p=>p[0]!="settings"&&p[0]!="import"&&p[0]!="history"&&p[0]!="newlist").sort((x,y)=>(o.indexOf(x[0])<0?99:o.indexOf(x[0]))-(o.indexOf(y[0])<0?99:o.indexOf(y[0]))))(["dashboard","customers","changes","delivery","delivery_prev","menu","raw","kitchen","meat","chat","menuchat","billing"]),RN0={owner:"Owner",admin:"Admin",manager:"Manager",secretary:"Office secretary"},RNL={billing:"Billing",demo:"Demo only"};
@@ -2559,6 +2566,11 @@ function vSettings(){
 <label><input type="checkbox" style="width:auto" ${autoOn()?"checked":""} onchange="autoSet(this.checked)"> Check automatically</label>
 <p class="note">${S.autoAt?"Last automatic check: "+new Date(S.autoAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+(S.autoErr?" · problem: "+esc(S.autoErr):""):"No automatic check yet in this session."}</p>
 <button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now (full, last 4 weeks)"}</button>
+</div>
+ <div class="card"><h2>Scanovator order fields</h2>
+<p class="note">Shows every field Scanovator sends for the latest orders of one phone number, including the custom fields (ID, case description…). Only you see this. Type a phone number and press Show.</p>
+<div class="bar"><input id="sl_ph" inputmode="tel" placeholder="phone number" style="max-width:220px"><button onclick="scanLook()">Show</button></div>
+<pre id="sl_out" style="white-space:pre-wrap;word-break:break-word;font-size:12px;max-height:420px;overflow:auto;margin:8px 0 0"></pre>
 </div>
  <div class="card"><h2>Access by category</h2>
  <p class="note">Choose which pages each category can open. Ticking a box changes it for <b>everyone in that category</b> right away. You can still change one person in the table below. Owner (you) always has everything.</p>

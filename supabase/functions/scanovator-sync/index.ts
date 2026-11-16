@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
       const ph = body.raw ? (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => String(x)).slice(0, 5) : (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => digits(x)).filter((x: string) => x.length === 10).slice(0, 5);
       if (!ph.length) return json({ ok: false, error: "no phones" });
       const j = await search(ph, 1);
-      const orders = (j.data || []).slice(0, 12).map((o: any) => { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o)) { if (v === null || v === undefined || typeof v === "object") continue; const t = String(v); if (t !== "") r[k] = t.slice(0, 60); } return r; });
+      const orders = (j.data || []).slice(0, 12).map((o: any) => { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o)) { if (v === null || v === undefined) continue; const t = typeof v === "object" ? JSON.stringify(v) : String(v); if (t !== "" && t !== "{}" && t !== "[]") r[k] = t.slice(0, typeof v === "object" ? 600 : 60); } return r; });
       return json({ ok: true, count: (j.data || []).length, orders });
     }
     // ---- mode "smtptest": owner only. Checks whether this server can reach the mail server (no password used). ----
