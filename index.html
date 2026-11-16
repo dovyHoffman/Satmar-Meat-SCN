@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b339">
+<meta name="build" content="b340">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -812,12 +812,68 @@ async function saveHhPrices(){
   up.forEach(u=>{HHP[u.agency]=HHP[u.agency]||{};if(u.price==null)delete HHP[u.agency][u.hh];else HHP[u.agency][u.hh]=u.price});
   S.msg="Household prices saved ("+up.length+" changed). Billing totals are updated.";S.err=""}catch(e){S.err="Not saved: "+dberr(e)+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?" The database update 019 has not been run yet.":"");S.msg=""}
  render()}
+
+/* ---- import invoices and payments from files (QuickBooks reports, Excel or CSV); the company is recognised per row or per section ---- */
+const IMPA={LT:["light house","lighthouse"],UJO:["ujo","united jewish"],CCS:["ccs","catholic"],RY:["ry"],OR:["or"]};
+function impCo(t){const x=String(t||"").toLowerCase().replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();if(!x)return "";const cs=allCos();
+ for(const c of cs){if(x==c.toLowerCase())return c}
+ for(const c of cs){if(new RegExp("(^| )"+c.toLowerCase()+"( |$)").test(x))return c}
+ for(const c in IMPA)if(cs.includes(c)&&IMPA[c].some(a=>a.length>2&&x.indexOf(a)>=0))return c;return ""}
+function impNum(v){if(typeof v=="number")return v;let t=String(v==null?"":v).trim();if(!t)return NaN;const neg=/^\(.*\)$/.test(t)||/^-/.test(t);t=t.replace(/[^0-9.]/g,"");const n=parseFloat(t);return isNaN(n)?NaN:(neg?-n:n)}
+function impDate(v){if(v instanceof Date&&!isNaN(v))return isoD(v);if(typeof v=="number"&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+ const m=String(v||"").trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return y+"-"+String(m[1]).padStart(2,"0")+"-"+String(m[2]).padStart(2,"0")}
+ const i=String(v||"").trim().match(/^(\d{4})-(\d{2})-(\d{2})/);return i?i[0]:""}
+function impInvOpen(){document.getElementById("imp_inv_file").value="";document.getElementById("imp_inv_file").click()}
+async function impInvRead(files){
+ const rows=[],skipped=[];
+ try{await loadXlsx();for(const f of files){const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});
+  for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:""});if(!A.length)continue;
+   const hint=(f.name+" "+sn).toLowerCase();let hi=-1;
+   for(let i=0;i<Math.min(A.length,40);i++){const t=A[i].map(x=>String(x).toLowerCase());if(t.some(x=>/date/.test(x))&&t.some(x=>/amount|balance|payment/.test(x))){hi=i;break}}
+   if(hi<0){skipped.push(f.name+" / "+sn);continue}
+   const H=A[hi].map(x=>String(x).toLowerCase().trim()),find=(...rx)=>{for(const r of rx){const k=H.findIndex(h=>r.test(h));if(k>=0)return k}return -1};
+   const cD=find(/date/),cN=find(/^(num|no\.?|number|invoice( no\.?| number| #| num)?|ref|reference|check( no\.?| #| number)?)$/,/num|invoice|check|ref/),cA=find(/original amount/,/^amount$/,/payment amount/,/^total$/,/^payment$/,/amount/,/open balance|balance/),cC=find(/customer|company|payer|agency|^name$/),cT=find(/^type$|transaction type/),cM=find(/method|payment type|pay type/),cNo=find(/memo|note|description/);
+   let cur="";const fileCo=impCo(f.name);
+   for(let i=hi+1;i<A.length;i++){const r=A[i];const nz=r.filter(x=>String(x).trim()!=="");if(!nz.length)continue;
+    const d=impDate(r[cD]),a=impNum(r[cA]);
+    if(!d||isNaN(a)){const first=String(nz[0]).trim();if(nz.length<=2&&!/^total/i.test(first)&&isNaN(impNum(first))){cur=first}continue}
+    const rawCo=cC>=0&&String(r[cC]).trim()?String(r[cC]).trim():cur||sn;
+    const ty=cT>=0?String(r[cT]):"";let kind=/payment|credit|deposit/i.test(ty)?"pay":/invoice|bill/i.test(ty)?"inv":/payment|received/.test(hint)?"pay":"inv";
+    const meth=(cM>=0?String(r[cM]):ty+" "+(cNo>=0?String(r[cNo]):"")).toLowerCase(),pt=/ach|eft/.test(meth)?"ach":/wire/.test(meth)?"wire":/zelle/.test(meth)?"zelle":/cash/.test(meth)?"cash":/card|visa|master|amex/.test(meth)?"card":/check|chk/.test(meth)?"check":"other";
+    rows.push({kind:kind,raw:rawCo,co:impCo(rawCo)||fileCo,date:d,no:cN>=0?String(r[cN]).trim():"",amt:Math.round(Math.abs(a)*100)/100,neg:a<0,pt:pt,memo:cNo>=0?String(r[cNo]).trim():"",file:f.name})}}}
+ }catch(e){S.err="Could not read the file: "+((e&&e.message)||e);render();return}
+ if(!rows.length){S.err="No invoices or payments were found. The file needs a Date column and an Amount column"+(skipped.length?" (skipped: "+skipped.join(", ")+")":"")+".";render();return}
+ S.imp={rows:rows,map:{},busy:false,msg:""};impInvShow()}
+function impInvShow(){
+ const I=S.imp,un={};I.rows.forEach(r=>{if(!r.co)un[r.raw]=1});
+ const g={};I.rows.forEach(r=>{const c=r.co||I.map[r.raw]||"?";const o=g[c]=g[c]||{i:0,p:0,is:0,ps:0};if(r.kind=="pay"){o.p++;o.ps+=r.amt}else{o.i++;o.is+=r.amt}});
+ const cos=allCos(),opts=`<option value="">Choose company…</option>`+cos.map(c=>`<option value="${c}">${esc(coName(c))}</option>`).join("");
+ let d=document.getElementById("imp_ov");if(!d){d=document.createElement("div");d.id="imp_ov";d.className="ov";d.style.zIndex=60;document.body.appendChild(d)}
+ d.innerHTML=`<div class="mod" style="max-width:640px;padding:22px;max-height:90vh;overflow:auto"><h2 style="margin:0 0 6px">Import invoices &amp; payments</h2><p class="note">Found ${I.rows.length} rows. Check each company, then import.</p>
+ <table class="tbl" style="width:100%"><tr><th>Company</th><th>Invoices</th><th>Payments</th></tr>${Object.keys(g).sort().map(c=>`<tr><td><b>${c=="?"?"Not recognised":esc(coName(c))}</b></td><td>${g[c].i} · ${money2(g[c].is)}</td><td>${g[c].p} · ${money2(g[c].ps)}</td></tr>`).join("")}</table>
+ ${Object.keys(un).length?`<p class="err" style="margin-top:12px">These names were not recognised. Choose the company for each (or leave empty to skip):</p>${Object.keys(un).map((n,i)=>`<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="flex:1">${esc(n)}</span><select data-n="${esc(n)}" onchange="S.imp.map[this.dataset.n]=this.value;impInvShow()">${opts.replace('value="'+(I.map[n]||"__")+'"','value="'+(I.map[n]||"__")+'" selected')}</select></div>`).join("")}`:""}
+ <p id="imp_msg" class="note" style="margin-top:10px">${esc(I.msg)}</p>
+ <div style="display:flex;gap:10px;margin-top:14px"><button style="flex:1;padding:12px" onclick="document.getElementById('imp_ov').remove();S.imp=null">Cancel</button><button class="pri" style="flex:1;padding:12px" ${I.busy?"disabled":""} onclick="impInvGo()">${I.busy?"Importing…":"Import"}</button></div></div>`}
+async function impInvGo(){
+ const I=S.imp;if(!I||I.busy)return;I.busy=true;I.msg="";impInvShow();
+ const inv=[],pay=[];let skip=0;
+ I.rows.forEach(r=>{const c=r.co||I.map[r.raw]||"";if(!c||!r.amt){skip++;return}
+  if(r.kind=="pay"){pay.push({company:c,paid_on:r.date,amount:r.amt,ptype:r.pt,ref:r.no,note:"Imported from "+r.file+(r.memo?" · "+r.memo:"")})}
+  else if(!r.neg){inv.push({company:c,inv_date:r.date,inv_no:r.no,amount:r.amt,note:"Imported from "+r.file})}else skip++});
+ let oi=0,op=0,dup=0;
+ try{
+  for(let i=0;i<inv.length;i+=100){const b=inv.slice(i,i+100),x=await sb.from("invoices").insert(b);
+   if(!x.error)oi+=b.length;else for(const one of b){const y=await sb.from("invoices").insert(one);if(!y.error)oi++;else dup++}}
+  for(let i=0;i<pay.length;i+=100){const b=pay.slice(i,i+100),x=await sb.from("payments").insert(b);if(x.error)throw x.error;op+=b.length}
+  await loadPayDb();document.getElementById("imp_ov")&&document.getElementById("imp_ov").remove();S.imp=null;
+  S.msg="Imported "+oi+" invoices and "+op+" payments."+(dup?" "+dup+" invoices skipped (same company and number already saved).":"")+(skip?" "+skip+" rows skipped (no company, zero or negative amount).":"");S.err="";render()
+ }catch(e){I.busy=false;I.msg="Not saved: "+dberr(e)+(oi||op?" ("+oi+" invoices and "+op+" payments were saved before the error.)":"");impInvShow()}}
 function vBill(){
  if(!BILL.real)return BILL.err?`<div class="card"><h2>Billing</h2><p class="err">${esc(BILL.err)}</p><button onclick="loadBillDb()">Try again</button></div>`:`<div class="ldr"><img src="logo.png" alt=""><div class="spin"></div><b>Loading billing</b><span>Getting the weeks, prices and payments…</span></div>`;
  if(!BILL.weeks.length)return `<div class="card"><h2>Billing</h2><p class="note">No delivered orders in the database yet. Press Sync deliveries now on the Customers page.</p></div>`;
  const B=S.b=S.b||{t:"dash",co:"",wk:"",q:""},W=BILL.weeks,cos=allCos();
  const tab=B.t=="wk"?"dash":B.t,c0=B.co||cos[0];
- const nav=`<div class="card"><div class="bar"><button class="${tab=="dash"?"on":""}" onclick="bgo('dash')">Overview</button><button class="${tab=="co"?"on":""}" onclick="bgo('co','${c0}')">Companies</button><button class="${tab=="price"?"on":""}" onclick="bgo('price')">Settings</button>${tab=="co"?`<select onchange="bgo('co',this.value)" style="width:auto;margin-left:12px">${cos.map(c=>`<option value="${c}" ${B.co==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`:""}</div>
+ const nav=`<div class="card"><div class="bar"><button class="${tab=="dash"?"on":""}" onclick="bgo('dash')">Overview</button><button class="${tab=="co"?"on":""}" onclick="bgo('co','${c0}')">Companies</button><button class="${tab=="price"?"on":""}" onclick="bgo('price')">Settings</button>${tab=="co"?`<select onchange="bgo('co',this.value)" style="width:auto;margin-left:12px">${cos.map(c=>`<option value="${c}" ${B.co==c?"selected":""}>${esc(coName(c))}</option>`).join("")}</select>`:""}<span style="margin-left:auto"><button class="pri" onclick="impInvOpen()">⬆ Import invoices &amp; payments</button></span><input id="imp_inv_file" type="file" multiple accept=".xlsx,.xls,.csv" style="display:none" onchange="impInvRead(this.files)"></div>
  ${BILL.loading||BILL.bg||BILL.err?`<p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.bg?"Loading older weeks…":`<span class="err">${esc(BILL.err)}</span>`}</p>`:""}
  <details style="margin-top:8px"><summary class="note" style="cursor:pointer">How this is counted</summary><p class="note">A week runs Saturday to Friday. Weeks after your last sheet week are billed from that week's list (the SCN Sheet week tab you uploaded, every customer on the list once), not from scanned deliveries. If a week's list was not uploaded, today's active list is used. Meals customers are billed price per meal × 21 × household size; box customers by household size (flat box price × household, or the household price table). ${(BILL.impWeeks||[]).length?"Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""}${BILL.impErr?" The saved sheet weeks could not be read: "+esc(BILL.impErr):""}</p></details></div>`;
  return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="price"?bPrices():bDash())}
