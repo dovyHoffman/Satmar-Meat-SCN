@@ -148,7 +148,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b335">
+<meta name="build" content="b336">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -400,8 +400,8 @@ function vCard(){
  const c=cust.find(x=>x.id==S.sel);if(!c)return vList();
  const own=S.user.role=="owner",ed=own||upages(S.user).indexOf("changes")>=0,n=c.next||{},lock=false,dis=ed&&!lock?"":"disabled",o=opts(c);
  const ro=(l,v,w)=>`<label${w?` class="${w}"`:""}>${l}<div class="ro">${esc(v)||"–"}</div></label>`;
- const nsm=(id,on)=>`<span class="nsm"><input type="checkbox" id="${id}" ${on?"checked":""}> No SMS</span>`,nsr=on=>on?` <span class="ctag t-no" style="font-size:11px">No SMS</span>`:"",fCell=own?`<label>Cell<div class="inl"><input id="f_cell" value="${esc(c.cell)}">${nsm("f_nosmsc",c.noSmsC)}</div></label>`:`<label>Cell<div class="ro">${esc(c.cell)||"–"}${nsr(c.noSmsC)}</div></label>`,fLegal=own?`<label class="s2">Legal address<input id="f_legal" value="${esc(c.legal)}"></label>`:ro("Legal address",c.legal,"s2"),fSms="";
- const fPhone=own?`<label>Phone<div class="inl"><input id="f_phone" value="${esc(c.phone)}">${nsm("f_nosms",c.noSms)}</div></label>`:`<label>Phone<div class="ro">${esc(c.phone)||"–"}${nsr(c.noSms)}</div></label>`;
+ const nsm=(id,on)=>`<span class="nsm"><input type="checkbox" id="${id}" ${on?"checked":""}> No SMS</span>`,nsr=(on,pend)=>` <span class="ctag ${on?"t-no":""}" style="font-size:11px;${on?"":"opacity:.7"}">${on?"No SMS":"SMS ok"}</span>`+(pend!=null&&!!pend!==!!on?` <span class="note" style="font-size:11px">next week: ${pend?"No SMS":"SMS ok"}</span>`:""),fCell=own?`<label>Cell<div class="inl"><input id="f_cell" value="${esc(c.cell)}">${nsm("f_nosmsc",c.noSmsC)}</div></label>`:`<label>Cell<div class="ro">${esc(c.cell)||"–"}${nsr(c.noSmsC,n.nosmsc)}</div></label>`,fLegal=own?`<label class="s2">Legal address<input id="f_legal" value="${esc(c.legal)}"></label>`:ro("Legal address",c.legal,"s2"),fSms="";
+ const fPhone=own?`<label>Phone<div class="inl"><input id="f_phone" value="${esc(c.phone)}">${nsm("f_nosms",c.noSms)}</div></label>`:`<label>Phone<div class="ro">${esc(c.phone)||"–"}${nsr(c.noSms,n.nosms)}</div></label>`;
  const fAddr=own?`<label class="ac s2">Delivery address (street, apartment, city, state, zip)<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr,"s2");
  const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
