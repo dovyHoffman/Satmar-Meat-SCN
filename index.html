@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b386">
+<meta name="build" content="b387">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3201,8 +3201,14 @@ function chAvLoad(root){(root||document).querySelectorAll("[data-gp]").forEach(e
 async function chProf(){if(CH.prof||!chOwner())return;CH.prof={};try{const {data}=await sb.from("profiles").select("id,name,email,active,role");(data||[]).forEach(u=>CH.prof[u.id]=u)}catch(e){CH.prof=null}}
 async function chLoad(force){
  if(!chatOn())return;chProf();chGroupsLoad();
- try{const {data,error}=await sb.from("chat_messages").select("id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at,deleted_at").order("id",{ascending:false}).limit(500);
-  if(error)throw error;CH.all=(data||[]).reverse();CH.err="";if(chOwner()||!CH.rl){CH.rl=true;await chReadsLoad()}}
+ /* Egress saver: normally ask only for messages newer than the last one we have (usually nothing);
+    reload the whole list on first load, when forced, and every so often (to pick up deletions). */
+ CH.n=(CH.n||0)+1;const cols="id,room,sender,sender_name,body,kind,file_path,file_name,file_type,file_size,duration,created_at,deleted_at",
+ full=force||!CH.all||!CH.all.length||CH.n%(CH.open?24:20)==0;
+ try{let q;
+  if(full){const r=await sb.from("chat_messages").select(cols).order("id",{ascending:false}).limit(300);if(r.error)throw r.error;CH.all=(r.data||[]).reverse();q=1}
+  else{const last=CH.all[CH.all.length-1].id,r=await sb.from("chat_messages").select(cols).gt("id",last).order("id",{ascending:true}).limit(200);if(r.error)throw r.error;if((r.data||[]).length){CH.all=CH.all.concat(r.data);q=1}}
+  CH.err="";if(q&&(chOwner()||!CH.rl)){CH.rl=true;await chReadsLoad()}}
  catch(e){CH.err="Chat could not load ("+dberr(e)+"). The chat database update may not have been run yet."}
  chMarkSeen();chPaint(force)}
 function chMarkSeen(){if(!CH.open)return;const r=chRoom();if(!r)return;const l=chIn(r),id=l.length?l[l.length-1].id:0;if(id>(CH.seen[r]||0)){CH.seen[r]=id;chSaveSeen()}
@@ -3325,7 +3331,7 @@ async function chMic(){
 function chMicCancel(){if(CH.rec){CH.rec.cancel=true;CH.rec.mr.stop()}}
 async function chOpen(ev,path){ev.preventDefault();try{const u=await chUrl(path);window.open(u,"_blank")}catch(e){CH.err="Could not open: "+dberr(e);chPaint(true)}}
 async function chView(path){try{const u=await chUrl(path),o=document.createElement("div");o.className="ov";o.style.zIndex=60;o.onclick=e=>{if(e.target===o)o.remove()};o.innerHTML=`<div class="mod" style="max-width:94vw;max-height:92vh;overflow:auto;text-align:center"><div class="bar" style="justify-content:flex-end;margin:0 0 8px"><a href="${esc(u)}" target="_blank" download><button>Open / save</button></a><button onclick="this.closest('.ov').remove()">✕ Close</button></div><img src="${esc(u)}" style="max-width:100%;max-height:78vh"></div>`;document.body.appendChild(o)}catch(e){CH.err="Could not open: "+dberr(e);chPaint(true)}}
-function chTimer(){clearInterval(CH.t);if(!chatOn())return;CH.t=setInterval(()=>{if(!document.hidden&&!CH.rec&&!CH.busy)chLoad()},CH.open?4000:25000)}
+function chTimer(){clearInterval(CH.t);if(!chatOn())return;CH.t=setInterval(()=>{if(!document.hidden&&!CH.rec&&!CH.busy)chLoad()},CH.open?5000:60000)}
 function chSync(){
  let b=document.getElementById("chat_b");
  if(S.user&&sb&&CH.enabled===undefined){chEnabledLoad();return}
