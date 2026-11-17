@@ -193,6 +193,7 @@ Deno.serve(async (req) => {
         const urls = ((d.form && d.form.images) || []).map((x: any) => String(x.url || "")).filter(Boolean);
         rows.push({ order_id: "opt:" + o.id, customer_id: c.id, week_label: label(end), driver: String((o.scheduleInformation && o.scheduleInformation.driverName) || ""), delivered_at: end, route_started: d.startTime && d.startTime.utcTime ? new Date(String(d.startTime.utcTime) + "Z").toISOString() : null, receipt_url: d.tracking_url ? String(d.tracking_url) : "", photo_urls: urls, synced_at: new Date().toISOString(), snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: Number(od.load2) || 1 } });
       }
+      if (body.dry) return json({ ok: true, dry: true, orders: list.length, finished: done.size, would_save: rows.length, unmatched, not_finished: notdone, unmatched_examples: ex, sample: rows.slice(0, 3).map((r) => ({ delivered_at: r.delivered_at, driver: r.driver, week: r.week_label, pictures: r.photo_urls.length, area: r.snap.area, food: r.snap.food })) });
       // keep pictures already stored; store new ones (a few per run) so they do not expire
       let photos = 0;
       if (rows.length) {
