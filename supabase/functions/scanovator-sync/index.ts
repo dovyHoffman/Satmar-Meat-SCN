@@ -154,6 +154,70 @@ Deno.serve(async (req) => {
       const orders = (j.data || []).slice(0, 12).map((o: any) => { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o)) { if (v === null || v === undefined) continue; const t = typeof v === "object" ? JSON.stringify(v) : String(v); if (t !== "" && t !== "{}" && t !== "[]") r[k] = t.slice(0, typeof v === "object" ? 600 : 60); } return r; });
       return json({ ok: true, count: (j.data || []).length, orders });
     }
+    // ---- mode "optsync": owner only. Reads OptimoRoute (Motty's delivery system: BP / Monsey / Monroe), matches each order to a customer by phone + name, and saves finished deliveries (time, driver, pictures) in the same table as the Scanovator ones. ----
+    if (body.mode === "optsync") {
+      const key = String(Deno.env.get("OPTIMOROUTE_KEY") ?? "").trim();
+      if (!key) return json({ ok: false, error: "Secret OPTIMOROUTE_KEY is not set in Supabase (Edge Functions > Secrets)." });
+      const K = encodeURIComponent(key), days = Math.min(Math.max(Number(body.days) || 7, 1), 30);
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const sr = await fetch("https://api.optimoroute.com/v1/search_orders?key=" + K, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dateRange: { from: iso(new Date(Date.now() - days * 864e5)), to: iso(new Date(Date.now() + 864e5)) }, includeOrderData: true, includeScheduleInformation: true }) });
+      const sj: any = await sr.json().catch(() => ({}));
+      if (!sj.success) return json({ ok: false, error: "OptimoRoute search_orders: " + (sj.code || sr.status) + " " + String(sj.message || "").slice(0, 200) });
+      const list: any[] = (sj.orders || []).filter((o: any) => o && o.id);
+      // finished orders: ask in batches by id (order numbers are not unique there)
+      const done = new Map<string, any>();
+      for (let i = 0; i < list.length; i += 100) {
+        const ids = list.slice(i, i + 100).map((o: any) => ({ id: String(o.id) }));
+        const cr = await fetch("https://api.optimoroute.com/v1/get_completion_details?key=" + K, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orders: ids }) });
+        const cj: any = await cr.json().catch(() => ({}));
+        (cj.orders || []).forEach((c: any, n: number) => { if (c && c.success && c.data) done.set(String(c.id || ids[n].id), c.data); });
+      }
+      // customers (active) indexed by phone
+      const cust: any[] = [];
+      for (let f = 0; ; f += 1000) {
+        const { data, error } = await sb.from("customers").select("id,name,phone,cell,food,hh,area,middleton,base").eq("active", true).order("id").range(f, f + 999);
+        if (error) throw error; cust.push(...(data || [])); if (!data || data.length < 1000) break;
+      }
+      const byPh = new Map<string, any[]>();
+      for (const c of cust) for (const p of [digits(c.phone), digits(c.cell)]) if (p.length === 10) { const a = byPh.get(p) || []; if (!a.includes(c)) a.push(c); byPh.set(p, a); }
+      const wset = (t: unknown) => new Set(String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter((w) => w.length >= 3));
+      let unmatched = 0, notdone = 0; const ex: string[] = [], rows: any[] = [];
+      for (const o of list) {
+        const d = done.get(String(o.id));
+        if (!d || d.status !== "success") { notdone++; continue; }
+        const od = o.data || o, ph = digits(od.phone), nm = wset((od.location && od.location.locationName) || od.orderNo);
+        const cands = (byPh.get(ph) || []).map((c) => ({ c, n: [...wset(c.name)].filter((w) => nm.has(w)).length })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+        if (!cands.length || (cands.length > 1 && cands[0].n === cands[1].n)) { unmatched++; if (ex.length < 5) ex.push(String(od.orderNo || "").slice(0, 40)); continue; }
+        const c = cands[0].c, end = d.endTime && d.endTime.utcTime ? new Date(String(d.endTime.utcTime) + "Z").toISOString() : null;
+        if (!end) { notdone++; continue; }
+        const urls = ((d.form && d.form.images) || []).map((x: any) => String(x.url || "")).filter(Boolean);
+        rows.push({ order_id: "opt:" + o.id, customer_id: c.id, week_label: label(end), driver: String((o.scheduleInformation && o.scheduleInformation.driverName) || ""), delivered_at: end, route_started: d.startTime && d.startTime.utcTime ? new Date(String(d.startTime.utcTime) + "Z").toISOString() : null, receipt_url: d.tracking_url ? String(d.tracking_url) : "", photo_urls: urls, synced_at: new Date().toISOString(), snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: Number(od.load2) || 1 } });
+      }
+      // keep pictures already stored; store new ones (a few per run) so they do not expire
+      let photos = 0;
+      if (rows.length) {
+        const ids = rows.map((r) => r.order_id), have = new Map<string, string[]>();
+        for (let i = 0; i < ids.length; i += 200) { const { data: ex2 } = await sb.from("deliveries").select("order_id,photo_paths").in("order_id", ids.slice(i, i + 200)); (ex2 || []).forEach((x: any) => have.set(String(x.order_id), x.photo_paths || [])); }
+        for (const r of rows) {
+          const paths: string[] = [...(have.get(r.order_id) || [])].slice(0, r.photo_urls.length);
+          for (let n = 0; n < r.photo_urls.length && photos < 25; n++) {
+            if (paths[n]) continue;
+            try {
+              const rr = await fetch(r.photo_urls[n]); const type = rr.headers.get("content-type") || "";
+              if (!rr.ok || !type.startsWith("image/")) { await rr.body?.cancel(); continue; }
+              const path = `${r.order_id.replace(":", "-")}/${n}.${type.includes("png") ? "png" : "jpg"}`;
+              const { error } = await sb.storage.from("pods").upload(path, await rr.arrayBuffer(), { contentType: type, upsert: true });
+              if (!error) { paths[n] = path; photos++; }
+            } catch (_) { /* try again next time */ }
+          }
+          r.photo_paths = paths;
+        }
+        let up = await sb.from("deliveries").upsert(rows, { onConflict: "order_id" });
+        if (up.error) { const r2 = rows.map((r) => { const { snap, ...rest } = r; return rest; }); up = await sb.from("deliveries").upsert(r2, { onConflict: "order_id" }); }
+        if (up.error) return json({ ok: false, error: "could not save: " + up.error.message });
+      }
+      return json({ ok: true, orders: list.length, finished: done.size, saved: rows.length, unmatched, not_finished: notdone, photos_stored: photos, unmatched_examples: ex });
+    }
     // ---- mode "optlook": owner only. Shows what OptimoRoute (Motty's delivery system for BP / Monsey / Monroe) sends: a few orders and their completion details. ----
     if (body.mode === "optlook") {
       const key = String(Deno.env.get("OPTIMOROUTE_KEY") ?? "").trim();
