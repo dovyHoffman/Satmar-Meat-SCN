@@ -167,13 +167,16 @@ Deno.serve(async (req) => {
         if (!sj.success) return json({ ok: false, error: "search_orders: " + (sj.code || sr.status) + " " + String(sj.message || "").slice(0, 200) });
         const list: any[] = sj.orders || [];
         const nos = list.map((o: any) => String((o.data && o.data.orderNo) || o.orderNo || "")).filter(Boolean).slice(0, 3);
-        let comp: any[] = [];
+        // Delivery details: try the known ways of asking and show the raw answer of each, so one press tells us which works.
+        const comp: any[] = [], K = encodeURIComponent(key), ids = list.slice(0, 3).map((o: any) => String(o.id || "")).filter(Boolean);
+        const tryOne = async (label: string, url: string, init?: any) => {
+          try { const r = await fetch(url, init); const t = await r.text(); comp.push({ attempt: label, http: String(r.status), body: t.slice(0, 1500) }); } catch (e) { comp.push({ attempt: label, error: String((e as any)?.message || e) }); }
+        };
         if (nos.length) {
-          const cr = await fetch("https://api.optimoroute.com/v1/get_completion_details?key=" + encodeURIComponent(key) + nos.map((n) => "&orderNo=" + encodeURIComponent(n)).join(""));
-          const cj: any = await cr.json().catch(() => ({}));
-          comp = (cj.orders || []).map(cut);
-          if (!cj.success) comp = [{ error: String(cj.code || cr.status) + " " + String(cj.message || "").slice(0, 200) }];
+          await tryOne("GET orderNo", "https://api.optimoroute.com/v1/get_completion_details?key=" + K + nos.map((n) => "&orderNo=" + encodeURIComponent(n)).join(""));
+          await tryOne("POST orders[orderNo]", "https://api.optimoroute.com/v1/get_completion_details?key=" + K, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orders: nos.map((n) => ({ orderNo: n })) }) });
         }
+        if (ids.length) await tryOne("POST orders[id]", "https://api.optimoroute.com/v1/get_completion_details?key=" + K, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orders: ids.map((n) => ({ id: n })) }) });
         return json({ ok: true, count: list.length, orders: list.slice(0, 3).map((o: any) => cut({ ...o, ...(o.data || {}), data: undefined })), completion: comp });
       } catch (e) { return json({ ok: false, error: String((e as any)?.message || e) }); }
     }
