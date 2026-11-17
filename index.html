@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b408">
+<meta name="build" content="b409">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -267,7 +267,8 @@ function render(){
  if(!u){app.innerHTML=vLogin();return}
  const nv=navFor(u);if(S.view=="menu"&&!upages(u).includes("menu")&&mTabsFor(u).length)S.view=mTabsFor(u)[0][0];
  if(!nv.some(n=>n[0]==S.view)&&!inSet(u,S.view)&&!inMenu(u,S.view)&&!(S.view=="card"&&nv.some(n=>n[0]=="customers")))S.view=(nv[0]||["customers"])[0];
- const m=(S.view=="dashboard"&&u.role=="owner"?banner():"")+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
+ let m=(S.view=="dashboard"&&u.role=="owner"?banner():"")+(S.msg?`<p class="msg">${esc(S.msg)}</p>`:"")+(S.err?`<p class="err">${esc(S.err)}</p>`:"");
+ window.BMSG="";if(S.view=="billing"){window.BMSG=m;m=""}
  if(S.loading&&!S.real&&u.role!="demo"&&({dashboard:1,customers:1,card:1,changes:1,delivery:1})[S.view]){app.innerHTML=m+`<div class="ldr"><img src="logo.png" alt=""><div class="spin"></div><b>Loading your customers</b><span>Just a moment…</span></div>`;return}
  app.innerHTML=m+(inSet(u,S.view)||(S.view=="settings"&&u.role=="owner")?setTabs():"")+(({dashboard:vDash,customers:()=>vList(true),card:vCard,import:vImport,newlist:vNewList,settings:vSettings,changes:vChanges,history:vHist,chat:vChatPage,menu:()=>mTabs()+vMenu(),raw:()=>mTabs()+vRawM("raw"),meat:()=>mTabs()+vRawM("meat"),kitchen:()=>mTabs()+vKitchen(),billing:vBill,delivery:vDelivery}[S.view])||(()=>""))();
  if(S.view=="card"){setupAC();fillOpt()}
@@ -890,7 +891,11 @@ async function impInvGo(){
  let oi=0,op=0,dup=0;
  try{
   for(let i=0;i<inv.length;i+=100){const b=inv.slice(i,i+100),x=await sb.from("invoices").insert(b);
-   if(!x.error)oi+=b.length;else for(const one of b){const y=await sb.from("invoices").insert(one);if(!y.error)oi++;else dup++}}
+   if(!x.error)oi+=b.length;else for(const one of b){let y=await sb.from("invoices").insert(one);
+    if(y.error){const old=await sb.from("invoices").select("id,inv_no").eq("company",one.company).eq("inv_no",one.inv_no).eq("voided",true);
+     if(old.data&&old.data.length&&!old.error){let ok=true;for(const o of old.data){const u=await sb.from("invoices").update({inv_no:o.inv_no+" (voided #"+o.id+")",updated_at:new Date().toISOString()}).eq("id",o.id);if(u.error)ok=false}
+      if(ok)y=await sb.from("invoices").insert(one)}}
+    if(!y.error)oi++;else dup++}}
   for(let i=0;i<pay.length;i+=100){const b=pay.slice(i,i+100),x=await sb.from("payments").insert(b);if(x.error)throw x.error;op+=b.length}
   await loadPayDb();document.getElementById("imp_ov")&&document.getElementById("imp_ov").remove();S.imp=null;
   S.msg="Imported "+oi+" invoices and "+op+" payments."+(dup?" "+dup+" invoices skipped (same company and number already saved).":"")+(skip?" "+skip+" rows skipped (no company, zero or negative amount).":"");S.err="";render()
@@ -903,7 +908,7 @@ function vBill(){
  const nav=`<div class="card bnav"><div class="bar"><button class="${tab=="dash"?"on":""}" onclick="bgo('dash')">Overview</button>${cos.map(c=>`<button class="${tab=="co"&&c0==c?"on":""}" onclick="bgo('co','${c}')">${esc(coName(c))}</button>`).join("")}<button class="${tab=="price"?"on":""}" onclick="bgo('price')">Settings</button><span style="margin-left:auto"><button class="pri" onclick="impInvOpen()">⬆ Import invoices &amp; payments</button></span><input id="imp_inv_file" type="file" multiple accept=".xlsx,.xls,.csv" style="display:none" onchange="impInvRead(this.files)"></div>
  ${BILL.loading||BILL.bg||BILL.err?`<p class="note" style="margin:8px 0 0">${BILL.loading?"Loading the deliveries…":BILL.bg?"Loading older weeks…":`<span class="err">${esc(BILL.err)}</span>`}</p>`:""}
  <details style="margin-top:8px"><summary class="note" style="cursor:pointer">How this is counted</summary><p class="note">A week runs Saturday to Friday. Weeks after your last sheet week are billed from that week's list (the SCN Sheet week tab you uploaded, every customer on the list once), not from scanned deliveries. If a week's list was not uploaded, today's active list is used. Meals customers are billed price per meal × 21 × household size; box customers by household size (flat box price × household, or the household price table). ${(BILL.impWeeks||[]).length?"Weeks taken from your Billing SCN 82 sheet: "+BILL.impWeeks.join(", ")+".":""}${BILL.impErr?" The saved sheet weeks could not be read: "+esc(BILL.impErr):""}</p></details></div>`;
- return nav+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="price"?bPrices():bDash())}
+ return nav+(window.BMSG||"")+(B.t=="co"?bCo(B.co):B.t=="wk"?bWk(B.wk):B.t=="price"?bPrices():bDash())}
 function bDash(){
  const W=BILL.weeks,w0=W[0],e0=wkEst(w0),w1=W[1],e1=w1?wkEst(w1):null,d=e1&&e1.t?Math.round((e0.t-e1.t)/e1.t*100):null;
  const kp=(l,v,s)=>`<div class="kpi"><span class="note">${l}</span><b>${v}</b>${s?`<span class="note">${s}</span>`:""}</div>`;
