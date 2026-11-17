@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b411">
+<meta name="build" content="b412">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3277,12 +3277,12 @@ async function chLoad(force){
  chMarkSeen();chPaint(force)}
 function chMarkSeen(){if(!CH.open)return;const r=chRoom();if(!r)return;const l=chIn(r),id=l.length?l[l.length-1].id:0;if(id>(CH.seen[r]||0)){CH.seen[r]=id;chSaveSeen()}
  if(id&&sb&&S.user&&id>((CH.sent||{})[r]||0)){CH.sent=CH.sent||{};CH.sent[r]=id;sb.from("chat_reads").upsert({room:r,user_id:S.user.id,last_id:id,updated_at:new Date().toISOString()}).then(()=>{},()=>{})}}
-async function chReadsLoad(){try{const {data,error}=await sb.from("chat_reads").select("room,user_id,last_id");if(error)throw error;const o={};(data||[]).forEach(x=>{(o[x.room]=o[x.room]||{})[x.user_id]=+x.last_id});CH.reads=o;(data||[]).forEach(x=>{if(S.user&&x.user_id==S.user.id&&+x.last_id>(CH.seen[x.room]||0)){CH.seen[x.room]=+x.last_id;CH.seenDb=1}});if(CH.seenDb){CH.seenDb=0;chSaveSeen()}const k=JSON.stringify(o);if(k!=CH.rk){CH.rk=k;CH.sig="";chPaint(false)}}catch(e){}}
+async function chReadsLoad(){try{const {data,error}=await sb.from("chat_reads").select("room,user_id,last_id,updated_at");if(error)throw error;const o={},ra={};(data||[]).forEach(x=>{(o[x.room]=o[x.room]||{})[x.user_id]=+x.last_id;(ra[x.room]=ra[x.room]||{})[x.user_id]=x.updated_at});CH.reads=o;CH.rat=ra;(data||[]).forEach(x=>{if(S.user&&x.user_id==S.user.id&&+x.last_id>(CH.seen[x.room]||0)){CH.seen[x.room]=+x.last_id;CH.seenDb=1}});if(CH.seenDb){CH.seenDb=0;chSaveSeen()}const k=JSON.stringify(o);if(k!=CH.rk){CH.rk=k;CH.sig="";chPaint(false)}}catch(e){}}
 function chReaders(m){const r=m.room;let ids;if(/^support:/.test(r))ids=[r.slice(8)];else ids=((CH.mem||{})[r]||[]).map(u=>u.id);ids=ids.filter(id=>id!=m.sender);const rd=(CH.reads||{})[r]||{};return {all:ids,read:ids.filter(id=>(rd[id]||0)>=m.id)}}
 function chName(id){const g=Object.values(CH.mem||{}).flat().find(u=>u.id==id);return (g&&g.name)||((CH.prof||{})[id]||{}).name||"User"}
 function chMsgMenu(id){const m=CH.all.find(x=>x.id==id);if(!m||!chOwner())return;const rr=chReaders(m),del=!!m.deleted_at;
  const o=document.createElement("div");o.className="ov";o.style.zIndex=70;
- const nm=a=>a.length?a.map(i=>"• "+esc(chName(i))).join("<br>"):"<span class='note'>nobody</span>";
+ const nm=a=>a.length?a.map(i=>{const t=((CH.rat||{})[m.room]||{})[i];return "• "+esc(chName(i))+(a===rr.read&&t?" <span class='note'>· "+esc((d=>(d.getMonth()+1)+"/"+d.getDate()+"/"+d.getFullYear()+" "+d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}))(new Date(t)))+"</span>":"")}).join("<br>"):"<span class='note'>nobody</span>";
  o.innerHTML=`<div class="mod" style="max-width:380px;padding:20px"><div style="font-size:17px;font-weight:700">Message info</div><div class="note" style="margin:4px 0 12px">${esc(m.sender_name||"")} · ${chTime(m.created_at)}</div>
   <div style="font-weight:600">Read by (${rr.read.length}${rr.all.length?" of "+rr.all.length:""})</div><div style="margin:4px 0 10px;line-height:1.6">${nm(rr.read)}</div>
   ${rr.all.length>rr.read.length?`<div style="font-weight:600">Not read yet</div><div style="margin:4px 0 10px;line-height:1.6">${nm(rr.all.filter(i=>rr.read.indexOf(i)<0))}</div>`:""}
@@ -3301,7 +3301,7 @@ function chMsgHtml(m){const me=m.sender==S.user.id,who=me?"You":esc(m.sender_nam
  else if(m.kind=="voice"&&m.file_path)c=`<audio controls preload="none" data-p="${esc(m.file_path)}"></audio><div class="note">Voice note ${chDur(m.duration||0)}</div>`;
  else if(m.file_path)c=`<a href="#" onclick="chOpen(event,'${esc(m.file_path)}')">📎 ${esc(m.file_name||"file")}${m.file_size?" · "+chSize(m.file_size):""}</a>`;
  if(m.body)c+=(c?"<div style='margin-top:4px'></div>":"")+esc(m.body);
- let ad="";if(chOwner()){const rr=chReaders(m);ad=`<div class="note" style="margin-top:4px;cursor:pointer;font-size:12px" onclick="chMsgMenu(${m.id})">${rr.all.length&&rr.read.length>=rr.all.length?"✓✓":"✓"} ${rr.read.length}/${rr.all.length||0} read · ⋯</div>`}
+ let ad="";if(chOwner()){const rr=chReaders(m);ad=`<div class="note" style="margin-top:4px;cursor:pointer;font-size:12px" onclick="chMsgMenu(${m.id})">⋯</div>`}
  return `<div class="chm${me?" me":""}"><div class="chw">${who} · ${chTime(m.created_at)}</div><div class="chx">${c}${ad}</div></div>`}
 function chPaint(force){
  const b=document.getElementById("chat_b");if(!b)return;
