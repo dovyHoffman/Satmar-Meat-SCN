@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b391">
+<meta name="build" content="b392">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2582,7 +2582,7 @@ function vSettings(){
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
 </div>
 <div class="card"><h2>Deliveries and pictures (PODs)</h2>
-<p class="note">While you are signed in as owner with the site open, it checks for new deliveries by itself every 15 minutes, Monday to Friday, 10:00am to 9:00pm (New York time). Each check always covers the whole week from Monday (orders created a few days earlier are included), not the full 4 weeks. Outside those hours, or with the site closed, nothing runs.</p>
+<p class="note">While you are signed in as owner with the site open, it checks for new deliveries by itself once at 3pm, 5pm, 7pm and 9pm (New York time), Monday to Thursday. Each check always covers the whole week from Monday (orders created a few days earlier are included), not the full 4 weeks. At any other time, or with the site closed, nothing runs. You can always press the button.</p>
 <label><input type="checkbox" style="width:auto" ${autoOn()?"checked":""} onchange="autoSet(this.checked)"> Check automatically</label>
 <p class="note">${S.autoAt?"Last automatic check: "+new Date(S.autoAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+(S.autoErr?" · problem: "+esc(S.autoErr):""):"No automatic check yet in this session."}</p>
 <button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now (full, last 4 weeks)"}</button>
@@ -3627,13 +3627,13 @@ async function syncNow(auto){
   {const t0=weekStart(),n=cust.filter(c=>(c.pods||[]).some(p=>p.ts&&p.ts>=t0)).length;S.msg+=" Customers with a delivery this week: "+n+". Example IDs in your list: "+cust.slice(0,3).map(c=>c.ref).join(", ")+".";S.msg+=" Orders in the last 28 days: with a customer code "+wc+", with an online order id "+wo+", delivered "+dn+(cex.length?". Examples of codes found on orders: "+cex.join(", "):"")+(dsm.length?". Fields on a delivered order: "+dsm.join("; "):"")+".";S.msg+=(ck.length?" Box letters read from: "+ck.join(", ")+".":" No \"case description\" field was found on the orders.");S.msg+=(Object.keys(idp).length?" Your IDs were found in these order fields: "+Object.entries(idp).map(([k,v])=>k+" ("+v+")").join(", ")+".":"")+(nom&&sp.length?" Fields on an order: "+sp.join("; ")+".":"");if(DG.delivered_skipped!=null){S.msg+=" Not matched, delivered in the last 6 days: "+DG.delivered_skipped+" (no customer ID on the order: "+(DG.no_code||0)+"; name matches exactly one customer: "+(DG.name_unique||0)+"; name matches several: "+(DG.name_several||0)+"; only the phone is in your list: "+(DG.phone_only||0)+"; nothing matches: "+(DG.nothing||0)+")."}S.syncRes=S.msg}
  }catch(e){if(auto)S.autoErr=(e&&e.message)||String(e);else S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";if(auto){S.autoAt=Date.now();const ae=document.activeElement;if(!ae||!/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))render()}else render()}
-/* ---- automatic delivery sync: Mon-Fri 10:00-21:00 New York, every 15 minutes, owner signed in, last 3 days only ---- */
+/* ---- automatic delivery sync: Mon-Thu at 3, 5, 7 and 9 pm New York, once each, owner signed in, last 3 days only ---- */
 function autoOn(){try{return localStorage.getItem("sm_autosync")!=="0"}catch(e){return true}}
 function autoSet(v){try{localStorage.setItem("sm_autosync",v?"1":"0")}catch(e){}render()}
 function nyNow(){const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"numeric",hour12:false}).formatToParts(new Date()),g=t=>(p.find(x=>x.type==t)||{}).value;return {d:g("weekday"),h:Number(g("hour"))%24}}
 function autoDays(){const m={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6}[nyNow().d]||0;return m+4}   // back to Monday of this week, plus 3 days because an order is created before it is delivered
-function autoWin(){const n=nyNow();return ["Mon","Tue","Wed","Thu","Fri"].includes(n.d)&&n.h>=10&&n.h<21}
-setInterval(()=>{try{if(!S.user||S.user.role!="owner"||S.syncing||!autoOn()||!autoWin())return;if(S.autoAt&&Date.now()-S.autoAt<15*60e3)return;S.autoAt=Date.now();syncNow(true)}catch(e){}},60e3);
+function autoWin(){const n=nyNow();return ["Mon","Tue","Wed","Thu"].includes(n.d)&&[15,17,19,21].includes(n.h)}
+setInterval(()=>{try{if(!S.user||S.user.role!="owner"||S.syncing||!autoOn()||!autoWin())return;const sl=new Date().toDateString()+"|"+nyNow().h;if(S.autoSlot===sl)return;S.autoSlot=sl;S.autoAt=Date.now();syncNow(true)}catch(e){}},60e3);
 
 
 /* ---- deliveries shown from the database ---- */
