@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b420">
+<meta name="build" content="b421">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -417,7 +417,7 @@ function vCard(){
  const nsm=(id,on)=>`<span class="nsm"><input type="checkbox" id="${id}" ${on?"checked":""}> No SMS</span>`,nsr=(on,pend)=>`<span class="nsm"><input type="checkbox" disabled ${on?"checked":""}> No SMS</span>`+(pend!=null&&!!pend!==!!on?` <span class="note" style="font-size:11px">next week: ${pend?"No SMS":"SMS ok"}</span>`:""),fCell=own?`<label>Cell<div class="inl"><input id="f_cell" value="${esc(c.cell)}">${nsm("f_nosmsc",c.noSmsC)}</div></label>`:stf?`<label>Cell<div class="inl"><input id="t_cell" value="${esc(c.cell)}">${nsr(c.noSmsC,n.nosmsc)}</div></label>`:`<label>Cell<div class="inl"><div class="ro" style="flex:0 0 auto">${esc(c.cell)||"–"}</div>${nsr(c.noSmsC,n.nosmsc)}</div></label>`,fLegal=own?`<label class="lg">Legal address<input id="f_legal" value="${esc(c.legal)}"></label>`:ro("Legal address",c.legal,"lg"),fSms="";
  const fPhone=own?`<label>Phone<div class="inl"><input id="f_phone" value="${esc(c.phone)}">${nsm("f_nosms",c.noSms)}</div></label>`:stf?`<label>Phone<div class="inl"><input id="t_phone" value="${esc(c.phone)}">${nsr(c.noSms,n.nosms)}</div></label>`:`<label>Phone<div class="inl"><div class="ro" style="flex:0 0 auto">${esc(c.phone)||"–"}</div>${nsr(c.noSms,n.nosms)}</div></label>`;
  const fAddr=own?`<label class="ac">Delivery address<input id="f_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:stf&&c.agency!="RY"?`<label class="ac">Delivery address<input id="t_addr" autocomplete="off" value="${esc(fmtA(c.a))}"></label>`:ro("Delivery address",c.addr);
- const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
+ const fArea=own?`<label>Area<select id="f_area">${areaOpts(c.area)}</select></label>`:stf?`<label>Area<select id="t_area">${AREAS.indexOf(c.area)<0?`<option selected>${esc(c.area)}</option>`:""}${areaOpts(c.area)}</select></label>`:ro("Area",c.area);
  const fApt=own?`<label>Apartment number<input id="f_apt" value="${esc(c.apt)}"></label>`:stf&&c.agency!="RY"?`<label>Apartment number<input id="t_apt" value="${esc(c.apt)}"></label>`:ro("Apartment number",c.apt);
  const fDN=own?`<label>Delivery notes<textarea id="f_notes" rows="1">${esc(c.notes)}</textarea></label>`:stf?`<label>Delivery notes<textarea id="t_notes" rows="1">${esc(c.notes)}</textarea></label>`:ro("Delivery notes",c.notes),fCN=own?`<label class="cn">Customer notes<textarea id="f_notes2" rows="1">${esc(c.note2)}</textarea></label>`:stf?`<label class="cn">Customer notes<textarea id="t_notes2" rows="1">${esc(c.note2)}</textarea></label>`:ro("Customer notes",c.note2,"cn");
  const nfs=(id,l,v,ph,cid,on0,pv)=>{const on=pv!=null?!!pv:on0;return `<label>${l}<div class="inl"><input id="${id}" value="${esc(v||"")}" placeholder="${esc(ph)}" ${dis}><span class="nsm"><input type="checkbox" id="${cid}" ${on?"checked":""} ${dis} onchange="saveNext(${c.id},1)"> No SMS</span></div></label>`};
@@ -2764,6 +2764,7 @@ async function saveNow(id){
 function saveTop(id){const c=cust.find(x=>x.id==id),g=i=>document.getElementById(i);if(!c)return;
  const map=[["t_phone","nf_phone",c.phone],["t_cell","nf_cell",c.cell],["t_addr","nf_addr",fmtA(c.a)],["t_apt","nf_apt",c.apt],["t_notes","nf_notes",c.notes],["t_notes2","nf_notes2",c.note2]];let n=0;
  map.forEach(m=>{const a=g(m[0]),b=g(m[1]);if(!a||!b||b.disabled)return;const v=a.value.trim();if(v!==String(m[2]||"").trim()){b.value=v;n++}});
+ const ta=g("t_area");window.TOPAREA=ta&&ta.value!==c.area?ta.value:null;if(window.TOPAREA)n++;
  if(!n){const ce=g("ce");if(ce)ce.textContent="Nothing was changed in this section.";return}
  saveNext(id)}
 async function saveNext(id,fromBox){
@@ -2781,6 +2782,7 @@ async function saveNext(id,fromBox){
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
   const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
   if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!==c.area)nx.area=ar}}
+ if(window.TOPAREA&&window.TOPAREA!==c.area)nx.area=window.TOPAREA;window.TOPAREA=null;
  const had=c.next&&c.next.rid;
  if(had&&c.next.ew&&c.next.ew!=nwk()){ce.textContent="This customer already has changes waiting for the week of "+c.next.ew+". Apply or cancel those first, then add changes for "+nwk()+".";return}
  if(!Object.keys(nx).length){
