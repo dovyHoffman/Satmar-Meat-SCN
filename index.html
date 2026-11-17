@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b401">
+<meta name="build" content="b402">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3461,8 +3461,9 @@ async function dvFile(kind,real,pre){
 
 const dvTabs=()=>upages(S.user).indexOf("delivery")<0?"":`<div class="bar" style="margin-bottom:8px"><button class="${DV.tab=="prev"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button><button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`;
 function dvTabsList(){
- const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;String(r.letters||"").split(",").filter(Boolean).forEach(l=>{const p=String(r.delivery_date).split("-"),k=l+"_"+(+p[1])+"_"+(+p[2]);(m[k]=m[k]||{k:k,d:r.delivery_date,l:l,rows:[]}).rows.push(r)})});
- return Object.values(m).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.l<b.l?-1:1)}
+ /* One entry per confirmed list = one file, exactly as it was downloaded (all box types together). */
+ const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;const k="b:"+(r.batch||r.delivery_date);(m[k]=m[k]||{k:k,rows:[],ds:{},at:r.created_at}).rows.push(r);m[k].ds[r.delivery_date]=1;if(r.created_at&&r.created_at<m[k].at)m[k].at=r.created_at});
+ return Object.values(m).map(t=>{const ds=Object.keys(t.ds).sort();t.d=ds[0];t.name="Delivery_"+ds.join("_");return t}).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.at<b.at?1:-1)}
 function impMap(){
  if(BILL.impMap)return BILL.impMap;if(!BILL.impAll)return null;
  const M={},WK={},strip=r=>nk(String(r==null?"":r).replace(/\.0+$/,"")).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,"");
@@ -3491,8 +3492,7 @@ async function loadImpAll(){
  BILL.impLoading=false;render()}
 const PHEAD=["Last name","First name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"],PKEYS=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Application ID","admin_notes","Food Type","Type food","Company"];
 function dvAllTabs(){
- const a=dvTabsList().map(t=>({k:t.k,d:t.d,n:t.rows.length,src:"new",rows:t.rows.map(r=>r.line),at:t.rows[0].created_at}));
- (DV.arch||[]).forEach(t=>a.push({k:"old:"+t.tab,name:t.tab,d:t.delivery_date||"",n:Number(t.n),src:"arch"}));
+ const a=dvTabsList().map(t=>({k:t.k,name:t.name,d:t.d,n:t.rows.length,src:"new",rows:t.rows.map(r=>r.line),at:t.at}));
  return a.sort((x,y)=>x.d<y.d?1:x.d>y.d?-1:x.k<y.k?-1:1)}
 async function dvOpenArch(k){
  DV.ptab=k;const t=k.slice(4);render();
@@ -3514,7 +3514,7 @@ function vPrev(){
   ${L?`<div style="overflow:auto;margin-top:10px"><table class="tl"><tr><th>POD links</th>${PHEAD.map(h=>`<th>${h}</th>`).join("")}</tr>${L.map(r=>{const pl=podFor(r,cur.d);return `<tr><td style="white-space:nowrap">${pl==null?`<span class="note">${BILL.impErr?"?":"…"}</span>`:pl.length?pl.map((u,i)=>LNK(u,"POD"+(pl.length>1?" "+(i+1):""))).join(" · "):`<span class="note">–</span>`}</td>${PKEYS.map(k=>{const v=r[k];return `<td title="${esc(v)}">${esc(v)}</td>`}).join("")}</tr>`}).join("")}</table></div>`:`<p class="note">Opening…</p>`}</div>`}
  const W={};T.forEach(t=>{if(!t.d)return;const w=dvWk(t.d),k=isoD(w);(W[k]=W[k]||{k:k,w:w,tabs:[]}).tabs.push(t)});
  const ws=Object.values(W).sort((a,b)=>a.k<b.k?1:-1);
- return dvTabs()+`<div class="card"><h2>Previous deliveries</h2><p class="note">One row for every week (Saturday to Friday). Click a week to see its tabs, then click a tab to open the full list. Lists you confirm are added automatically; older ones come from your Labels Delivery sheet (Import page).</p>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
+ return dvTabs()+`<div class="card"><h2>Previous deliveries</h2><p class="note">One row for every week (Saturday to Friday). Click a week to see its tabs, then click a tab to open the full list. Only the delivery files you confirm on New delivery are listed here, one entry per file, exactly as downloaded.</p>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
   ${ws.length?ws.map(x=>{const open=DV.pwk==x.k,n=x.tabs.reduce((a,t)=>a+t.n,0),tabs=x.tabs.slice().sort((a,b)=>(a.name||a.k)<(b.name||b.k)?-1:1);
    return `<div class="wkrow${open?" open":""}"><button class="wkh" onclick="DV.pwk=${open?"null":`'${x.k}'`};render()"><span class="wkc">${open?"▾":"▸"}</span><b>${esc(dvWkLbl(x.w))}</b><span class="note">${x.tabs.length} tab${x.tabs.length==1?"":"s"} · ${n.toLocaleString()} deliveries</span></button>
    ${open?`<div class="chps" style="padding:4px 4px 12px 30px">${tabs.map(t=>`<button class="chp" style="background:#fff" onclick="${t.src=="arch"?`DV.pwk='${x.k}';dvOpenArch('${esc(t.k).replace(/'/g,"\\'")}')`:`dvOpenTab('${esc(t.k)}','${x.k}')`}"><span>${esc(t.name||t.k)}</span><small>${t.n}</small></button>`).join("")}</div>`:""}</div>`}).join(""):`<p class="no">Nothing here yet. Confirm a list on "New delivery", or import the old tabs on the Import page.</p>`}</div>`}
