@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b403">
+<meta name="build" content="b404">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3398,7 +3398,7 @@ function dvLine(c,d){
  return {"last name":sp<0?nm:nm.slice(0,sp),"First Name":sp<0?"":nm.slice(sp+1),"Street Address":st,"AptNum":apt,"City":city,"State":a.state||"","Zip":a.zip||"","PHONE":PH[0]||String(c.phone||"").replace(/\D/g,""),"Cell1":PH[1]||(PH.length?"":String(c.cell||"").replace(/\D/g,"")),"Cases":L.length,"case description":L.join(","),"Total Family":c.hh,"Notes ":c.notes||"","Delivery_at":usD(d),"Notes 2":c.note2||"","Auth End":c.auth?usD(isoD(c.auth)):"","Application ID":c.ref,"Mothers DOB":"","admin_notes":c.area,"Food Type":dvFood(c),"picture_required":1,"Full Address":full,"NEW":"","Type food":c.base=="box"?"Box":"Meals","Company":c.agency,"#cin":c.cin||""}}
 function dvPick(){return dvRows().rows.filter(r=>!DV.off[r.c.uuid||r.c.id])}
 async function loadSends(){
- if(!S.real||!sb)return;
+ if(!S.real||!sb)return;dvLoadNames();
  try{let rows;try{rows=await fetchAll("delivery_sends","customer_id,delivery_date,letters,batch,created_at,line",q=>q.gte("delivery_date",isoD(new Date(Date.now()-90*864e5))))}catch(e0){rows=await fetchAll("delivery_sends","customer_id,delivery_date,letters,batch,created_at",q=>q.gte("delivery_date",isoD(new Date(Date.now()-90*864e5))))}
   DV.sent={};DV.hist=rows;rows.forEach(r=>String(r.letters||"").split(",").filter(Boolean).forEach(l=>DV.sent[r.customer_id+"|"+r.delivery_date+"|"+l]=1));DV.loaded=true;DV.err=""}
  catch(e){DV.err="Could not read what was already sent ("+dberr(e)+"). If this says the table is missing, the database update for this page has not been run yet."}
@@ -3441,15 +3441,15 @@ function vDelivery(){
   ${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
   <div class="bar" style="margin-top:10px;flex-wrap:wrap"><button class="pri" onclick="dvConfirm()" ${pick.length&&!DV.busy?"":"disabled"}>${DV.busy?"Working…":"Confirm "+pick.length.toLocaleString()+" deliveries and download the Excel file"}</button>
    <button onclick="dvConfirm('up')" ${pick.length&&!DV.busy?"":"disabled"}>Upload to Scanovator</button><button onclick="dvFile('csv',false)" ${pick.length?"":"disabled"}>Preview file (CSV)</button></div>
-  ${DV.ask?`<div id="dv_ask" class="card" style="border-color:#e07b00;margin-top:10px"><b>Confirm ${DV.ask.n.toLocaleString()} deliveries?</b><div class="note" style="margin:6px 0">${DV.ask.days.map(esc).join("<br>")}</div><p class="note" style="margin:6px 0">They will be recorded as sent and ${DV.ask.mode=="up"?"the CSV file will download and the Scanovator upload page will open":"the Excel file will download"}.</p><button class="pri" onclick="dvRun('${DV.ask.mode}')">Yes, ${DV.ask.mode=="up"?"upload to Scanovator":"confirm and download"}</button> <button onclick="DV.ask=null;render()">Cancel</button></div>`:""}
+  ${DV.ask?`<div id="dv_ask" class="card" style="border-color:#e07b00;margin-top:10px"><b>Confirm ${DV.ask.n.toLocaleString()} deliveries?</b><div class="note" style="margin:6px 0">${DV.ask.days.map(esc).join("<br>")}</div><div class="bar" style="margin:6px 0;align-items:center;flex-wrap:wrap"><span class="note">File name</span><input id="dv_fn" value="${esc(DV.ask.name||"")}" oninput="DV.ask.name=this.value" style="width:200px">${DVP.map(x=>`<button title="${esc(x[1])}" onclick="dvPfxSet('${x[0]}')">${x[0]}</button>`).join("")}</div><p class="note" style="margin:6px 0">You can type any name. It is the file name and the name under Previous deliveries (you can rename it there later). They will be recorded as sent and ${DV.ask.mode=="up"?"the CSV file will download and the Scanovator upload page will open":"the Excel file will download"}.</p><button class="pri" onclick="dvRun('${DV.ask.mode}')">Yes, ${DV.ask.mode=="up"?"upload to Scanovator":"confirm and download"}</button> <button onclick="DV.ask=null;render()">Cancel</button></div>`:""}
   ${DV.done?`<div class="card" style="border-color:var(--ok);margin-top:10px"><b style="color:var(--ok)">✓ ${DV.done.n.toLocaleString()} deliveries recorded as sent. The file ${esc(DV.done.file)} was downloaded (check your Downloads folder).</b><p class="note" style="margin:6px 0">Next, in Scanovator: choose that file, click <b>Auto fill fields</b>, then <b>Upload &amp; Create Orders</b>.</p><a class="pri" style="display:inline-block;padding:8px 14px;border-radius:8px;text-decoration:none" href="https://dashboard.scanovator.com/orders_csv" target="_blank" rel="noopener">Open Scanovator upload page</a> <button onclick="DV.done=null;render()">Close</button></div>`:""}
   <p class="note"><b>Upload to Scanovator</b> records the list, downloads the CSV and opens Scanovator's upload page: choose the file, click "Auto fill fields", then "Upload &amp; Create Orders". The Excel button does the same recording but downloads Excel. It never changes the customers.</p></div>`}
 function dvCsvText(rows){const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};return [DCOLS.map(q).join(",")].concat(rows.map(r=>{const o=dvLine(r.c,r.d);return DCOLS.map(k=>q(o[k])).join(",")})).join("\r\n")}
 async function dvHash(txt){try{const cs=new Blob([txt]).stream().pipeThrough(new CompressionStream("gzip")),buf=new Uint8Array(await new Response(cs).arrayBuffer());let b="";for(let i=0;i<buf.length;i+=8192)b+=String.fromCharCode.apply(null,buf.subarray(i,i+8192));const h=btoa(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");return h.length<1500000?"#satmar="+h:""}catch(e){return ""}}
-async function dvFile(kind,real,pre){
+async function dvFile(kind,real,pre,fn){
  DV.lastFile="";
  const rows=pre||dvPick();if(!rows.length)return;
- const data=rows.map(r=>dvLine(r.c,r.d)),ds=[...new Set(rows.map(r=>r.d))].sort().join("_"),name="Delivery_"+ds+(real?"":"_preview");
+ const data=rows.map(r=>dvLine(r.c,r.d)),ds=[...new Set(rows.map(r=>r.d))].sort().join("_"),name=(fn&&real?fn:"Delivery_"+ds+(real?"":"_preview"));
  try{
   if(kind=="csv"){const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
    const t=[DCOLS.map(q).join(",")].concat(data.map(o=>DCOLS.map(k=>q(o[k])).join(","))).join("\r\n"),b=new Blob(["﻿"+t],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name+".csv";document.body.appendChild(a);a.click();a.remove()}
@@ -3460,10 +3460,15 @@ async function dvFile(kind,real,pre){
  render()}
 
 const dvTabs=()=>upages(S.user).indexOf("delivery")<0?"":`<div class="bar" style="margin-bottom:8px"><button class="${DV.tab=="prev"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button><button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`;
+const DVP=[["E_","Suppers (Monday)"],["A_","A / B / meat boxes"],["MN_","Middleton (Wednesday)"],["3&5_","Thursday deliveries"]];
+function dvDefName(ds){const d=ds[0]||"",p=d.split("-"),dt=new Date(+p[0],+p[1]-1,+p[2]),wd=dt.getDay(),pf=wd==1?"E_":wd==3?"MN_":wd==4?"3&5_":"A_";return pf+(+p[1])+"_"+(+p[2])}
+async function dvSaveNames(){try{await sb.from("app_settings").upsert({key:"delivery_names",value:DV.names||{},updated_at:new Date().toISOString()})}catch(e){}}
+async function dvLoadNames(){try{const r=await sb.from("app_settings").select("value").eq("key","delivery_names").limit(1);const v=r.data&&r.data[0]&&r.data[0].value;if(v&&typeof v=="object"){DV.names=Object.assign({},v,DV.names||{});render()}}catch(e){}}
+function dvPfxSet(pf){const e=document.getElementById("dv_fn");if(!e)return;e.value=e.value.replace(/^(E_|A_|MN_|3&5_)/,"");e.value=pf+e.value;DV.ask.name=e.value}
 function dvTabsList(){
  /* One entry per confirmed list = one file, exactly as it was downloaded (all box types together). */
- const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;const k="b:"+(r.batch||r.delivery_date);(m[k]=m[k]||{k:k,rows:[],ds:{},at:r.created_at}).rows.push(r);m[k].ds[r.delivery_date]=1;if(r.created_at&&r.created_at<m[k].at)m[k].at=r.created_at});
- return Object.values(m).map(t=>{const ds=Object.keys(t.ds).sort();t.d=ds[0];t.name="Delivery_"+ds.join("_");return t}).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.at<b.at?1:-1)}
+ const m={};(DV.hist||[]).forEach(r=>{if(!r.line)return;const k="b:"+(r.batch||r.delivery_date);(m[k]=m[k]||{k:k,bk:r.batch||r.delivery_date,rows:[],ds:{},at:r.created_at}).rows.push(r);m[k].ds[r.delivery_date]=1;if(r.created_at&&r.created_at<m[k].at)m[k].at=r.created_at});
+ return Object.values(m).map(t=>{const ds=Object.keys(t.ds).sort();t.d=ds[0];t.name=(DV.names&&DV.names[t.bk])||dvDefName(ds);return t}).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:a.at<b.at?1:-1)}
 function impMap(){
  if(BILL.impMap)return BILL.impMap;if(!BILL.impAll)return null;
  const M={},WK={},strip=r=>nk(String(r==null?"":r).replace(/\.0+$/,"")).replace(/^(ujo|pt|ccs|lh|lt|ry|or)/,"");
@@ -3492,7 +3497,7 @@ async function loadImpAll(){
  BILL.impLoading=false;render()}
 const PHEAD=["Last name","First name","Street","Apt","City","State","Zip","Phone","Cases","Case description","HH","Notes","Delivery at","Notes 2","Application ID","Admin notes","Food type","Type","Company"],PKEYS=["last name","First Name","Street Address","AptNum","City","State","Zip","PHONE","Cases","case description","Total Family","Notes ","Delivery_at","Notes 2","Application ID","admin_notes","Food Type","Type food","Company"];
 function dvAllTabs(){
- const a=dvTabsList().map(t=>({k:t.k,name:t.name,d:t.d,n:t.rows.length,src:"new",rows:t.rows.map(r=>r.line),at:t.at}));
+ const a=dvTabsList().map(t=>({k:t.k,name:t.name,bk:t.bk,d:t.d,n:t.rows.length,src:"new",rows:t.rows.map(r=>r.line),at:t.at}));
  return a.sort((x,y)=>x.d<y.d?1:x.d>y.d?-1:x.k<y.k?-1:1)}
 async function dvOpenArch(k){
  DV.ptab=k;const t=k.slice(4);render();
@@ -3510,7 +3515,7 @@ function vPrev(){
   const L=dvTabLines(cur);
   if(cur.src=="arch"&&!L&&!DV.archLoading)setTimeout(()=>dvOpenArch(cur.k),0);
   if(!BILL.impAll&&!BILL.impLoading)setTimeout(loadImpAll,0);
-  return dvTabs()+`<div class="card"><div class="bar" style="align-items:center;flex-wrap:wrap"><button onclick="DV.ptab=null;render()">← Back to the weeks</button><h2 style="margin:0">${esc(cur.name||cur.k)}</h2><span class="note">${cur.n.toLocaleString()} deliveries${cur.at?" · sent "+esc(fdate(cur.at)):""}${podNote(cur,L)}</span><button class="pri" onclick="dvPrevCsv('${esc(cur.k).replace(/'/g,"\\'")}')" ${L?"":"disabled"}>Download CSV</button></div>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
+  return dvTabs()+`<div class="card"><div class="bar" style="align-items:center;flex-wrap:wrap"><button onclick="DV.ptab=null;render()">← Back to the weeks</button>${DV.ren==cur.k?`<input id="dv_rn" value="${esc(cur.name||"")}" style="width:240px"><button class="pri" onclick="dvRenameSave()">Save name</button><button onclick="DV.ren=null;render()">Cancel</button>`:`<h2 style="margin:0">${esc(cur.name||cur.k)}</h2><button onclick="DV.ren='${esc(cur.k)}';render()">Rename</button>`}<span class="note">${cur.n.toLocaleString()} deliveries${cur.at?" · sent "+esc(fdate(cur.at)):""}${podNote(cur,L)}</span><button class="pri" onclick="dvPrevCsv('${esc(cur.k).replace(/'/g,"\\'")}')" ${L?"":"disabled"}>Download CSV</button></div>${DV.err?`<p class="err">${esc(DV.err)}</p>`:""}
   ${L?`<div style="overflow:auto;margin-top:10px"><table class="tl"><tr><th>POD links</th>${PHEAD.map(h=>`<th>${h}</th>`).join("")}</tr>${L.map(r=>{const pl=podFor(r,cur.d);return `<tr><td style="white-space:nowrap">${pl==null?`<span class="note">${BILL.impErr?"?":"…"}</span>`:pl.length?pl.map((u,i)=>LNK(u,"POD"+(pl.length>1?" "+(i+1):""))).join(" · "):`<span class="note">–</span>`}</td>${PKEYS.map(k=>{const v=r[k];return `<td title="${esc(v)}">${esc(v)}</td>`}).join("")}</tr>`}).join("")}</table></div>`:`<p class="note">Opening…</p>`}</div>`}
  const W={};T.forEach(t=>{if(!t.d)return;const w=dvWk(t.d),k=isoD(w);(W[k]=W[k]||{k:k,w:w,tabs:[]}).tabs.push(t)});
  const ws=Object.values(W).sort((a,b)=>a.k<b.k?1:-1);
@@ -3518,6 +3523,7 @@ function vPrev(){
   ${ws.length?ws.map(x=>{const open=DV.pwk==x.k,n=x.tabs.reduce((a,t)=>a+t.n,0),tabs=x.tabs.slice().sort((a,b)=>(a.name||a.k)<(b.name||b.k)?-1:1);
    return `<div class="wkrow${open?" open":""}"><button class="wkh" onclick="DV.pwk=${open?"null":`'${x.k}'`};render()"><span class="wkc">${open?"▾":"▸"}</span><b>${esc(dvWkLbl(x.w))}</b><span class="note">${x.tabs.length} tab${x.tabs.length==1?"":"s"} · ${n.toLocaleString()} deliveries</span></button>
    ${open?`<div class="chps" style="padding:4px 4px 12px 30px">${tabs.map(t=>`<button class="chp" style="background:#fff" onclick="${t.src=="arch"?`DV.pwk='${x.k}';dvOpenArch('${esc(t.k).replace(/'/g,"\\'")}')`:`dvOpenTab('${esc(t.k)}','${x.k}')`}"><span>${esc(t.name||t.k)}</span><small>${t.n}</small></button>`).join("")}</div>`:""}</div>`}).join(""):`<p class="no">Nothing here yet. Confirm a list on "New delivery", or import the old tabs on the Import page.</p>`}</div>`}
+function dvRenameSave(){const k=DV.ren,t=dvAllTabs().find(x=>x.k==k),e=document.getElementById("dv_rn");if(!t||!e)return;const nm=e.value.trim().replace(/[\\\/:*?"<>|]+/g,"-").slice(0,80);if(!nm)return;DV.names=DV.names||{};DV.names[t.bk]=nm;DV.ren=null;dvSaveNames();render()}
 function dvPrevCsv(k){
  const t=dvAllTabs().find(x=>x.k==k),L=t&&dvTabLines(t);if(!L)return;
  const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v},pod=r=>{const l=podFor(r,t.d);return l?l.join(" "):""},txt=[["POD links"].concat(DCOLS).map(q).join(",")].concat(L.map(r=>[q(pod(r))].concat(DCOLS.map(c=>q(r[c]))).join(","))).join("\r\n"),
@@ -3566,10 +3572,10 @@ async function pvSave(){
 function dvConfirm(mode){
  const rows=dvPick();if(!rows.length||DV.busy)return;
  const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
- DV.ask={mode:mode,n:rows.length,days:Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]+" deliveries")};DV.done=null;S.err="";S.msg="";render();
+ DV.ask={mode:mode,name:dvDefName(Object.keys(byD).sort()),n:rows.length,days:Object.keys(byD).sort().map(d=>usD(d)+" ("+dvDay(d)+"): "+byD[d]+" deliveries")};DV.done=null;S.err="";S.msg="";render();
  setTimeout(()=>{const e=document.getElementById("dv_ask");if(e)e.scrollIntoView({block:"center"})},50)}
 async function dvRun(mode){
- const rows=dvPick();if(!rows.length||DV.busy)return;DV.ask=null;
+ const rows=dvPick();if(!rows.length||DV.busy)return;const fn=String((DV.ask&&DV.ask.name)||"").trim().replace(/[\\\/:*?"<>|]+/g,"-").slice(0,80)||dvDefName([...new Set(rows.map(r=>r.d))].sort());DV.ask=null;
  const up=mode=="up",w=up?window.open("about:blank","_blank"):null;
  const byD={};rows.forEach(r=>byD[r.d]=(byD[r.d]||0)+1);
  DV.busy=true;S.err="";S.msg="";render();
@@ -3578,7 +3584,7 @@ async function dvRun(mode){
   for(let i=0;i<recs.length;i+=500){const x=await sb.from("delivery_sends").insert(recs.slice(i,i+500));if(x.error)throw x.error}
   recs.forEach(r=>r.letters.split(",").forEach(l=>DV.sent[r.customer_id+"|"+r.delivery_date+"|"+l]=1));(DV.hist=DV.hist||[]).push(...recs.map(r=>Object.assign({created_at:new Date().toISOString()},r)));
   LG("Delivery","Confirmed",""," "+rows.length+" deliveries ("+Object.keys(byD).sort().map(usD).join(", ")+")");
-  DV.busy=false;await dvFile(up?"csv":"xlsx",true,rows);
+  DV.names=DV.names||{};DV.names[batch]=fn;dvSaveNames();DV.busy=false;await dvFile(up?"csv":"xlsx",true,rows,fn);
   DV.done={n:rows.length,file:DV.lastFile||(up?"CSV":"Excel")};render();
   if(up){S.msg="CSV downloaded. On the Scanovator page: choose the file, click Auto fill fields, then Upload & Create Orders.";if(w)w.location="https://dashboard.scanovator.com/orders_csv"+(await dvHash(dvCsvText(rows)));else{S.err="Your browser blocked the Scanovator page. Use the Open Scanovator upload page button below."}render()}
   setTimeout(()=>window.scrollTo(0,document.body.scrollHeight),50);return}
