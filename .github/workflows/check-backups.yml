@@ -1,4 +1,4 @@
-# One-off, read-only: lists which database backups Supabase has (dates only).
+# One-off, read-only: table statistics of list_draft (counts and dates only).
 name: Check backups
 on:
   workflow_dispatch:
@@ -6,8 +6,10 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - name: List backups
+      - name: Stats
         env:
           TOKEN: ${{ secrets.SUPABASE_DB_TOKEN }}
         run: |
-          curl -sS -w "\nHTTP %{http_code}\n" "https://api.supabase.com/v1/projects/znszotxuhkxgbszhyqcp/database/backups" -H "Authorization: Bearer $TOKEN"
+          q="select n_tup_ins, n_tup_upd, n_dead_tup, last_autovacuum, last_vacuum, (select count(*) from pg_extension where extname='pageinspect') as pi, pg_relation_size('list_draft') as sz, (select count(*) from pg_available_extensions where name='pageinspect') as avail from pg_stat_user_tables where relname='list_draft'"
+          jq -n --arg q "$q" '{query:$q}' > b.json
+          curl -sS -w "\nHTTP %{http_code}\n" -X POST "https://api.supabase.com/v1/projects/znszotxuhkxgbszhyqcp/database/query" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @b.json
