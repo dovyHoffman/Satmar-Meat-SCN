@@ -1,0 +1,13 @@
+# One-off, read-only: lists which database backups Supabase has (dates only).
+name: Check backups
+on:
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List backups
+        env:
+          TOKEN: ${{ secrets.SUPABASE_DB_TOKEN }}
+        run: |
+          curl -sS -w "\nHTTP %{http_code}\n" "https://api.supabase.com/v1/projects/znszotxuhkxgbszhyqcp/database/backups" -H "Authorization: Bearer $TOKEN"
