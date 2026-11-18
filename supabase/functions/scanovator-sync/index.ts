@@ -440,22 +440,6 @@ Deno.serve(async (req) => {
       const next = offset + BATCH < (total || 0) ? offset + BATCH : null;
       return json({ ok: true, mode: "byorder", offset, next, total, saved, undelivered, nocust, failed, skipped_done: skippedDone });
     }
-    const byPhone = new Map<string, any[]>();
-    for (const c of cust) {
-      // the main phone AND the second (cell) number: an order may carry either one
-      for (const k of new Set([digits(c.phone), digits(c.cell)])) {
-        if (/^[2-9]\d\d[2-9]\d{6}$/.test(k)) { if (!byPhone.has(k)) byPhone.set(k, []); byPhone.get(k)!.push(c); }
-      }
-    }
-    const phones = [...byPhone.keys()].sort();
-    const chunk = phones.slice(offset, offset + CHUNK);
-    const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
-    const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
-    const since = Date.now() - daysBack * 864e5;
-    let viaCf = 0, notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
-    const loose = body.loose === true;
-    const word = body.word === true;
-    const dbg = { try: 0, hit: 0, many: 0, none: 0, wk: "" };
     const wkStart = (() => {   // last Saturday 00:00 New York (the delivery week starts Saturday)
       const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
       const g = (t: string) => parts.find((x) => x.type === t)!.value;
@@ -464,10 +448,28 @@ Deno.serve(async (req) => {
       return new Date(nyIso(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} 00:00:00`)!).getTime();
     })();
     const thisWeek = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() >= wkStart; };
-    dbg.wk = new Date(wkStart).toISOString();
     const haveWeek = new Set<string>();   // customers that already have a delivery this week
     const owner = new Map<string, string>();   // order -> customer it is already attached to this week (so a second run keeps the same link)
-    if (word) { for (let f = 0; ; f += 1000) { const { data } = await sb.from("deliveries").select("customer_id,order_id").gte("delivered_at", new Date(wkStart).toISOString()).not("customer_id", "is", null).range(f, f + 999); (data || []).forEach((x: any) => { haveWeek.add(x.customer_id); owner.set(String(x.order_id), x.customer_id); }); if ((data || []).length < 1000) break; } }   // owner ticked "also match by name + phone"
+    { for (let f = 0; ; f += 1000) { const { data } = await sb.from("deliveries").select("customer_id,order_id").gte("delivered_at", new Date(wkStart).toISOString()).not("customer_id", "is", null).range(f, f + 999); (data || []).forEach((x: any) => { haveWeek.add(x.customer_id); owner.set(String(x.order_id), x.customer_id); }); if ((data || []).length < 1000) break; } }   // customers that already have a delivery this week
+    const byPhone = new Map<string, any[]>();
+    for (const c of cust) {
+      // the main phone AND the second (cell) number: an order may carry either one
+      for (const k of new Set([digits(c.phone), digits(c.cell)])) {
+        if (/^[2-9]\d\d[2-9]\d{6}$/.test(k)) { if (!byPhone.has(k)) byPhone.set(k, []); byPhone.get(k)!.push(c); }
+      }
+    }
+    // once an hour every customer is checked again (extra boxes, late pictures); in between only customers that still wait for their delivery
+    const fullPass = new Date().getUTCMinutes() < 15 || body.full === true;
+    const phones = [...byPhone.entries()].filter(([, cs]) => fullPass || cs.some((c) => !haveWeek.has(c.id))).map(([k]) => k).sort();
+    const chunk = phones.slice(offset, offset + CHUNK);
+    const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
+    const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
+    const since = Date.now() - daysBack * 864e5;
+    let viaCf = 0, notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
+    const loose = body.loose === true;
+    const word = body.word === true;
+    const dbg = { try: 0, hit: 0, many: 0, none: 0, wk: "" };
+    dbg.wk = new Date(wkStart).toISOString();
     const words = (t: unknown) => String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter(Boolean).sort().join(" ");
     const last10 = (v: unknown) => digits(v).slice(-10);
     // strict: the phone AND every word of the name must agree, and exactly ONE customer may fit
@@ -521,7 +523,7 @@ Deno.serve(async (req) => {
           if (created < since) continue;
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
           const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || "";
-          if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }
+          if (body.mapOnly !== false && created < wkStart && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // this week's orders are matched on their own (ID, strict name+phone, word rule); older ones still need the export
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
           if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
