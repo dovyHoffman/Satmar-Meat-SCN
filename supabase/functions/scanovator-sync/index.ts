@@ -520,7 +520,7 @@ Deno.serve(async (req) => {
           seen++;
           const created = new Date(o.createdAtIso).getTime();
           if (created < oldest) oldest = created;
-          if (created < since) continue;
+          if (created < since && !thisWeek(o)) continue;   // an order created earlier but delivered this week still counts
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
           const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || "";
           if (body.mapOnly !== false && created < wkStart && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // this week's orders are matched on their own (ID, strict name+phone, word rule); older ones still need the export
