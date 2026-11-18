@@ -146,6 +146,31 @@ Deno.serve(async (req) => {
       const d = Array.isArray(j.data) ? j.data : [];
       return json({ ok: true, status: r.status, message: String(j.message || "").slice(0, 200), errors: JSON.stringify(j.errors || {}).slice(0, 400), n: d.length, pagination: j.pagination || null, created: d.map((o: any) => o.createdAtIso), delivered: d.map((o: any) => o.actually_delivered), keys: d[0] ? Object.keys(d[0]).join(",") : "" });
     }
+    // ---- mode "scan": owner only, read only. Fetches orders one by one by order number (no phone needed) and counts which ones are uploaded orders (they carry an Application ID) and match a customer. Numbers only. ----
+    if (body.mode === "scan") {
+      const from = Number(body.from), to = Number(body.to);
+      if (!(from > 0) || !(to >= from) || to - from > 600) return json({ ok: false, error: "range up to 600 order numbers" });
+      const ik = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const refs = new Map<string, number>();
+      for (let f = 0; ; f += 1000) { const { data } = await sb.from("customers").select("agency_ref").range(f, f + 999); (data || []).forEach((c: any) => { const k = ik(c.agency_ref); if (k) refs.set(k, (refs.get(k) || 0) + 1); }); if ((data || []).length < 1000) break; }
+      const days: Record<string, any> = {}; let found = 0, minF = 0, maxF = 0; const caseCnt: Record<string, number> = {}; const ex: string[] = [];
+      let next = from;
+      const one = async (id: number) => {
+        const r = await fetch(API, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, order_id: String(id), page: 1, limit: 1 }) });
+        const j = await r.json().catch(() => ({})); const o = Array.isArray(j.data) ? j.data[0] : null; if (!o) return;
+        found++; if (!minF || id < minF) minF = id; if (id > maxF) maxF = id;
+        const day = String(o.createdAtIso || "").slice(5, 10) || "?"; const d = days[day] || (days[day] = { orders: 0, uploaded: 0, matched: 0, delivered: 0, noPhone: 0 });
+        d.orders++;
+        let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
+        for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
+        if (!String(o.phone || o.cell1 || o.cell2 || "").trim()) d.noPhone++;
+        if (app) { d.uploaded++; if (refs.has(ik(app))) d.matched++; else if (ex.length < 5) ex.push(app.slice(0, 4) + "…"); if (cs) { const c0 = cs.split(/[^A-Za-z0-9]+/).filter(Boolean)[0]?.toUpperCase() || ""; if (c0) caseCnt[c0.slice(0, 4)] = (caseCnt[c0.slice(0, 4)] || 0) + 1; } }
+        if (String(o.actually_delivered || "").trim()) d.delivered++;
+      };
+      const worker = async () => { while (true) { const id = next++; if (id > to) return; try { await one(id); } catch (_e) { /* skip */ } } };
+      await Promise.all(Array.from({ length: 10 }, worker));
+      return json({ ok: true, from, to, found, minF, maxF, days, cases: caseCnt, unmatched_examples: ex });
+    }
     // ---- mode "lookup": owner only. Shows the raw Scanovator orders (all simple fields) for a few phone numbers. Read only. ----
     if (body.mode === "lookup") {
       const ph = body.raw ? (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => String(x)).slice(0, 5) : (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => digits(x)).filter((x: string) => x.length === 10).slice(0, 5);
