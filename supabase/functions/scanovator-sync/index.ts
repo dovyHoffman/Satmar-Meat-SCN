@@ -146,30 +146,74 @@ Deno.serve(async (req) => {
       const d = Array.isArray(j.data) ? j.data : [];
       return json({ ok: true, status: r.status, message: String(j.message || "").slice(0, 200), errors: JSON.stringify(j.errors || {}).slice(0, 400), n: d.length, pagination: j.pagination || null, created: d.map((o: any) => o.createdAtIso), delivered: d.map((o: any) => o.actually_delivered), keys: d[0] ? Object.keys(d[0]).join(",") : "" });
     }
-    // ---- mode "scan": owner only, read only. Fetches orders one by one by order number (no phone needed) and counts which ones are uploaded orders (they carry an Application ID) and match a customer. Numbers only. ----
-    if (body.mode === "scan") {
-      const from = Number(body.from), to = Number(body.to);
-      if (!(from > 0) || !(to >= from) || to - from > 600) return json({ ok: false, error: "range up to 600 order numbers" });
+    // ---- mode "scan" / "scanauto": owner only. Fetches orders one by one by ORDER NUMBER (no phone needed; Middleton orders are uploaded without a phone). Uploaded orders carry an Application ID (point-of-sale orders do not): those are matched to the customer by that ID, and the box letters come from "case description". ----
+    // "scan" = a range given by the caller (save:true to store, otherwise counts only). "scanauto" = what the hourly sync runs: new order numbers after the saved cursor + orders still waiting for their delivery.
+    if (body.mode === "scan" || body.mode === "scanauto") {
       const ik = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const refs = new Map<string, number>();
-      for (let f = 0; ; f += 1000) { const { data } = await sb.from("customers").select("agency_ref").range(f, f + 999); (data || []).forEach((c: any) => { const k = ik(c.agency_ref); if (k) refs.set(k, (refs.get(k) || 0) + 1); }); if ((data || []).length < 1000) break; }
-      const days: Record<string, any> = {}; let found = 0, minF = 0, maxF = 0; const caseCnt: Record<string, number> = {}; const ex: string[] = [];
-      let next = from;
+      const byRef = new Map<string, any>(); const dupRef = new Set<string>();
+      for (let f = 0; ; f += 1000) { const { data } = await sb.from("customers").select("id,agency_ref,food,hh,area,middleton,base").range(f, f + 999); (data || []).forEach((c: any) => { const k = ik(c.agency_ref); if (!k) return; if (byRef.has(k)) dupRef.add(k); else byRef.set(k, c); }); if ((data || []).length < 1000) break; }
+      let ids: number[] = []; let save = body.save === true; let cursorFrom = 0;
+      if (body.mode === "scan") {
+        const from = Number(body.from), to = Number(body.to);
+        if (!(from > 0) || !(to >= from) || to - from > 600) return json({ ok: false, error: "range up to 600 order numbers" });
+        for (let i = from; i <= to; i++) ids.push(i);
+      } else {
+        save = true;
+        const st = await sb.from("app_settings").select("value").eq("key", "scan_cursor").maybeSingle();
+        let cur = Number((st.data as any)?.value?.hi) || 0;
+        if (!cur) { const t = await sb.from("deliveries").select("order_id").gte("delivered_at", new Date(Date.now() - 6 * 864e5).toISOString()).limit(1000); cur = Math.max(0, ...((t.data || []).map((x: any) => Number(x.order_id) || 0))); }
+        cursorFrom = cur;
+        for (let i = cur + 1; i <= cur + 600; i++) ids.push(i);
+        const w = await sb.from("deliveries").select("order_id").is("delivered_at", null).gte("synced_at", new Date(Date.now() - 10 * 864e5).toISOString()).limit(500);
+        for (const x of (w.data || [])) { const n = Number(x.order_id); if (n > 0 && n <= cur) ids.push(n); }
+      }
+      const days: Record<string, any> = {}; const caseCnt: Record<string, number> = {}; const ex: string[] = [];
+      let found = 0, maxF = 0; const rows: any[] = [];
+      let next = 0;
       const one = async (id: number) => {
         const r = await fetch(API, { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, order_id: String(id), page: 1, limit: 1 }) });
         const j = await r.json().catch(() => ({})); const o = Array.isArray(j.data) ? j.data[0] : null; if (!o) return;
-        found++; if (!minF || id < minF) minF = id; if (id > maxF) maxF = id;
+        found++; if (id > maxF) maxF = id;
         const day = String(o.createdAtIso || "").slice(5, 10) || "?"; const d = days[day] || (days[day] = { orders: 0, uploaded: 0, matched: 0, delivered: 0, noPhone: 0 });
         d.orders++;
         let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
         for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
         if (!String(o.phone || o.cell1 || o.cell2 || "").trim()) d.noPhone++;
-        if (app) { d.uploaded++; if (refs.has(ik(app))) d.matched++; else if (ex.length < 5) ex.push(app.slice(0, 4) + "…"); if (cs) { const c0 = cs.split(/[^A-Za-z0-9]+/).filter(Boolean)[0]?.toUpperCase() || ""; if (c0) caseCnt[c0.slice(0, 4)] = (caseCnt[c0.slice(0, 4)] || 0) + 1; } }
         if (String(o.actually_delivered || "").trim()) d.delivered++;
+        if (!app) return;   // not an uploaded order (point of sale): never saved
+        d.uploaded++;
+        const c = byRef.get(ik(app));
+        if (!c || dupRef.has(ik(app))) { if (ex.length < 5) ex.push(app.slice(0, 4) + "…"); return; }
+        d.matched++;
+        const letters = cs ? cs.split(/[^A-Za-z0-9]+/).filter(Boolean).map((x) => x.toUpperCase()).join(" ") : "";
+        if (letters) { const c0 = letters.split(" ")[0].slice(0, 4); caseCnt[c0] = (caseCnt[c0] || 0) + 1; }
+        const delivered = nyIso(o.actually_delivered) || ((o.photos || []).length && o.createdAtIso ? new Date(o.createdAtIso).toISOString() : null);
+        rows.push({
+          order_id: String(o.order_id), customer_id: c.id, week_label: label(delivered || o.createdAtIso), driver: String(o.driver_name || o.driver_string || ""),
+          delivered_at: delivered, route_started: nyIso(o.route_started), receipt_url: o.receipt_url ? https(o.receipt_url) : "",
+          photo_urls: (o.photos || []).map(String).filter(Boolean).map(https), synced_at: new Date().toISOString(),
+          snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: letters ? letters.split(" ").length : (Number(o.total_boxes) || 0), ...(letters ? { letters } : {}) },
+        });
       };
-      const worker = async () => { while (true) { const id = next++; if (id > to) return; try { await one(id); } catch (_e) { /* skip */ } } };
+      const worker = async () => { while (true) { const k = next++; if (k >= ids.length) return; try { await one(ids[k]); } catch (_e) { /* skip */ } } };
       await Promise.all(Array.from({ length: 10 }, worker));
-      return json({ ok: true, from, to, found, minF, maxF, days, cases: caseCnt, unmatched_examples: ex });
+      let saved = 0;
+      if (save && rows.length) {
+        const oids = rows.map((r) => r.order_id);
+        const hv = new Map<string, any>();
+        for (let i = 0; i < oids.length; i += 200) { const hr: any = await sb.from("deliveries").select("order_id,photo_paths,snap").in("order_id", oids.slice(i, i + 200)); (hr.data || []).forEach((h: any) => hv.set(h.order_id, h)); }
+        for (const r of rows) { const h = hv.get(r.order_id); r.photo_paths = ((h && h.photo_paths) || []).slice(0, r.photo_urls.length); if (h && h.snap) r.snap = { ...h.snap, boxes: r.snap.boxes, ...(r.snap.letters ? { letters: r.snap.letters } : {}) }; }
+        for (let i = 0; i < rows.length; i += 200) { const { error: e2 } = await sb.from("deliveries").upsert(rows.slice(i, i + 200), { onConflict: "order_id" }); if (e2) throw e2; saved += Math.min(200, rows.length - i); }
+      }
+      let cursor: number | null = null;
+      if (body.mode === "scanauto") {
+        // move on only as far as an order was really found; jump a long empty stretch only when a newer order is already known (other stores use the same numbers)
+        const t = await sb.from("deliveries").select("order_id").gte("synced_at", new Date(Date.now() - 3 * 864e5).toISOString()).limit(1000);
+        const known = Math.max(0, ...((t.data || []).map((x: any) => (/^\d+$/.test(String(x.order_id)) ? Number(x.order_id) : 0))));
+        cursor = Math.max(cursorFrom, maxF); if (!maxF && known > cursorFrom + 600) cursor = cursorFrom + 600;
+        await sb.from("app_settings").upsert({ key: "scan_cursor", value: { hi: cursor, at: new Date().toISOString() } }, { onConflict: "key" });
+      }
+      return json({ ok: true, scanned: ids.length, found, maxF, saved, cursor, days, cases: caseCnt, unmatched_examples: ex });
     }
     // ---- mode "lookup": owner only. Shows the raw Scanovator orders (all simple fields) for a few phone numbers. Read only. ----
     if (body.mode === "lookup") {
