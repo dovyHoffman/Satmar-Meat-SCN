@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b450">
+<meta name="build" content="b451">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1833,10 +1833,10 @@ function vImport(){
  <div class="bar"><button class="pri" onclick="omSave()" ${S.om.busy?"disabled":""}>${S.om.busy?"Saving… "+S.om.done+" / "+S.om.rows.length:"Save them now"}</button></div></div>`:""}
  ${S.om&&S.om.ok?`<p class="msg">${esc(S.om.ok)}</p>`:""}</div>
  <div class="card"><h2>D boxes (Williamsburg) - delivery pictures</h2>
- <p class="note">The D boxes are delivered by another company, so they never show in Scanovator. Upload their <b>vendor report</b> (.csv). Each delivered row is matched to the customer by <b>Application ID</b> and saved as a delivered <b>D</b> box with its picture.</p>
+ <p class="note">The D boxes are delivered by another company, so they never show in Scanovator. Upload their <b>vendor report</b> (.csv). Each delivered row is matched to the customer by <b>Application ID</b> and saved as a delivered <b>D</b> box with its picture. Only <b>Williamsburg</b> customers (Lee and Bedford) are saved; BP and upstate customers in the file are skipped.</p>
  <input type="file" accept=".csv,text/csv" onchange="dbxFile(this.files[0])">
  ${S.dbx&&S.dbx.err?`<p class="err">${esc(S.dbx.err)}</p>`:""}
- ${S.dbx&&S.dbx.rows?`<div class="card" style="margin-top:12px"><b>${S.dbx.total} rows</b> <span class="note">· ${S.dbx.rows.length} delivered and matched · ${S.dbx.skip} not delivered (skipped) · ${S.dbx.unm.length} not matched to a customer${S.dbx.amb?" · "+S.dbx.amb+" ID shared by two customers (skipped)":""}</span>
+ ${S.dbx&&S.dbx.rows?`<div class="card" style="margin-top:12px"><b>${S.dbx.total} rows</b> <span class="note">· ${S.dbx.rows.length} delivered and matched · ${S.dbx.skip} not delivered (skipped) · ${S.dbx.unm.length} not matched to a customer${S.dbx.oth?" · "+S.dbx.oth+" are BP or upstate customers (skipped, not Williamsburg)":""}${S.dbx.amb?" · "+S.dbx.amb+" ID shared by two customers (skipped)":""}</span>
  ${S.dbx.unm.length?`<div class="wrap" style="max-height:200px;overflow:auto;margin-top:6px"><table style="font-size:12px"><tr><th>Application ID in the file</th><th>Name in the file</th></tr>${S.dbx.unm.slice(0,100).map(x=>`<tr><td>${esc(x.id)}</td><td>${esc(x.name)}</td></tr>`).join("")}</table></div>`:""}
  <div class="bar"><button class="pri" onclick="dbxSave()" ${S.dbx.busy||!S.dbx.rows.length?"disabled":""}>${S.dbx.busy?"Saving…":"Save "+S.dbx.rows.length+" D deliveries"}</button></div></div>`:""}
  ${S.dbx&&S.dbx.ok?`<p class="msg">${esc(S.dbx.ok)}</p>`:""}</div>
@@ -1959,16 +1959,17 @@ async function dbxFile(f){
   const iA=ix("applicationid"),iN=ix("name"),iD=ix("driver"),iS=ix("status"),iT=ix("datetime"),iP=ix("photo");
   if(iA<0||iT<0||iS<0)throw new Error("This is not the vendor report: columns Application ID, Status and Date & time were not found.");
   const ik=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,""),by={};cust.forEach(c=>{const k=ik(c.ref);if(k)(by[k]=by[k]||[]).push(c)});
-  const rows=[],unm=[];let skip=0,amb=0,total=0;
+  const rows=[],unm=[];let skip=0,amb=0,total=0,oth=0;
   for(let r=1;r<all.length;r++){const x=all[r];if(!x||!String(x[iA]||"").trim())continue;total++;
    if(!/^delivered$/i.test(String(x[iS]||"").trim())){skip++;continue}
    const id=String(x[iA]).trim(),hit=by[ik(id)]||[],at=nyToIso(x[iT]);
    if(!hit.length||!at){unm.push({id:id,name:String(x[iN]||"")});continue}
    if(hit.length>1){amb++;continue}
+   if(!/^(lee|bedford)$/i.test(String(hit[0].area||""))){oth++;continue}   // only Williamsburg (Lee, Bedford): never BP or upstate
    const c=hit[0],m=/^(\d{4})-(\d\d)-(\d\d)/.exec(String(x[iT]).trim()),ph=String(x[iP]||"").trim();
    rows.push({o:"dbox-"+ik(id)+"-"+String(x[iT]).replace(/\D/g,""),c:c.uuid,w:(+m[2])+"/"+(+m[3]),d:String(x[iD]||"").trim(),t:at,p:/^https?:\/\//i.test(ph)?[ph]:[],s:{food:c.food,hh:c.hh,area:c.area,mid:c.mid,base:c.base,boxes:1,letters:"D"}})}
   if(!total)throw new Error("No rows found in the file.");
-  S.dbx={rows:rows,unm:unm,skip:skip,amb:amb,total:total}
+  S.dbx={rows:rows,unm:unm,skip:skip,amb:amb,oth:oth,total:total}
  }catch(e){S.dbx={err:"Could not read the file: "+((e&&e.message)||e)}}
  render()}
 async function dbxSave(){
