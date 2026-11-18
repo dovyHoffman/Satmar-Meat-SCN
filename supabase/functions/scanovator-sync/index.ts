@@ -147,6 +147,64 @@ Deno.serve(async (req) => {
       if (body.list) { const cf = d[0] && d[0].custom_fields && typeof d[0].custom_fields === "object" ? Object.keys(d[0].custom_fields) : []; return json({ ok: true, status: r.status, message: String(j.message || "").slice(0, 200), errors: JSON.stringify(j.errors || {}).slice(0, 500), n: d.length, top: Object.keys(j), cursor: j.next_cursor ? "yes" : (j.pagination ? JSON.stringify(j.pagination).slice(0, 160) : "no"), created: d.slice(0, 5).map((o: any) => o.createdAtIso), delivered: d.slice(0, 5).map((o: any) => o.actually_delivered), cf, hasApp: d.filter((o: any) => o.custom_fields && (o.custom_fields["Application ID"] || o.custom_fields["application_id"])).length, keys: d[0] ? Object.keys(d[0]).slice(0, 40) : [] }); }
       return json({ ok: true, status: r.status, message: String(j.message || "").slice(0, 200), errors: JSON.stringify(j.errors || {}).slice(0, 400), n: d.length, pagination: j.pagination || null, created: d.map((o: any) => o.createdAtIso), delivered: d.map((o: any) => o.actually_delivered), keys: d[0] ? Object.keys(d[0]).join(",") : "" });
     }
+    // ---- mode "listsync": owner only. Scanovator's list endpoint (POST /v2/orders/list): every order that changed since the last run, 100 per page, followed by cursor. No phone number needed. An order is saved only when it carries our Application ID (uploaded orders); point-of-sale orders never do. The box letters come from "case description". ----
+    if (body.mode === "listsync") {
+      const ik = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const byRef = new Map<string, any>(); const dupRef = new Set<string>();
+      for (let f = 0; ; f += 1000) { const { data } = await sb.from("customers").select("id,agency_ref,food,hh,area,middleton,base").range(f, f + 999); (data || []).forEach((c: any) => { const k = ik(c.agency_ref); if (!k) return; if (byRef.has(k)) dupRef.add(k); else byRef.set(k, c); }); if ((data || []).length < 1000) break; }
+      let cursor: string | null = body.cursor ? String(body.cursor) : null; let since = "";
+      if (!cursor) {
+        const st = await sb.from("app_settings").select("value").eq("key", "list_since").maybeSingle();
+        since = String((st.data as any)?.value?.since || "");
+        if (!since || body.reset === true) {   // first run (or reset): from Monday 00:00 New York of this week
+          const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+          const g = (t: string) => parts.find((x) => x.type === t)!.value;
+          const back = ({ Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 } as Record<string, number>)[g("weekday")];
+          const d = new Date(Date.UTC(Number(g("year")), Number(g("month")) - 1, Number(g("day")) - back, 12));
+          since = new Date(nyIso(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} 00:00:00`)!).toISOString();
+        }
+      }
+      let read = 0, uploaded = 0, matched = 0, saved = 0, pages = 0; let through = ""; let more = false; let next: string | null = null;
+      const caseCnt: Record<string, number> = {}; const ex: string[] = [];
+      while (pages < 8) {
+        const r = await fetch("https://api.scanovator.com/v2/orders/list", { method: "POST", headers: { Authorization: "Bearer " + Deno.env.get("SCANOVATOR_TOKEN"), "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ store_id: STORE_ID, store_code: STORE_CODE, ...(cursor ? { cursor } : { changed_since: since }) }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return json({ ok: false, error: "Scanovator list " + r.status + ": " + String(j?.message || "") + " " + JSON.stringify(j?.errors || {}).slice(0, 200) }, 502);
+        pages++;
+        const rows: any[] = [];
+        for (const o of (Array.isArray(j.data) ? j.data : [])) {
+          read++;
+          let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
+          for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
+          if (!app) continue;   // not an uploaded order (point of sale): never saved
+          uploaded++;
+          const c = byRef.get(ik(app));
+          if (!c || dupRef.has(ik(app))) { if (ex.length < 5) ex.push(app.slice(0, 4) + "…"); continue; }
+          matched++;
+          const letters = cs ? cs.split(/[^A-Za-z0-9]+/).filter(Boolean).map((x) => x.toUpperCase()).join(" ") : "";
+          if (letters) { const c0 = letters.split(" ")[0].slice(0, 4); caseCnt[c0] = (caseCnt[c0] || 0) + 1; }
+          const delivered = nyIso(o.actually_delivered) || ((o.photos || []).length && o.createdAtIso ? new Date(o.createdAtIso).toISOString() : null);
+          rows.push({
+            order_id: String(o.order_id), customer_id: c.id, week_label: label(delivered || o.createdAtIso), driver: String(o.driver_name || o.driver_string || ""),
+            delivered_at: delivered, route_started: nyIso(o.route_started), receipt_url: o.receipt_url ? https(o.receipt_url) : "",
+            photo_urls: (o.photos || []).map(String).filter(Boolean).map(https), synced_at: new Date().toISOString(),
+            snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: letters ? letters.split(" ").length : (Number(o.total_boxes) || 0), ...(letters ? { letters } : {}) },
+          });
+        }
+        if (rows.length) {
+          const oids = rows.map((r2) => r2.order_id); const hv = new Map<string, any>();
+          const hr: any = await sb.from("deliveries").select("order_id,photo_paths,snap").in("order_id", oids); (hr.data || []).forEach((h: any) => hv.set(h.order_id, h));
+          for (const r2 of rows) { const h = hv.get(r2.order_id); r2.photo_paths = ((h && h.photo_paths) || []).slice(0, r2.photo_urls.length); if (h && h.snap) r2.snap = { ...h.snap, boxes: r2.snap.boxes, ...(r2.snap.letters ? { letters: r2.snap.letters } : {}) }; }
+          const { error: e2 } = await sb.from("deliveries").upsert(rows, { onConflict: "order_id" }); if (e2) throw e2; saved += rows.length;
+        }
+        const pg = j.pagination || {}; if (pg.listed_through) through = String(pg.listed_through);
+        more = !!pg.has_more && !!pg.next_cursor; cursor = more ? String(pg.next_cursor) : null;
+        if (!more) break;
+      }
+      next = more ? cursor : null;
+      if (!next) { const t = through ? new Date(new Date(through).getTime() - 5 * 60e3).toISOString() : new Date(Date.now() - 10 * 60e3).toISOString(); await sb.from("app_settings").upsert({ key: "list_since", value: { since: t, at: new Date().toISOString() } }, { onConflict: "key" }); }
+      return json({ ok: true, read, uploaded, matched, saved, pages, next, since: since || null, cases: caseCnt, unmatched_examples: ex });
+    }
     // ---- mode "scan" / "scanauto": owner only. Fetches orders one by one by ORDER NUMBER (no phone needed; Middleton orders are uploaded without a phone). Uploaded orders carry an Application ID (point-of-sale orders do not): those are matched to the customer by that ID, and the box letters come from "case description". ----
     // "scan" = a range given by the caller (save:true to store, otherwise counts only). "scanauto" = what the hourly sync runs: new order numbers after the saved cursor + orders still waiting for their delivery.
     if (body.mode === "scan" || body.mode === "scanauto") {
