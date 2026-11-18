@@ -440,10 +440,10 @@ Deno.serve(async (req) => {
       const next = offset + BATCH < (total || 0) ? offset + BATCH : null;
       return json({ ok: true, mode: "byorder", offset, next, total, saved, undelivered, nocust, failed, skipped_done: skippedDone });
     }
-    const wkStart = (() => {   // last Saturday 00:00 New York (the delivery week starts Saturday)
+    const wkStart = (() => {   // last Monday 00:00 New York (the delivery week is Monday to Friday)
       const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
       const g = (t: string) => parts.find((x) => x.type === t)!.value;
-      const back = ({ Sat: 0, Sun: 1, Mon: 2, Tue: 3, Wed: 4, Thu: 5, Fri: 6 } as Record<string, number>)[g("weekday")];
+      const back = ({ Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 } as Record<string, number>)[g("weekday")];
       const d = new Date(Date.UTC(Number(g("year")), Number(g("month")) - 1, Number(g("day")) - back, 12));
       return new Date(nyIso(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} 00:00:00`)!).getTime();
     })();
@@ -464,7 +464,7 @@ Deno.serve(async (req) => {
     const chunk = phones.slice(offset, offset + CHUNK);
     const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
     const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
-    const since = Math.max(Date.now() - daysBack * 864e5, wkStart - 3 * 864e5);   // only this delivery week (Saturday to Friday) plus 3 days for orders placed just before it
+    const since = Math.max(Date.now() - daysBack * 864e5, wkStart - 3 * 864e5);   // only this delivery week (Monday to Friday) plus 3 days for orders placed just before it
     let viaCf = 0, notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;
     const word = body.word === true;
