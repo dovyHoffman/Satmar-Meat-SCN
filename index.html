@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b441">
+<meta name="build" content="b442">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1985,12 +1985,20 @@ async function doImport(quiet){
  }catch(e){I.busy=false;I.err="Import stopped: "+dberr(e)+" Nothing was deleted. You can run it again.";if(quiet)throw e}
  render()}
 /* ===== New list (draft): upload, review, edit, approve ===== */
-const NL={W:{cur:null,next:null,prev:null},ws:"cur",loaded:false,busy:false,msg:"",err:"",tab:"all"};
+const NL={W:{cur:null,next:null,prev:null},ws:"cur",loaded:false,ok:false,had:false,snap:"",bk:0,busy:false,msg:"",err:"",tab:"all"};
 Object.defineProperty(NL,"d",{get(){return this.W[this.ws]||null},set(v){this.W[this.ws]=v},enumerable:true});
 const nlMon=o=>{const s=wkKey(Date.now()),d=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2+7*o);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})};
 const NL_FOOD=[["meals","Meals"],["raw","Raw"],["rawnb","Raw (no beef)"],["supper","Suppers"],["shabbos","Shabbos"]];
-async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;const pl=r.data&&r.data.payload;if(pl&&pl.v==2){NL.W={cur:pl.W&&pl.W.cur||null,next:pl.W&&pl.W.next||null,prev:pl.W&&pl.W.prev||null};NL.ws=pl.ws=="next"?"next":"cur"}else if(pl&&pl.rows){NL.W={cur:pl,next:null,prev:null};NL.ws="cur"}if(NL.W.cur&&!NL.W.cur.label)NL.W.cur.label=nlMon(0);NL.at=r.data&&r.data.updated_at}catch(e){NL.err="The draft could not be read: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
-async function nlSave(){try{const r=await sb.from("list_draft").upsert({id:1,payload:{v:2,ws:NL.ws,W:NL.W},updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err=""}catch(e){NL.err="Not saved: "+dberr(e)}}
+async function nlLoad(){if(NL.loaded||!sb)return;NL.loaded=true;try{const r=await sb.from("list_draft").select("payload,updated_at").eq("id",1).maybeSingle();if(r.error)throw r.error;const pl=r.data&&r.data.payload;if(pl&&pl.v==2){NL.W={cur:pl.W&&pl.W.cur||null,next:pl.W&&pl.W.next||null,prev:pl.W&&pl.W.prev||null};NL.ws=pl.ws=="next"?"next":"cur"}else if(pl&&pl.rows){NL.W={cur:pl,next:null,prev:null};NL.ws="cur"}if(NL.W.cur&&!NL.W.cur.label)NL.W.cur.label=nlMon(0);NL.at=r.data&&r.data.updated_at;NL.ok=true;NL.had=nlHasWeeks();NL.snap=NL.had?JSON.stringify({v:2,ws:NL.ws,W:NL.W}):""}catch(e){NL.loaded=false;setTimeout(()=>{if(!NL.ok)render()},4000);NL.err="The draft could not be read, nothing was changed: "+dberr(e)+(/list_draft/.test(String(e&&e.message))?" (Database update 043 has not been run yet.)":"")}render()}
+const nlHasWeeks=()=>!!(NL.W&&((NL.W.cur&&(NL.W.cur.rows||[]).length)||(NL.W.next&&(NL.W.next.rows||[]).length)||(NL.W.prev&&(NL.W.prev.rows||[]).length)));
+async function nlSave(force){
+ if(!NL.ok){NL.err="Not saved: the saved week has not been read yet, so nothing was overwritten. Wait a moment and try again.";return}
+ if(NL.had&&!nlHasWeeks()&&force!==true){NL.err="Not saved: this would erase the saved week list. Nothing was changed.";return}
+ try{
+  if(NL.snap&&Date.now()-NL.bk>120000){NL.bk=Date.now();try{await sb.from("app_settings").upsert({key:"list_draft_backup",value:{at:new Date().toISOString(),by:S.user.name,payload:JSON.parse(NL.snap)},updated_at:new Date().toISOString()})}catch(e){}}
+  const pl={v:2,ws:NL.ws,W:NL.W};
+  const r=await sb.from("list_draft").upsert({id:1,payload:pl,updated_at:new Date().toISOString(),updated_by:S.user.id});if(r.error)throw r.error;NL.err="";NL.had=nlHasWeeks();NL.snap=NL.had?JSON.stringify(pl):""}
+ catch(e){NL.err="Not saved: "+dberr(e)}}
 const nlDg=v=>{let d=String(v||"").replace(/\D/g,"");if(d.length==11&&d[0]=="1")d=d.slice(1);return d};
 const nlNK=n=>String(n||"").toLowerCase().replace(/[^a-z]+/g," ").trim().split(" ").filter(Boolean).sort().join(" ");
 const nlKey=r=>r.dup?"d:"+nk(r.agency_ref)+":"+nlNK(r.name):r.noId?"n:"+nlNK(r.name)+":"+(r.hh||""):r.ak?"a:"+String(r.agency||"").toUpperCase()+":"+nk(r.agency_ref):nk(r.agency_ref);
