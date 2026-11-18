@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b453">
+<meta name="build" content="b454">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3592,9 +3592,9 @@ function dvAll(v){DGROUPS.forEach(g=>DV.areas[g.id]=v);DV.pg=0;render()}
 function dvOff(id,v){if(v)delete DV.off[id];else DV.off[id]=true;render()}
 function dvOffAll(v){dvRows().rows.forEach(r=>{const k=r.c.uuid||r.c.id;if(v)delete DV.off[k];else DV.off[k]=true});render()}
 function vDelivery(){
- {const a=upages(S.user),ok=t=>t=="new"?a.indexOf("delivery")>=0:a.indexOf("delivery_prev")>=0||a.indexOf("delivery")>=0;if(!ok(DV.tab||"new"))DV.tab=["new","prev","wait"].find(ok)||"prev"}
+ {const a=upages(S.user),ok=t=>t=="new"?a.indexOf("delivery")>=0:a.indexOf("delivery_prev")>=0||a.indexOf("delivery")>=0;if(!ok(DV.tab||"wait"))DV.tab=["wait","new","prev"].find(ok)||"prev"}
  if(DV.tab=="prev")return vPrev();
- if(DV.tab=="wait")return vWait();
+ if((DV.tab||"wait")=="wait")return vWait();
  if(!S.real)return `<div class="card"><h2>Delivery</h2><p class="note">Load the real data first (the green/blue bar at the top of Customers), then come back here.</p></div>`;
  const R=dvRows(),pick=R.rows.filter(r=>!DV.off[r.c.uuid||r.c.id]),foods={},cos={};
  const gl={};DGROUPS.forEach(g=>gl[g.id]={});
@@ -3642,19 +3642,20 @@ async function dvFile(kind,real,pre,fn){
  render()}
 
 const dvTabs=()=>{const a=upages(S.user),hN=a.indexOf("delivery")>=0,hP=hN||a.indexOf("delivery_prev")>=0;if(!hP)return "";if(!hN&&!S.real)return "";
- return `<div class="bar" style="margin-bottom:8px">${hN?`<button class="${DV.tab=="prev"||DV.tab=="wait"?"":"pri"}" onclick="DV.tab='new';render()">New delivery</button>`:""}<button class="${DV.tab=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button><button class="${DV.tab=="wait"?"pri":""}" onclick="DV.tab='wait';render()">Not delivered yet${S.real?` (${dvWaitList().length.toLocaleString()})`:""}</button></div>`};
+ const cur=DV.tab||"wait";
+ return `<div class="bar" style="margin-bottom:8px"><button class="${cur=="wait"?"pri":""}" onclick="DV.tab='wait';render()">Delivery status</button>${hN?`<button class="${cur=="new"?"pri":""}" onclick="DV.tab='new';render()">New delivery</button>`:""}<button class="${cur=="prev"?"pri":""}" onclick="DV.tab='prev';loadSends();render()">Previous deliveries</button></div>`};
 const dvWaitList=()=>cust.filter(c=>c.active&&weekDel(c,0).state!="full");
 DV.w=DV.w||{q:"",st:"",ag:"",ar:"",bx:"",pg:0};
 const dvAr=c=>c.mid?"Middleton":(c.area=="Monsey/Monroe"?(/monroe|kiryas|\b1095[0-9]\b|\b10949\b/i.test(c.addr||"")?"Monroe":"Monsey"):(c.area||""));
 function vWait(){
- if(!S.real)return dvTabs()+`<div class="card"><h2>Not delivered yet</h2><p class="note">Load the real data first, then come back here.</p></div>`;
+ if(!S.real)return dvTabs()+`<div class="card"><h2>Delivery status</h2><p class="note">Load the real data first, then come back here.</p></div>`;
  const W=DV.w,wait=dvWaitList(),done=cust.filter(c=>c.active&&weekDel(c,0).state=="full"),all=W.st=="done"?done:wait,q=String(W.q||"").toLowerCase().trim();
  const nP=wait.filter(c=>weekDel(c,0).state=="part").length,nN=wait.length-nP;
  const rows=all.filter(c=>{const d=weekDel(c,0);if(W.st=="none"&&d.state!="none")return false;if(W.st=="part"&&d.state!="part")return false;if(W.ag&&c.agency!=W.ag)return false;if(W.ar&&dvAr(c)!=W.ar)return false;if(W.bx&&codesFor(c.food,c.hh,c.area,c.mid).split(" ").indexOf(W.bx)<0)return false;
   return !q||(c.name+" "+c.ref+" "+(c.phone||"")+" "+(c.cell||"")+" "+(c.addr||"")+" "+c.agency).toLowerCase().indexOf(q)>=0}).sort((a,b)=>String(dvG(a).id).localeCompare(String(dvG(b).id))||String(a.name).localeCompare(String(b.name)));
  const ags=[...new Set(all.map(c=>c.agency))].sort(),ars=["Lee","Bedford","BP","Monsey","Monroe","Middleton"].concat([...new Set(all.map(dvAr))].filter(a=>a&&["Lee","Bedford","BP","Monsey","Monroe","Middleton"].indexOf(a)<0).sort()),bxc={};all.forEach(c=>codesFor(c.food,c.hh,c.area,c.mid).split(" ").filter(Boolean).forEach(k=>bxc[k]=(bxc[k]||0)+1));const bxs=Object.keys(bxc).sort((a,b)=>a.length-b.length||a.localeCompare(b)),pages=Math.max(1,Math.ceil(rows.length/100)),pg=Math.min(W.pg||0,pages-1),vis=rows.slice(pg*100,pg*100+100);
  const tile=(k,l,n)=>`<button class="${W.st==k?"pri":""}" style="border-radius:999px;padding:6px 14px" onclick="DV.w.st='${k}';DV.w.pg=0;render()">${l} <b>${n.toLocaleString()}</b></button>`;
- return `<div class="card"><div class="cfz">${dvTabs()}<h2>Not delivered yet <span class="note">this week</span></h2><div class="kpis" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">${tile("","All waiting",wait.length)}${tile("none","Not delivered at all",nN)}${tile("part","Part delivered",nP)}${tile("done","Delivered",done.length)}</div>
+ return `<div class="card"><div class="cfz">${dvTabs()}<h2>Delivery status <span class="note">this week</span></h2><div class="kpis" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">${tile("","All waiting",wait.length)}${tile("none","Not delivered at all",nN)}${tile("part","Part delivered",nP)}${tile("done","Delivered",done.length)}</div>
  <div class="bar" style="align-items:center;gap:10px;flex-wrap:wrap"><input placeholder="Search name, ID, phone, address or agency" value="${esc(W.q)}" oninput="DV.w.q=this.value;DV.w.pg=0;render()" style="flex:1;min-width:200px">
  <label class="note" style="display:flex;gap:6px;align-items:center">Box <select style="width:auto;margin:0" onchange="DV.w.bx=this.value;DV.w.pg=0;render()"><option value="">All</option>${bxs.map(k=>`<option value="${esc(k)}" ${W.bx==k?"selected":""}>${esc(k)} (${bxc[k]})</option>`).join("")}</select></label>
  <label class="note" style="display:flex;gap:6px;align-items:center">Agency <select style="width:auto;margin:0" onchange="DV.w.ag=this.value;DV.w.pg=0;render()"><option value="">All</option>${ags.map(a=>`<option ${W.ag==a?"selected":""}>${esc(a)}</option>`).join("")}</select></label>
