@@ -1,1 +1,0 @@
-select json_agg(json_build_object('c',column_name,'t',data_type,'n',is_nullable,'d',column_default is not null)) as r from information_schema.columns where table_name='deliveries' and table_schema='public';

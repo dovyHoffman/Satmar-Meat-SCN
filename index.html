@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b449">
+<meta name="build" content="b450">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1832,6 +1832,14 @@ function vImport(){
  ${S.om&&S.om.rows?`<div class="card" style="margin-top:12px"><b>${S.om.rows.length.toLocaleString()} orders</b> <span class="note">from ${S.om.tabs} tab${S.om.tabs==1?"":"s"} · ${S.om.withId.toLocaleString()} with an Application ID · ${S.om.withL.toLocaleString()} with box letters</span>
  <div class="bar"><button class="pri" onclick="omSave()" ${S.om.busy?"disabled":""}>${S.om.busy?"Saving… "+S.om.done+" / "+S.om.rows.length:"Save them now"}</button></div></div>`:""}
  ${S.om&&S.om.ok?`<p class="msg">${esc(S.om.ok)}</p>`:""}</div>
+ <div class="card"><h2>D boxes (Williamsburg) - delivery pictures</h2>
+ <p class="note">The D boxes are delivered by another company, so they never show in Scanovator. Upload their <b>vendor report</b> (.csv). Each delivered row is matched to the customer by <b>Application ID</b> and saved as a delivered <b>D</b> box with its picture.</p>
+ <input type="file" accept=".csv,text/csv" onchange="dbxFile(this.files[0])">
+ ${S.dbx&&S.dbx.err?`<p class="err">${esc(S.dbx.err)}</p>`:""}
+ ${S.dbx&&S.dbx.rows?`<div class="card" style="margin-top:12px"><b>${S.dbx.total} rows</b> <span class="note">· ${S.dbx.rows.length} delivered and matched · ${S.dbx.skip} not delivered (skipped) · ${S.dbx.unm.length} not matched to a customer${S.dbx.amb?" · "+S.dbx.amb+" ID shared by two customers (skipped)":""}</span>
+ ${S.dbx.unm.length?`<div class="wrap" style="max-height:200px;overflow:auto;margin-top:6px"><table style="font-size:12px"><tr><th>Application ID in the file</th><th>Name in the file</th></tr>${S.dbx.unm.slice(0,100).map(x=>`<tr><td>${esc(x.id)}</td><td>${esc(x.name)}</td></tr>`).join("")}</table></div>`:""}
+ <div class="bar"><button class="pri" onclick="dbxSave()" ${S.dbx.busy||!S.dbx.rows.length?"disabled":""}>${S.dbx.busy?"Saving…":"Save "+S.dbx.rows.length+" D deliveries"}</button></div></div>`:""}
+ ${S.dbx&&S.dbx.ok?`<p class="msg">${esc(S.dbx.ok)}</p>`:""}</div>
  <div class="card"><h2>Old delivery lists (Labels Delivery sheet)</h2>
  <p class="note">Brings your old tabs (A_11_3, E_11_2, MN_11_4 …) into Delivery → Previous deliveries, one tab each. Open the Google Sheet <b>Labels Delivery</b>, click <b>File → Download → Microsoft Excel (.xlsx)</b>, choose it below, then Save. Run it again any time: the same tab is never added twice.</p>
  <div class="bar" style="align-items:center"><label class="note" style="display:flex;gap:8px;align-items:center">How far back <select id="pv_w" style="width:auto;margin:0"><option value="4" selected>Last 4 weeks</option><option value="8">Last 8 weeks</option><option value="13">Last 3 months</option><option value="0">Everything (slow)</option></select></label></div>
@@ -1941,6 +1949,33 @@ async function omFile(f){
   if(!rows.length){S.om={err:"No orders with an Application ID or case description were found. Is it the Billing SCN 82 file with the ORDERS tabs?"};render();return}
   S.om={rows:rows,tabs:tabs,withId:rows.filter(x=>x.a).length,withL:rows.filter(x=>x.l).length,done:0}
  }catch(e){S.om={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+function nyToIso(s){const m=/^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)(?::(\d\d))?/.exec(String(s||"").trim());if(!m)return null;const u=Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0));
+ const off=t=>{const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).formatToParts(new Date(t)),g=k=>+p.find(x=>x.type==k).value;return Date.UTC(g("year"),g("month")-1,g("day"),g("hour")%24,g("minute"),g("second"))-t};
+ let t=u-off(u);t=u-off(t);return new Date(t).toISOString()}
+async function dbxFile(f){
+ if(!f)return;S.dbx={};render();
+ try{const all=parseCsv((await f.text()).replace(/^\uFEFF/,"")),hn=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,""),H=(all[0]||[]).map(hn),ix=k=>H.indexOf(k);
+  const iA=ix("applicationid"),iN=ix("name"),iD=ix("driver"),iS=ix("status"),iT=ix("datetime"),iP=ix("photo");
+  if(iA<0||iT<0||iS<0)throw new Error("This is not the vendor report: columns Application ID, Status and Date & time were not found.");
+  const ik=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,""),by={};cust.forEach(c=>{const k=ik(c.ref);if(k)(by[k]=by[k]||[]).push(c)});
+  const rows=[],unm=[];let skip=0,amb=0,total=0;
+  for(let r=1;r<all.length;r++){const x=all[r];if(!x||!String(x[iA]||"").trim())continue;total++;
+   if(!/^delivered$/i.test(String(x[iS]||"").trim())){skip++;continue}
+   const id=String(x[iA]).trim(),hit=by[ik(id)]||[],at=nyToIso(x[iT]);
+   if(!hit.length||!at){unm.push({id:id,name:String(x[iN]||"")});continue}
+   if(hit.length>1){amb++;continue}
+   const c=hit[0],m=/^(\d{4})-(\d\d)-(\d\d)/.exec(String(x[iT]).trim()),ph=String(x[iP]||"").trim();
+   rows.push({o:"dbox-"+ik(id)+"-"+String(x[iT]).replace(/\D/g,""),c:c.uuid,w:(+m[2])+"/"+(+m[3]),d:String(x[iD]||"").trim(),t:at,p:/^https?:\/\//i.test(ph)?[ph]:[],s:{food:c.food,hh:c.hh,area:c.area,mid:c.mid,base:c.base,boxes:1,letters:"D"}})}
+  if(!total)throw new Error("No rows found in the file.");
+  S.dbx={rows:rows,unm:unm,skip:skip,amb:amb,total:total}
+ }catch(e){S.dbx={err:"Could not read the file: "+((e&&e.message)||e)}}
+ render()}
+async function dbxSave(){
+ const M=S.dbx;if(!M||!M.rows||M.busy)return;M.busy=true;M.ok="";render();
+ try{let n=0;for(let i=0;i<M.rows.length;i+=300){const r=await sb.rpc("save_dbox_pods",{p:M.rows.slice(i,i+300)});if(r.error)throw r.error;n+=r.data||0}
+  await loadDB();S.dbx={ok:"Saved "+n+" D deliveries with their pictures. They show on each customer's delivery."}
+ }catch(e){M.busy=false;M.err="Not saved: "+dberr(e)+(/save_dbox_pods|function/i.test(String(e&&e.message))?" (The database update 088 has not been run yet.)":"")}
  render()}
 async function omSave(){
  const M=S.om;if(!M||!M.rows||M.busy)return;M.busy=true;M.done=0;M.ok="";M.err="";render();
