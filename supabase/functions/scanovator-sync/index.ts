@@ -592,7 +592,7 @@ Deno.serve(async (req) => {
           if (created < since && !thisWeek(o)) continue;   // an order created earlier but delivered this week still counts
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
           const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || "";
-          if (body.mapOnly !== false && created < wkStart && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // this week's orders are matched on their own (ID, strict name+phone, word rule); older ones still need the export
+          if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // only UPLOADED orders (they carry our Application ID, or are in the export). Point-of-sale orders are never saved.
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
           if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
