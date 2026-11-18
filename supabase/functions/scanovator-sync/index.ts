@@ -464,7 +464,7 @@ Deno.serve(async (req) => {
     const chunk = phones.slice(offset, offset + CHUNK);
     const daysBack = Math.min(DAYS_BACK, Math.max(1, Number(body.days) || DAYS_BACK));   // quick runs ask for only the last few days
     const delivered0 = (o: any) => { const d = nyIso(o.actually_delivered); return !!d && new Date(d).getTime() > Date.now() - 6 * 864e5; };
-    const since = Date.now() - daysBack * 864e5;
+    const since = Math.max(Date.now() - daysBack * 864e5, wkStart - 3 * 864e5);   // only this delivery week (Saturday to Friday) plus 3 days for orders placed just before it
     let viaCf = 0, notInExport = 0, seen = 0, saved = 0, viaId = 0, viaPhone = 0, noMatch = 0, viaName = 0;
     const loose = body.loose === true;
     const word = body.word === true;
