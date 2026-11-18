@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b448">
+<meta name="build" content="b449">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1633,7 +1633,7 @@ function podTag(id,off){const c=cust.find(x=>x.id==id);if(!c)return;const w=week
 function delTag(c,off){const w=weekDel(c,off);
  if(w.state=="none")return `<span class="ctag t-no">${S.real&&c.active===false&&!off?"Not active":"Not yet"}</span>`;
  if(w.state=="full")return `<span class="ctag t-ok" style="cursor:pointer" title="Tap to see the delivery picture" onclick="event.stopPropagation();podTag(${c.id},${off||0})">Delivered · ${esc(shortAt(w.last.at))}</span>`;
- return `<span class="ctag t-part" style="cursor:pointer" onclick="event.stopPropagation();podTag(${c.id},${off||0})" title="Scanovator shows ${w.got} of ${w.need} boxes delivered so far. Tap to see the picture">${w.got} of ${w.need} boxes · ${esc(shortAt(w.last.at))}</span>`}
+ return `<span class="ctag t-part" style="cursor:pointer" onclick="event.stopPropagation();podTag(${c.id},${off||0})" title="Scanovator shows ${w.got} of ${w.need} boxes delivered so far. Tap to see the picture">${w.got} of ${w.need} boxes${(()=>{try{const t=w.ps.map(p=>lettersOf(c,p).t).filter(Boolean).join(" ");return t?" ("+esc(t)+")":""}catch(e){return ""}})()} · ${esc(shortAt(w.last.at))}</span>`}
 
 /* ---- which box (E, A, ...) each delivery carried ---- */
 function combos(a,k){if(k<=0)return [[]];if(a.length<k)return [];const h=a[0],t=a.slice(1);return combos(t,k-1).map(x=>[h].concat(x)).concat(combos(t,k))}
@@ -3793,23 +3793,23 @@ async function syncNow(auto){
   while(off!==null){if(!auto){S.syncMsg="Reading deliveries… "+Math.min(off,total||off)+(total?" / "+total:"")+" customers";render()}
    let j;for(let t=0;;t++){try{j=await call(auto?{mode:"orders",offset:off,days:autoDays(),loose:true,word:true}:{mode:"orders",offset:off,loose:true,word:true});break}catch(e){if(t>=2)throw e;await new Promise(r=>setTimeout(r,2000))}}
    saved+=j.deliveries_saved;if(j.diag)for(const k in j.diag)DG[k]=(DG[k]||0)+j.diag[k];vid+=j.via_id||0;vnm+=j.via_name||0;wc+=j.with_code||0;wo+=j.with_online||0;dn+=j.delivered_n||0;cex=cex.concat(j.code_examples||[]).slice(0,6);if(!dsm.length)dsm=j.delivered_sample||[];ck=ck.concat(j.case_keys||[]).slice(0,3);vph+=j.via_phone||0;nom+=j.no_match||0;if(codes.length<3)codes=codes.concat(j.phone_match_codes||[]).slice(0,3);Object.entries(j.id_paths||{}).forEach(([k,v])=>{idp[k]=(idp[k]||0)+v});if(!sp.length)sp=(j.sample_paths||[]).slice(0,60);total=j.total;off=j.next}
-  try{const oj=await call({mode:"optsync",days:auto?3:7});S.optMsg=" OptimoRoute (BP / Monsey / Monroe): "+oj.saved+" delivered saved, "+oj.unmatched+" not matched"+(oj.unmatched&&oj.unmatched_examples&&oj.unmatched_examples.length?" (e.g. "+oj.unmatched_examples.join("; ")+")":"")+"."}catch(e){S.optMsg=" OptimoRoute: "+(e&&e.message||e)}
+  if(!auto||nyNow().h>=13)try{const oj=await call({mode:"optsync",days:auto?3:7});S.optMsg=" OptimoRoute (BP / Monsey / Monroe): "+oj.saved+" delivered saved, "+oj.unmatched+" not matched"+(oj.unmatched&&oj.unmatched_examples&&oj.unmatched_examples.length?" (e.g. "+oj.unmatched_examples.join("; ")+")":"")+"."}catch(e){S.optMsg=" OptimoRoute: "+(e&&e.message||e)}
  S.msg="Deliveries saved: "+saved+" (matched by customer ID: "+vid+(S.loose?"; matched by name + phone: "+vnm:"")+"; orders skipped because the ID did not match: "+nom+"). Pictures are loaded when you open them."+(nom&&codes.length?" Examples of codes that did not match: "+codes.join(", ")+".":"")+(S.optMsg||"");if(!auto){BILL.real=false;await loadDB()}
   {const t0=weekStart(),n=cust.filter(c=>(c.pods||[]).some(p=>p.ts&&p.ts>=t0)).length;S.msg+=" Customers with a delivery this week: "+n+". Example IDs in your list: "+cust.slice(0,3).map(c=>c.ref).join(", ")+".";S.msg+=" Orders in the last 28 days: with a customer code "+wc+", with an online order id "+wo+", delivered "+dn+(cex.length?". Examples of codes found on orders: "+cex.join(", "):"")+(dsm.length?". Fields on a delivered order: "+dsm.join("; "):"")+".";S.msg+=(ck.length?" Box letters read from: "+ck.join(", ")+".":" No \"case description\" field was found on the orders.");S.msg+=(Object.keys(idp).length?" Your IDs were found in these order fields: "+Object.entries(idp).map(([k,v])=>k+" ("+v+")").join(", ")+".":"")+(nom&&sp.length?" Fields on an order: "+sp.join("; ")+".":"");if(DG.delivered_skipped!=null){S.msg+=" Not matched, delivered in the last 6 days: "+DG.delivered_skipped+" (no customer ID on the order: "+(DG.no_code||0)+"; name matches exactly one customer: "+(DG.name_unique||0)+"; name matches several: "+(DG.name_several||0)+"; only the phone is in your list: "+(DG.phone_only||0)+"; nothing matches: "+(DG.nothing||0)+")."}S.syncRes=S.msg}
  if(auto)S.msg=m0;/* the automatic check never reloads the page or shows a message: it must not interrupt work in progress; new deliveries show the next time a page loads */
  }catch(e){if(auto)S.autoErr=(e&&e.message)||String(e);else S.err="Sync did not work: "+((e&&e.message)||e)}
  S.syncing=false;S.syncMsg="";if(auto){S.autoAt=Date.now()}else render()}
-/* ---- automatic delivery sync: Mon-Thu at 3, 5, 7 and 9 pm New York, once each, owner signed in, last 3 days only ---- */
+/* ---- automatic delivery sync: Mon-Fri every hour from 9am to 9pm New York (OptimoRoute / BP only from 1pm), owner signed in, this week only ---- */
 function autoOn(){try{return localStorage.getItem("sm_autosync")!=="0"}catch(e){return true}}
 function autoSet(v){try{localStorage.setItem("sm_autosync",v?"1":"0")}catch(e){}render()}
 function nyNow(){const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"numeric",hour12:false}).formatToParts(new Date()),g=t=>(p.find(x=>x.type==t)||{}).value;return {d:g("weekday"),h:Number(g("hour"))%24}}
 function autoDays(){const m={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6}[nyNow().d]||0;return m+4}   // back to Monday of this week, plus 3 days because an order is created before it is delivered
-function autoWin(){const n=nyNow();return ["Mon","Tue","Wed","Thu"].includes(n.d)&&[15,17,19,21].includes(n.h)}
+function autoWin(){const n=nyNow();return ["Mon","Tue","Wed","Thu","Fri"].includes(n.d)&&n.h>=9&&n.h<=21}
 setInterval(()=>{try{if(!S.user||S.user.role!="owner"||S.syncing||!autoOn()||!autoWin())return;const sl=new Date().toDateString()+"|"+nyNow().h;if(S.autoSlot===sl)return;S.autoSlot=sl;S.autoAt=Date.now();syncNow(true)}catch(e){}},60e3);
 
 
 /* ---- deliveries shown from the database ---- */
-function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+1)%7));return d.getTime()}   // last Saturday 00:00
+function weekStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()}   // last Monday 00:00 (the delivery week is Monday to Friday)
 function dlv(c){
  const w=weekDel(c),ps=w.ps.slice().sort((a,b)=>a.ts-b.ts);
  if(!ps.length)return `<div class="dlvrow"><div class="dlvh"><b>Delivery this week</b><span class="ctag t-no">${c.active===false?"Not active · not on this week's list":"Not yet"}</span></div></div>`;
