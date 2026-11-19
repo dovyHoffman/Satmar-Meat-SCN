@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b461">
+<meta name="build" content="b462">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -683,13 +683,13 @@ function prevCode(){
 const leaveMid=a=>{a=a||{};const r=detectArea({st:a.st||a.street,city:a.city,zip:a.zip});return r=="Middleton"||r=="?"?"Lee":r};
 /* Area from the address. Bedford = the streets on the office list (a whole street, or only part of it: "678 & up", "65 & down"); the rest of Williamsburg is Lee.
    When the address is not clear enough (no house number on a street that is only partly Bedford, no zip, a zip outside Williamsburg) the answer is "?" and the office chooses. */
-const BEDST={bartlett:0,bedford:["up",678],classon:0,dekalb:0,ellery:0,flushing:0,franklin:0,hart:0,hartg:0,heyward:["down",65],hopkins:0,kent:["up",755],lafayette:0,lynch:["down",62],marcy:["up",450],middleton:["down",5],myrtle:0,nostrand:0,norstand:0,park:0,pulaski:0,rutledge:["down",53],sanford:0,skillman:0,spencer:0,spenser:0,taaffe:0,taffe:0,tompkins:0,throop:["up",256],vernon:0,wallabout:["down",136],walworth:0,whipple:0,whyte:["up",751],willoughby:0};
+const BEDST={kosciuszko:0,kosciusko:0,kosciuzko:0,stockton:0,stokton:0,martin:0,mlk:0,frankiun:0,franklyn:0,nostrnad:0,sandford:0,bartlett:0,bedford:["up",678],classon:0,dekalb:0,ellery:0,flushing:0,franklin:0,hart:0,hartg:0,heyward:["down",65],hopkins:0,kent:["up",755],lafayette:0,lynch:["down",62],marcy:["up",450],middleton:["down",5],myrtle:0,nostrand:0,norstand:0,park:0,pulaski:0,rutledge:["down",53],sanford:0,skillman:0,spencer:0,spenser:0,taaffe:0,taffe:0,tompkins:0,throop:["up",256],vernon:0,wallabout:["down",136],walworth:0,whipple:0,whyte:["up",751],willoughby:0};
 const WBG_ZIP=/^(11211|11206|11249|11205|11221|11222|11237)$/;
 function areaRule(a){
  const city=String(a.city||"").toLowerCase(),zip=String(a.zip||"").slice(0,5),st0=String(a.st||a.street||"").toLowerCase().trim();
  if(/monsey|monroe|airmont|spring valley|suffern|nanuet|kiryas|pomona|new city|chestnut ridge|wesley hills|upstate/.test(city)||/^109[0-9]{2}$/.test(zip))return {a:"Monsey/Monroe",why:"upstate city or zip"};
  if(/^(11219|11204|11218|11230|11210|11232)$/.test(zip))return {a:"BP",why:"Borough Park zip"};
- const nm=st0.match(/^\s*(\d+)/),no=nm?+nm[1]:null,name=st0.replace(/^\s*\d+[a-z]?\s*[-,]?\s*/,"").replace(/[.,#]/g," ").replace(/\b(street|st|avenue|ave|place|pl|boulevard|blvd|road|rd|court|ct|drive|dr|lane|ln)\b/g," ").replace(/\s+/g," ").trim().split(" ")[0]||"";
+ const nm=st0.match(/^\s*(\d+)/),no=nm?+nm[1]:null,name=st0.replace(/^\s*\d+(\s*-\s*[a-z]\b|[a-z]\b)?\s*,?\s*/,"").replace(/[.,#]/g," ").replace(/\b(street|st|avenue|ave|place|pl|boulevard|blvd|road|rd|court|ct|drive|dr|lane|ln)\b/g," ").replace(/\s+/g," ").trim().split(" ")[0]||"";
  if(name&&Object.prototype.hasOwnProperty.call(BEDST,name)){const r=BEDST[name];
   if(!r)return {a:"Bedford",why:"whole street is Bedford"};
   if(no==null)return {a:"?",why:"this street is Bedford only "+(r[0]=="up"?r[1]+" & up":r[1]+" & down")+" and there is no house number"};
