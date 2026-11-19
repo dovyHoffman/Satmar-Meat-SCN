@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b457">
+<meta name="build" content="b458">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2940,7 +2940,7 @@ async function cancelNext(id){
  const {error}=await sb.from("change_requests").update({status:"cancelled"}).eq("id",c.next.rid);
  if(error){S.err="Not cancelled: "+dberr(error);S.msg="";render();return}
  c.next=null;S.msg="Cancelled.";S.err="";render()}
-S.cf=S.cf||{q:"",by:"",ty:""};
+S.cf=S.cf||{q:"",by:"",ty:"",fr:"",to:""};
 function vChanges(){
  const own=S.user.role=="owner",all=cust.filter(c=>c.next),F0=S.cf,q=(F0.q||"").toLowerCase().trim(),qd=q.replace(/\D/g,"");
  const TY=[["food","Food type"],["addr","Delivery address"],["area","Area"],["phone","Phone"],["cell","Cell"],["notes","Delivery notes"],["note2","Customer notes"]];
@@ -2948,17 +2948,21 @@ function vChanges(){
  const rows=all.filter(c=>{const x=c.next;
   if(F0.by&&(x.by||"")!==F0.by)return false;
   if(F0.ty&&!x[F0.ty])return false;
+  if(F0.fr&&!(x.food&&F[c.food]===F0.fr))return false;
+  if(F0.to&&!(x.food&&nlabel(x.food)===F0.to))return false;
   if(q){const hay=(c.name+" "+c.ref+" "+(c.addr||"")+" "+(c.phone||"")+" "+(c.cell||"")+" "+(x.by||"")).toLowerCase();if(hay.indexOf(q)<0&&!(qd.length>=3&&(String(c.phone||"").replace(/\D/g,"").indexOf(qd)>=0||String(c.cell||"").replace(/\D/g,"").indexOf(qd)>=0)))return false}
-  return true}),flt=rows.length!=all.length||F0.q||F0.by||F0.ty;
+  return true}),flt=rows.length!=all.length||F0.q||F0.by||F0.ty||F0.fr||F0.to;
+ const frs=[...new Set(all.filter(c=>c.next.food).map(c=>F[c.food]||""))].sort(),tos=[...new Set(all.filter(c=>c.next.food).map(c=>nlabel(c.next.food)||""))].sort(),showF=F0.ty=="food"||F0.fr||F0.to;
  const ids=rows.map(c=>c.id);
  return `<div class="card"><h2>Changes for next week (${esc(nwk())})</h2>
  <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>every Sunday 7:00pm</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
- <div class="bar" style="flex-wrap:wrap;gap:8px;align-items:center"><input placeholder="Search name, ID, address, phone or who entered" value="${esc(F0.q||"")}" onchange="S.cf.q=this.value;render()" style="max-width:300px">
+ <div class="cfz" style="margin-top:6px"><div class="bar" style="flex-wrap:wrap;gap:8px;align-items:center"><input placeholder="Search name, ID, address, phone or who entered" value="${esc(F0.q||"")}" onchange="S.cf.q=this.value;render()" style="max-width:300px">
  <select style="width:auto;margin:0" onchange="S.cf.ty=this.value;render()"><option value="">All changes</option>${TY.map(t=>`<option value="${t[0]}" ${F0.ty==t[0]?"selected":""}>${t[1]}</option>`).join("")}</select>
  <select style="width:auto;margin:0" onchange="S.cf.by=this.value;render()"><option value="">Entered by: everyone</option>${bys.map(b=>`<option value="${esc(b)}" ${F0.by===b?"selected":""}>${esc(b||"(unknown)")}</option>`).join("")}</select>
- ${flt?`<button onclick="S.cf={q:'',by:'',ty:''};render()">Clear filters</button>`:""}
+ ${showF?`<select style="width:auto;margin:0" onchange="S.cf.fr=this.value;render()"><option value="">From food: any</option>${frs.map(v=>`<option value="${esc(v)}" ${F0.fr===v?"selected":""}>From ${esc(v)}</option>`).join("")}</select><select style="width:auto;margin:0" onchange="S.cf.to=this.value;render()"><option value="">To food: any</option>${tos.map(v=>`<option value="${esc(v)}" ${F0.to===v?"selected":""}>To ${esc(v)}</option>`).join("")}</select>`:""}
+ ${flt?`<button onclick="S.cf={q:'',by:'',ty:'',fr:'',to:''};render()">Clear filters</button>`:""}
  <span class="note">${flt?rows.length+" of "+all.length+" changes shown":all.length+" changes"}</span></div>
- ${own&&rows.length?`<div class="bar"><button onclick="uiConfirm('Apply ${flt?"these "+rows.length+" shown":"all "+rows.length+" waiting"} changes now?',{ok:'Yes, apply',danger:false}).then(y=>{if(y)applyAll(${flt?"["+ids.join(",")+"]":""})})">${flt?"Apply these "+rows.length+" now":"Apply all "+rows.length+" now"}</button></div>`:""}
+ ${own&&rows.length?`<div class="bar"><button onclick="uiConfirm('Apply ${flt?"these "+rows.length+" shown":"all "+rows.length+" waiting"} changes now?',{ok:'Yes, apply',danger:false}).then(y=>{if(y)applyAll(${flt?"["+ids.join(",")+"]":""})})">${flt?"Apply these "+rows.length+" now":"Apply all "+rows.length+" now"}</button></div>`:""}</div>
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
  ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" >Cancel</button></td></tr>`}).join("")||`<tr><td colspan=6 class='no'>${flt?"No changes match these filters.":"No changes for next week yet."}</td></tr>`}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
