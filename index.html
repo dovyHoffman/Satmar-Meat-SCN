@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b456">
+<meta name="build" content="b457">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2712,7 +2712,7 @@ function vSettings(){
  <label><input type="checkbox" style="width:auto" ${S.allowMid?"checked":""} onchange="setOpt('allowMid',this.checked)"> Allow new Middleton requests</label>
 </div>
 <div class="card"><h2>Deliveries and pictures (PODs)</h2>
-<p class="note">While you are signed in as owner with the site open, it checks for new deliveries by itself once at 3pm, 5pm, 7pm and 9pm (New York time), Monday to Thursday. Each check always covers the whole week from Monday (orders created a few days earlier are included), not the full 4 weeks. At any other time, or with the site closed, nothing runs. You can always press the button.</p>
+<p class="note">While you are signed in as owner with the site open, it checks for new deliveries by itself every hour from 9am to 9pm (New York time), Monday to Friday (BP and upstate from 1pm). Each check covers this week only, from Monday, and reads the orders that changed since the last check. At any other time, or with the site closed, nothing runs. You can always press the button.</p>
 <label><input type="checkbox" style="width:auto" ${autoOn()?"checked":""} onchange="autoSet(this.checked)"> Check automatically</label>
 <p class="note">${S.autoAt?"Last automatic check: "+new Date(S.autoAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+(S.autoErr?" · problem: "+esc(S.autoErr):""):"No automatic check yet in this session."}</p>
 <button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now (full, last 4 weeks)"}</button>
@@ -2931,8 +2931,8 @@ async function applyNow(id,quiet){
  if(x.a){c.a=x.a;c.apt=x.apt||"";c.addr=addrStr(c.a,c.apt)}
  if(x.food){if(x.food=="mid")c.mid=true;else{c.food=x.food;c.base=x.base||c.base;c.mid=false}}
  c.next=null;if(!quiet){S.msg="Applied. It is recorded in History.";S.err="";render()}return true}
-async function applyAll(){
- const ids=cust.filter(c=>c.next).map(c=>c.id);let n=0;
+async function applyAll(ids){
+ ids=Array.isArray(ids)?ids:cust.filter(c=>c.next).map(c=>c.id);let n=0;
  for(const id of ids){if(await applyNow(id,true))n++;else return}
  S.msg=n+" changes applied.";S.err="";render()}
 async function cancelNext(id){
@@ -2940,13 +2940,27 @@ async function cancelNext(id){
  const {error}=await sb.from("change_requests").update({status:"cancelled"}).eq("id",c.next.rid);
  if(error){S.err="Not cancelled: "+dberr(error);S.msg="";render();return}
  c.next=null;S.msg="Cancelled.";S.err="";render()}
+S.cf=S.cf||{q:"",by:"",ty:""};
 function vChanges(){
- const own=S.user.role=="owner",rows=cust.filter(c=>c.next);
+ const own=S.user.role=="owner",all=cust.filter(c=>c.next),F0=S.cf,q=(F0.q||"").toLowerCase().trim(),qd=q.replace(/\D/g,"");
+ const TY=[["food","Food type"],["addr","Delivery address"],["area","Area"],["phone","Phone"],["cell","Cell"],["notes","Delivery notes"],["note2","Customer notes"]];
+ const bys=[...new Set(all.map(c=>c.next.by||""))].sort((a,b)=>a.localeCompare(b));
+ const rows=all.filter(c=>{const x=c.next;
+  if(F0.by&&(x.by||"")!==F0.by)return false;
+  if(F0.ty&&!x[F0.ty])return false;
+  if(q){const hay=(c.name+" "+c.ref+" "+(c.addr||"")+" "+(c.phone||"")+" "+(c.cell||"")+" "+(x.by||"")).toLowerCase();if(hay.indexOf(q)<0&&!(qd.length>=3&&(String(c.phone||"").replace(/\D/g,"").indexOf(qd)>=0||String(c.cell||"").replace(/\D/g,"").indexOf(qd)>=0)))return false}
+  return true}),flt=rows.length!=all.length||F0.q||F0.by||F0.ty;
+ const ids=rows.map(c=>c.id);
  return `<div class="card"><h2>Changes for next week (${esc(nwk())})</h2>
  <p class="note">Allow new Middleton requests: <b>${S.allowMid?"yes":"no"}</b> · Cut-off: <b>every Sunday 7:00pm</b>${own?` · <a href="#" onclick="go('settings');return false">change in Settings</a>`:""}</p> <p class="note">Add a change from the customer card. Changes start next week and never touch this week.</p>
- ${own&&rows.length?`<div class="bar"><button onclick="uiConfirm('Apply all ${rows.length} waiting changes now?',{ok:'Yes, apply all',danger:false}).then(y=>{if(y)applyAll()})">Apply all ${rows.length} now</button></div>`:""}
+ <div class="bar" style="flex-wrap:wrap;gap:8px;align-items:center"><input placeholder="Search name, ID, address, phone or who entered" value="${esc(F0.q||"")}" onchange="S.cf.q=this.value;render()" style="max-width:300px">
+ <select style="width:auto;margin:0" onchange="S.cf.ty=this.value;render()"><option value="">All changes</option>${TY.map(t=>`<option value="${t[0]}" ${F0.ty==t[0]?"selected":""}>${t[1]}</option>`).join("")}</select>
+ <select style="width:auto;margin:0" onchange="S.cf.by=this.value;render()"><option value="">Entered by: everyone</option>${bys.map(b=>`<option value="${esc(b)}" ${F0.by===b?"selected":""}>${esc(b||"(unknown)")}</option>`).join("")}</select>
+ ${flt?`<button onclick="S.cf={q:'',by:'',ty:''};render()">Clear filters</button>`:""}
+ <span class="note">${flt?rows.length+" of "+all.length+" changes shown":all.length+" changes"}</span></div>
+ ${own&&rows.length?`<div class="bar"><button onclick="uiConfirm('Apply ${flt?"these "+rows.length+" shown":"all "+rows.length+" waiting"} changes now?',{ok:'Yes, apply',danger:false}).then(y=>{if(y)applyAll(${flt?"["+ids.join(",")+"]":""})})">${flt?"Apply these "+rows.length+" now":"Apply all "+rows.length+" now"}</button></div>`:""}
  <div class="wrap"><table><tr><th>Customer</th><th>Old → New</th><th>Requested</th><th>Entered by</th><th>Status</th><th></th></tr>
- ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" >Cancel</button></td></tr>`}).join("")||"<tr><td colspan=6 class='no'>No changes for next week yet.</td></tr>"}</table></div></div>`}
+ ${rows.map(c=>{const x=c.next;return `<tr><td>${esc(c.name)}</td><td style="white-space:normal">${["phone","addr","area","notes","note2","food"].filter(k=>x[k]).map(k=>LBL[k]+": "+esc(k=="food"?F[c.food]+" → "+nlabel(x[k]):(c[k]||"–")+" → "+x[k])).join("<br>")}</td><td>${esc(x.at)}</td><td>${esc(x.by||"")}</td><td>Pending</td><td><button onclick="go('card',${c.id})">Open</button>${own?` <button onclick="applyNow(${c.id})">Apply now</button>`:""} <button onclick="cancelNext(${c.id})" >Cancel</button></td></tr>`}).join("")||`<tr><td colspan=6 class='no'>${flt?"No changes match these filters.":"No changes for next week yet."}</td></tr>`}</table></div></div>`}
 /* history comes from the database audit log (who, what, when) */
 const goOld2=go;go=function(v,id){goOld2(v,id);if(v=="history")loadHistDb();if(v=="menu"&&!MENU.real)loadMenuDb();if(v=="delivery"||v=="delivery_prev")loadSends();if(v=="billing"&&!BILL.real&&!BILL.loading)loadBillDb()};
 // The address shows the page (…/billing, …/delivery, …/customer/123) so a refresh, a bookmark or the back button opens the same page.
