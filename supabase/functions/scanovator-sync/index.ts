@@ -303,11 +303,16 @@ Deno.serve(async (req) => {
       // customers (active) indexed by phone
       const cust: any[] = [];
       for (let f = 0; ; f += 1000) {
-        const { data, error } = await sb.from("customers").select("id,name,phone,cell,food,hh,area,middleton,base").eq("active", true).order("id").range(f, f + 999);
+        const { data, error } = await sb.from("customers").select("id,agency_ref,name,phone,cell,food,hh,area,middleton,base").eq("active", true).order("id").range(f, f + 999);
         if (error) throw error; cust.push(...(data || [])); if (!data || data.length < 1000) break;
       }
       const byPh = new Map<string, any[]>();
       for (const c of cust) for (const p of [digits(c.phone), digits(c.cell)]) if (p.length === 10) { const a = byPh.get(p) || []; if (!a.includes(c)) a.push(c); byPh.set(p, a); }
+      const ikO = (v: unknown) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const byRefO = new Map<string, any>(), dupO = new Set<string>();
+      for (const c of cust) { const k = ikO(c.agency_ref); if (!k) continue; if (byRefO.has(k)) dupO.add(k); else byRefO.set(k, c); }
+      for (const k of dupO) byRefO.delete(k);
+      const idsIn = (t: unknown) => { const x = String(t ?? ""), out = new Set<string>(); for (const m of x.matchAll(/[a-z]{2,4}\s*[-#]?\s*\d{2,}[a-z]?/gi)) out.add(ikO(m[0])); return [...out]; };
       const wset = (t: unknown) => new Set(String(t ?? "").toLowerCase().split(/[^a-z\u0590-\u05ff]+/).filter((w) => w.length >= 3));
       let unmatched = 0, notdone = 0; const ex: string[] = [], rows: any[] = [];
       for (const o of list) {
@@ -315,8 +320,11 @@ Deno.serve(async (req) => {
         if (!d || d.status !== "success") { notdone++; continue; }
         const od = o.data || o, ph = digits(od.phone), nm = wset((od.location && od.location.locationName) || od.orderNo);
         const cands = (byPh.get(ph) || []).map((c) => ({ c, n: [...wset(c.name)].filter((w) => nm.has(w)).length })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
-        if (!cands.length || (cands.length > 1 && cands[0].n === cands[1].n)) { unmatched++; if (ex.length < 5) ex.push(String(od.orderNo || "").slice(0, 40)); continue; }
-        const c = cands[0].c, end = d.endTime && d.endTime.utcTime ? new Date(String(d.endTime.utcTime) + "Z").toISOString() : null;
+        let c0: any = null;
+        if (cands.length && !(cands.length > 1 && cands[0].n === cands[1].n)) c0 = cands[0].c;
+        else if (!cands.length) { const hits = [...new Set(idsIn(od.orderNo).map((k) => byRefO.get(k)).filter(Boolean))]; if (hits.length === 1) c0 = hits[0]; }
+        if (!c0) { unmatched++; if (ex.length < 5) ex.push(String(od.orderNo || "").slice(0, 40)); continue; }
+        const c = c0, end = d.endTime && d.endTime.utcTime ? new Date(String(d.endTime.utcTime) + "Z").toISOString() : null;
         if (!end) { notdone++; continue; }
         const urls = ((d.form && d.form.images) || []).map((x: any) => String(x.url || "")).filter(Boolean);
         rows.push({ order_id: "opt:" + o.id, customer_id: c.id, week_label: label(end), driver: String((o.scheduleInformation && o.scheduleInformation.driverName) || ""), delivered_at: end, route_started: d.startTime && d.startTime.utcTime ? new Date(String(d.startTime.utcTime) + "Z").toISOString() : null, receipt_url: d.tracking_url ? String(d.tracking_url) : "", photo_urls: urls, synced_at: new Date().toISOString(), snap: { food: c.food, hh: c.hh, area: c.area, mid: c.middleton, base: c.base, boxes: Number(od.load2) || 1 } });
