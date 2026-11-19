@@ -153,7 +153,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b460">
+<meta name="build" content="b461">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -680,20 +680,31 @@ function fillOpt(){
 function prevCode(){
  const c=cust.find(x=>x.id==S.sel),v=nf_opt.value;
  nf_code.innerHTML=!v?'<span class="note">no change</span>':v=="mid"?`<span class="tag">${codesFor("meals",c.hh,c.area,true)}</span>`:`<span class="tag">${codesFor(v,c.hh,c.area)}</span>`+(c.mid?` <span class="note">leaves Middleton</span>`:"")}
-const leaveMid=a=>{a=a||{};const r=detectArea({st:a.st||a.street,city:a.city,zip:a.zip});return r=="Middleton"?"Lee":r};
-function detectArea(a){
- const city=String(a.city||"").toLowerCase(),zip=String(a.zip||"").slice(0,5),st=String(a.st||a.street||"").toLowerCase();
- if(/monsey|monroe|airmont|spring valley|suffern|nanuet|kiryas|pomona|new city|chestnut ridge|wesley hills|upstate/.test(city)||/^(1095|1090|1097|1095|1096)/.test(zip)||/^109[0-9]{2}$/.test(zip))return "Monsey/Monroe";
- if(/^(11219|11204|11218|11230|11210|11232)$/.test(zip))return "BP";
- if(/bedford/.test(st)||/^(11205|11206|11249)$/.test(zip))return "Bedford";
- return "Lee"}
+const leaveMid=a=>{a=a||{};const r=detectArea({st:a.st||a.street,city:a.city,zip:a.zip});return r=="Middleton"||r=="?"?"Lee":r};
+/* Area from the address. Bedford = the streets on the office list (a whole street, or only part of it: "678 & up", "65 & down"); the rest of Williamsburg is Lee.
+   When the address is not clear enough (no house number on a street that is only partly Bedford, no zip, a zip outside Williamsburg) the answer is "?" and the office chooses. */
+const BEDST={bartlett:0,bedford:["up",678],classon:0,dekalb:0,ellery:0,flushing:0,franklin:0,hart:0,hartg:0,heyward:["down",65],hopkins:0,kent:["up",755],lafayette:0,lynch:["down",62],marcy:["up",450],middleton:["down",5],myrtle:0,nostrand:0,norstand:0,park:0,pulaski:0,rutledge:["down",53],sanford:0,skillman:0,spencer:0,spenser:0,taaffe:0,taffe:0,tompkins:0,throop:["up",256],vernon:0,wallabout:["down",136],walworth:0,whipple:0,whyte:["up",751],willoughby:0};
+const WBG_ZIP=/^(11211|11206|11249|11205|11221|11222|11237)$/;
+function areaRule(a){
+ const city=String(a.city||"").toLowerCase(),zip=String(a.zip||"").slice(0,5),st0=String(a.st||a.street||"").toLowerCase().trim();
+ if(/monsey|monroe|airmont|spring valley|suffern|nanuet|kiryas|pomona|new city|chestnut ridge|wesley hills|upstate/.test(city)||/^109[0-9]{2}$/.test(zip))return {a:"Monsey/Monroe",why:"upstate city or zip"};
+ if(/^(11219|11204|11218|11230|11210|11232)$/.test(zip))return {a:"BP",why:"Borough Park zip"};
+ const nm=st0.match(/^\s*(\d+)/),no=nm?+nm[1]:null,name=st0.replace(/^\s*\d+[a-z]?\s*[-,]?\s*/,"").replace(/[.,#]/g," ").replace(/\b(street|st|avenue|ave|place|pl|boulevard|blvd|road|rd|court|ct|drive|dr|lane|ln)\b/g," ").replace(/\s+/g," ").trim().split(" ")[0]||"";
+ if(name&&Object.prototype.hasOwnProperty.call(BEDST,name)){const r=BEDST[name];
+  if(!r)return {a:"Bedford",why:"whole street is Bedford"};
+  if(no==null)return {a:"?",why:"this street is Bedford only "+(r[0]=="up"?r[1]+" & up":r[1]+" & down")+" and there is no house number"};
+  return (r[0]=="up"?no>=r[1]:no<=r[1])?{a:"Bedford",why:"house number is in the Bedford part"}:{a:"Lee",why:"house number is outside the Bedford part"}}
+ if(!st0)return {a:"?",why:"no street"};
+ if(WBG_ZIP.test(zip)||/williamsburg/.test(city))return {a:"Lee",why:"Williamsburg, street not on the Bedford list"};
+ return {a:"?",why:zip?"zip "+zip+" is not a known Williamsburg zip":"no zip"}}
+function detectArea(a){return areaRule(a).a}
 function stripCS(t,orig,food){t=String(t||"");if(food!="mid")return t;const re=/\s*CS \d{1,2}\/\d{1,2}\s*$/,o=String(orig||"");return re.test(t)&&!(re.test(o)&&o.trim()==t.trim())?t.replace(re,"").trim():t}
 function nfHint(){
  const i=document.getElementById("nf_addr"),h=document.getElementById("nf_hint");if(!i||!h)return;const v=i.value.trim();
  if(!v){h.textContent="";h.className="note";return}
  const a=parseAddrSmart(v),miss=a.street?addrMissing(a):"Enter a street.";
  if(miss){h.textContent=miss;h.className="note err";return}
- const ar=detectArea({st:a.street,city:a.city,zip:a.zip});h.className="note";h.innerHTML=`✓ <b>${esc(addrFmtLine(a))}</b> · area will be <b>${esc(ar)}</b>`}
+ const rl=areaRule({st:a.street,city:a.city,zip:a.zip}),ar=rl.a;h.className=ar=="?"?"note err":"note";h.innerHTML=`✓ <b>${esc(addrFmtLine(a))}</b> · `+(ar=="?"?`area is <b>not sure</b> (${esc(rl.why)}): check it`:`area will be <b>${esc(ar)}</b>`)}
 function setupAC(){
  ["f_addr","nf_addr"].forEach(id=>{
   const inp=document.getElementById(id);if(!inp||inp.disabled)return;
@@ -2219,13 +2230,14 @@ function nlAddPlan(){
 async function nlApplyAddOns(){
  const D=NL.d;if(!D||NL.busy||NL.ws!="cur")return;if(!S.user||S.user.role!="owner"){NL.err="Only the owner can approve.";render();return}
  const P=nlAddPlan();
+ const noA=P.nw.filter(x=>nlAreaPick({k:x.key,r:x.r})=="?");if(noA.length){NL.msg="";NL.err="Choose the area first for "+noA.length+" new customer"+(noA.length>1?"s":"")+" from the add-ons (New customers tab). Nothing was changed.";render();return}
  if(!P.up.length&&!P.nw.length){NL.msg=P.skip.length?"Nothing to apply. "+P.skip.join("; "):"The add-ons are already applied. Nothing to do.";render();return}
  const msg="Approve ONLY the add-ons for your real customers and billing?\n\n"+P.up.length+" existing customers: household changed ("+P.up.slice(0,6).map(x=>x.name+" "+x.c.hh+"→"+x.target).join(", ")+(P.up.length>6?", …":"")+")\n"+P.nw.length+" new customers added ("+P.nw.slice(0,6).map(x=>x.e.name||x.r.name).join(", ")+(P.nw.length>6?", …":"")+")\n"+(P.skip.length?"\nSkipped: "+P.skip.join("; ")+"\n":"")+"\nNothing else from the list is applied. Nobody is deleted. Everything is saved in History. Past weeks' billing is frozen first; this week's billing follows the customer list.";
  if(!await uiConfirm(msg))return;
  NL.busy=true;NL.err="";NL.msg="";render();
  try{
   if(P.nw.length){const ags=[...new Set(P.nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));const ra=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(ra.error)throw ra.error;
-   const rows=P.nw.map(x=>{const o=Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true});delete o.cases;delete o.ak;delete o.raw;return o});
+   const rows=P.nw.map(x=>{const o=Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true,area:x.r.middleton?"lee":(AREADB[nlAreaPick({k:x.key,r:x.r})]||"lee")});delete o.cases;delete o.ak;delete o.raw;return o});
    const rr=await sb.from("customers").upsert(rows,{onConflict:"agency,id_norm",ignoreDuplicates:true});if(rr.error)throw rr.error}
   await billFreeze();
   const items=P.up.map(x=>({agency:x.r.agency,ref:x.r.agency_ref,hh:x.target,enh:x.enhNeed?(Number(x.c.enh)||0)+x.enhNeed:null}));
@@ -2318,12 +2330,13 @@ async function nlApplyDo(cat){
  cat=cat||"all";const SET=new Set(Array.isArray(cat)?cat:cat=="all"?["nw","swap","name","fill","on","off"]:[cat]);const R=nlCalc();if(!R||NL.busy)return;const live=a=>a.filter(x=>!x.sk),fa=a=>!NL.co||String(a||"").toUpperCase()==NL.co;
  const nw=SET.has("nw")?live(R.nw).filter(x=>fa(x.r.agency)&&!x.r.cases&&!nlBlank(x).t&&!nlBlank(x).h):[],of=SET.has("off")?live(R.off).filter(x=>fa(x.c.agency)):[],ch=live(R.chg.filter(x=>[...SET].some(k=>x.cats[k]))).filter(x=>fa(x.r.agency||x.c.agency)&&!x.r.cases);
  if(!nw.length&&!of.length&&!ch.length){NL.msg="Nothing to apply there.";render();return}
+ const noArea=nw.filter(x=>nlAreaPick(x)=="?");if(noArea.length){NL.msg="";NL.err="Choose the area first for "+noArea.length+" new customer"+(noArea.length>1?"s":"")+": open the New customers tab and pick the Area (red boxes). Nothing was changed.";render();return}
  const lab=(Array.isArray(cat)?"all the ticked boxes ("+cat.map(k=>(NL_CATS.find(c=>c[0]==k)||[0,k])[1]).join(", ")+")":cat=="all"?"everything in this list EXCEPT household and customer type (those you approve one by one)":(NL_CATS.find(c=>c[0]==cat)||[0,cat])[1])+(NL.co?" for "+NL.co+" only":"");
  if(!await uiConfirm("Approve "+lab+"?\n\n"+nw.length+" new customers added\n"+ch.length+" existing customers updated"+(cat=="all"?"":" ("+lab.toLowerCase()+" only)")+"\n"+of.length+" customers switched off (not on this list)\n\nNobody is deleted. It is all saved in History."))return;
  NL.busy=true;NL.err="";render();
  try{const ags=[...new Set(nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));
   if(ags.length){const r=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(r.error)throw r.error}
-  const rows=nw.map(x=>{const o=Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,enh:x.e.enh==null?undefined:x.e.enh,base:x.e.base,food:x.e.food,active:true});delete o.cases;delete o.ak;delete o.raw;return o});
+  const rows=nw.map(x=>{const o=Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,enh:x.e.enh==null?undefined:x.e.enh,base:x.e.base,food:x.e.food,active:true,area:x.r.middleton?"lee":(AREADB[nlAreaPick(x)]||"lee")});delete o.cases;delete o.ak;delete o.raw;return o});
   for(let i=0;i<rows.length;i+=300){const r=await sb.from("customers").upsert(rows.slice(i,i+300),{onConflict:"agency,id_norm",ignoreDuplicates:true});if(r.error)throw r.error}
   const f=c=>SET.has(c),items=ch.map(x=>({agency:x.c.agency,ref:x.c.ref,name:(f("name")&&x.cats.name)||(f("swap")&&x.cats.swap)?x.e.name:"",hh:f("hh")&&x.cats.hh?x.e.hh:null,enh:f("hh")&&x.cats.hh&&x.e.enh!=null?x.e.enh:null,base:f("type")&&x.cats.type?x.e.base:"",food:"","on":f("on")&&!!x.cats.on,phone:f("fill")?(x.fillPhone||x.r.phone||""):"",cell:f("fill")?x.r.cell||"":"",nl:f("fill")?x.r.notes_labels||"":"",n2:f("fill")?nlN2(x.r.note2):"",nt:f("fill")?x.r.notes||"":""})).concat(of.map(x=>({agency:x.c.agency,ref:x.c.ref,off:true})));
   await billFreeze();
@@ -2344,6 +2357,10 @@ function nlProjNext(useDraft){
  const B=nlProj0(true),UA=a=>String(a||"").toUpperCase(),up=new Set(NL.W.next.rows.map(r=>UA(r.agency))),P=new Map(),ag=o=>UA(o.c&&o.c.agency);
  A.P.forEach((o,k)=>{if(!up.has(ag(o)))P.set(k,o)});B.P.forEach((o,k)=>{if(up.has(ag(o)))P.set(k,o)});
  return {P:P,removed:A.removed.filter(o=>!up.has(ag(o))).concat(B.removed.filter(o=>up.has(ag(o)))),added:A.added.filter(o=>!up.has(ag(o))).concat(B.added.filter(o=>up.has(ag(o)))),R:B.R,nreq:B.nreq}}
+const AREADB={Lee:"lee",Bedford:"bedford",BP:"bp","Monsey/Monroe":"monsey_monroe"};
+const nlAreaPick=x=>(((NL.d||{}).area||{})[x.k])||nlNewArea(x.r);
+function nlSetArea(k,v){const D=NL.d;if(!D||NL.ws=="cur")return;D.area=D.area||{};if(v)D.area[k]=v;else delete D.area[k];nlSave();render()}
+function nlAreaSel(x){const cur=nlAreaPick(x),auto=nlNewArea(x.r),dis=NL.ws=="cur"?"disabled":"",why=(()=>{try{return areaRule({st:x.r.street,city:x.r.city,zip:x.r.zip}).why}catch(e){return ""}})();return `<td title="${esc(why)}"><select ${dis} style="width:auto;margin:0;${cur=="?"?"border:2px solid #d92d20;background:#fef3f2;":""}" onchange="nlSetArea(decodeURIComponent('${encodeURIComponent(x.k).replace(/'/g,"%27")}'),this.value)"><option value="">${auto=="?"?"Choose area…":"Auto: "+esc(auto)}</option>${["Lee","Bedford","BP","Monsey/Monroe"].map(a=>`<option ${((((NL.d||{}).area||{})[x.k])||"")==a?"selected":""}>${a}</option>`).join("")}</select></td>`}
 function nlNewArea(r){const a=r.a||{},st=r.street||a.st||r.addr||"",zip=r.zip||a.zip||"",city=r.city||a.city||"";if(!String(st).trim()&&!String(zip).trim())return "?";try{return detectArea({st:st,city:city,zip:zip})}catch(e){return "?"}}
 /* demo extras: kept with the draft, so the live Dashboard is not touched. Until you type one, the live extras are used. */
 function nlDX(){const D=nlDD();return D&&D.extra?D.extra:EXTRA}
@@ -2354,7 +2371,7 @@ function nlProj0(useDraft,noNext){
  if(useDraft&&NL.d){R=nlCalc();
   if(R){R.chg.forEach(x=>{if(x.sk)return;let o=P.get(x.c.id);if(!o){if(!x.cats.on)return;o={c:x.c,p:{food:x.c.food,base:x.c.base,hh:x.c.hh,area:x.c.area,mid:x.c.mid},why:["switched on by the new list"],isNew:true};P.set(x.c.id,o)}
     if(x.cats.type||x.cats.hh){if(x.cats.type){o.p.food=x.e.food||o.p.food;o.p.base=x.e.base||o.p.base}o.p.hh=Number(x.e.hh)||o.p.hh;o.why.push("new list: "+x.d.filter(t=>/^(customer type|household)/.test(t)).join(", "))}});
-   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:nlNewArea(x.r)},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
+   R.nw.forEach(x=>{if(x.sk)return;const o={c:{id:"n:"+x.k,name:x.e.name||x.r.name,ref:x.r.agency_ref,agency:x.r.agency,area:"?"},p:{food:x.e.food||"meals",base:x.e.base||"meals",hh:Number(x.e.hh)||1,area:nlAreaPick(x)},why:["new customer in the list"],isNew:true};P.set(o.c.id,o);added.push(o)});
    R.off.forEach(x=>{if(x.sk)return;const o=P.get(x.c.id);if(o){removed.push(o);P.delete(x.c.id)}})}}
  let nreq=0;P.forEach(o=>{const n=o.c.next;if(!n||noNext)return;nreq++;
   if(n.food=="mid"){o.p.mid=true;o.why.push("customer asked: Middleton")}else if(n.food){o.p.food=n.food;o.p.base=n.base||o.p.base;if(o.p.mid){o.p.mid=false;o.why.push("customer asked: "+(F[n.food]||n.food)+" (leaves Middleton)")}else o.why.push("customer asked: "+(F[n.food]||n.food))}
@@ -2650,7 +2667,7 @@ function vNewList0(){
  const sel=(f,k,v,opts)=>`<select style="width:auto;margin:0" onchange="nlEdit('${H(k)}','${f}',this.value)">${opts.map(o=>`<option value="${o[0]}" ${o[0]==v?"selected":""}>${o[1]}</option>`).join("")}</select>`;
  const ed=x=>{const b=nlBlank(x),rd="border:2px solid #e5484d;background:#fde8e8;";return `<td><input value="${H(x.e.name||"")}" onchange="nlEdit('${H(x.k)}','name',this.value)" style="width:170px;margin:0"></td><td>${b.t?`<select style="width:auto;margin:0;${rd}" onchange="nlEdit('${H(x.k)}','base',this.value)" title="The file does not say Meals or Box. Choose it."><option value="" selected></option><option value="meals">Meals</option><option value="box">Box</option></select>`:sel("base",x.k,x.e.base,[["meals","Meals"],["box","Box"]])}</td><td><input type="number" min="1" max="30" value="${b.h?"":x.e.hh}" ${b.h?'placeholder="?" title="The file does not give the household (Enhanced). Type it."':""} onchange="nlEdit('${H(x.k)}','hh',this.value)" style="width:56px;margin:0;${b.h?rd:""}"></td>`};
  const sk=x=>`<td><label class="note"><input type="checkbox" style="width:auto" ${x.sk?"checked":""} onchange="nlSkip('${H(x.k)}',this.checked)"> skip</label></td>`;
- const body=NL.tab=="every"?`<tr><th>Company</th><th>ID</th><th>Name</th><th>Type</th><th>HH</th><th>Status</th><th></th></tr>${nlRows(R,"every").slice(0,3000).map(x=>`<tr style="${x.skipped?"opacity:.55;":""}"><td><span class="ctag">${H(x.r.agency||"")}</span></td><td>${H(x.r.agency_ref||"")}</td><td>${H(x.e.name||"")}</td><td>${x.e.base=="box"?"Box":x.e.base?"Meals":"?"}</td><td>${H(x.e.hh==null?"":x.e.hh)}</td><td><b style="color:${x.st=="New"?"#1a7f37":x.st=="Changed"?"#3b4cca":/Held|Skipped/.test(x.st)?"#b42318":"#667085"}">${x.st}</b>${x.skipped&&x.wasNew?" · was new":""}</td>${x.r.cases?"<td></td>":sk(x)}</tr>`).join("")}`:NL.tab=="all"?`<tr><th>What</th><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>What changes</th><th></th></tr>${nlRows(R,"all").slice(0,3000).map(x=>{const o=x.kind=="Not on list",n=o?x.c:x.e,ag=o?x.c.agency:x.r.agency,rf=o?x.c.ref:x.r.agency_ref,ty=n.base=="box"?"Box":(n.base?"Meals":"?"),wh=x.kind=="New"?"New customer":o?"Switched off (not on the file)":x.d.concat((x.fill||[]).map(f=>"fills "+f)).join(" · ");return `<tr style="${x.sk?"opacity:.45;":""}"><td><b style="color:${x.kind=="New"?"#1a7f37":o?"#b42318":"#3b4cca"}">${x.kind}</b></td><td><span class="ctag">${H(ag||"")}</span> ${H(rf||"")}</td><td>${H(n.name||"")}</td><td>${ty}</td><td>${H(n.hh==null?"":n.hh)}</td><td class="note" style="white-space:normal;min-width:220px">${x.r&&x.r.cases?"<b style=\"color:#b42318\">Held back: two cases (see Two cases tab)</b> · ":""}${H(wh)}</td>${sk(x)}</tr>`}).join("")}`:NL.tab=="nw"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th></th></tr>${R.nw.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45;":""}${NL.dk&&NL.dk[x.k]?"background:#fde8e8;":""}"><td><span class="ctag">${H(x.r.agency||"")}</span> ${H(x.r.agency_ref)}</td>${ed(x)}${sk(x)}</tr>`).join("")}`
+ const body=NL.tab=="every"?`<tr><th>Company</th><th>ID</th><th>Name</th><th>Type</th><th>HH</th><th>Status</th><th></th></tr>${nlRows(R,"every").slice(0,3000).map(x=>`<tr style="${x.skipped?"opacity:.55;":""}"><td><span class="ctag">${H(x.r.agency||"")}</span></td><td>${H(x.r.agency_ref||"")}</td><td>${H(x.e.name||"")}</td><td>${x.e.base=="box"?"Box":x.e.base?"Meals":"?"}</td><td>${H(x.e.hh==null?"":x.e.hh)}</td><td><b style="color:${x.st=="New"?"#1a7f37":x.st=="Changed"?"#3b4cca":/Held|Skipped/.test(x.st)?"#b42318":"#667085"}">${x.st}</b>${x.skipped&&x.wasNew?" · was new":""}</td>${x.r.cases?"<td></td>":sk(x)}</tr>`).join("")}`:NL.tab=="all"?`<tr><th>What</th><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>What changes</th><th></th></tr>${nlRows(R,"all").slice(0,3000).map(x=>{const o=x.kind=="Not on list",n=o?x.c:x.e,ag=o?x.c.agency:x.r.agency,rf=o?x.c.ref:x.r.agency_ref,ty=n.base=="box"?"Box":(n.base?"Meals":"?"),wh=x.kind=="New"?"New customer":o?"Switched off (not on the file)":x.d.concat((x.fill||[]).map(f=>"fills "+f)).join(" · ");return `<tr style="${x.sk?"opacity:.45;":""}"><td><b style="color:${x.kind=="New"?"#1a7f37":o?"#b42318":"#3b4cca"}">${x.kind}</b></td><td><span class="ctag">${H(ag||"")}</span> ${H(rf||"")}</td><td>${H(n.name||"")}</td><td>${ty}</td><td>${H(n.hh==null?"":n.hh)}</td><td class="note" style="white-space:normal;min-width:220px">${x.r&&x.r.cases?"<b style=\"color:#b42318\">Held back: two cases (see Two cases tab)</b> · ":""}${H(wh)}</td>${sk(x)}</tr>`}).join("")}`:NL.tab=="nw"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>Area</th><th></th></tr>${R.nw.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45;":""}${NL.dk&&NL.dk[x.k]?"background:#fde8e8;":""}"><td><span class="ctag">${H(x.r.agency||"")}</span> ${H(x.r.agency_ref)}</td>${ed(x)}${nlAreaSel(x)}${sk(x)}</tr>`).join("")}`
   :NL.tab!="off"&&NL.tab!="skd"?`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th><th>What changes</th><th></th></tr>${nlRows(R,NL.tab).slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45;":""}${NL.dk&&NL.dk[x.k]?"background:#fde8e8;":""}"><td><span class="ctag">${H(x.r.agency||"")}</span> ${H(x.r.agency_ref)}</td>${ed(x)}<td class="note" style="white-space:normal">${x.r&&x.r.cases?"<b style=\"color:#b42318\">Held back: two cases (see Two cases tab)</b> · ":""}${H(x.d.concat(x.fill.map(f=>"fills "+f)).join(" · "))}</td>${sk(x)}</tr>`).join("")}`
   :NL.tab=="skd"?`<tr><th>Name</th><th>ID in file</th><th>HH</th><th>Phone</th><th>Cell</th><th>Why it was left out</th></tr>${(R.skd||[]).slice(0,300).map(y=>`<tr><td>${H(y.name||"")}</td><td><span class="ctag">${H(y.agency||"")}</span> ${H(y.ref||"—")}</td><td>${y.hh||""}</td><td>${H(y.phone||"")}</td><td>${H(y.cell||"")}</td><td class="note">${H(y.why)}</td></tr>`).join("")}`
   :`<tr><th>ID</th><th>Name</th><th>Customer type</th><th>HH</th></tr>${R.off.slice(0,300).map(x=>`<tr style="${x.sk?"opacity:.45;":""}${NL.dk&&NL.dk[x.k]?"background:#fde8e8;":""}"><td><span class="ctag">${H(x.c.agency||"")}</span> ${H(x.c.ref)}</td><td>${H(x.c.name)}</td><td>${H(x.c.base=="box"?"Box":"Meals")}</td><td>${x.c.hh}</td></tr>`).join("")}`;
@@ -2903,7 +2920,7 @@ async function saveNext(id,fromBox){
  if(at||apt){const ad=at?parseAddrSmart(at):{street:c.a.st,city:c.a.city,state:c.a.state,zip:c.a.zip,apt:""};
   const miss=at&&at!==fmtA(c.a)?addrMissing(ad):"";if(miss){ce.textContent=miss;return}if(!ad.state)ad.state="NY";
   const a={st:ad.street,city:ad.city,state:ad.state.toUpperCase(),zip:ad.zip},ap=apt||ad.apt||c.apt;
-  if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!==c.area)nx.area=ar}}
+  if(addrStr(a,ap)!==c.addr){nx.a=a;nx.apt=ap;nx.addr=addrStr(a,ap);const ar=detectArea({st:a.st,city:a.city,zip:a.zip});if(ar!=="?"&&ar!==c.area)nx.area=ar}}
  if(window.TOPAREA&&window.TOPAREA!==c.area)nx.area=window.TOPAREA;window.TOPAREA=null;
  const had=c.next&&c.next.rid;
  if(had&&c.next.ew&&c.next.ew!=nwk()){ce.textContent="This customer already has changes waiting for the week of "+c.next.ew+". Apply or cancel those first, then add changes for "+nwk()+".";return}
