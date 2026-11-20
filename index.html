@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b507">
+<meta name="build" content="b508">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3048,7 +3048,9 @@ async function saveNext(id,fromBox){
  if(error){ce.textContent="Not saved: "+dberr(error);return}
  c.next=Object.assign({},nx,{rid:rid,at:new Date().toLocaleDateString()});
  const sm=[];if(nx.nosms!=null)sm.push((nx.nosms?"No SMS saved for ":"No SMS removed for ")+(nx.phone||c.phone));if(nx.nosmsc!=null)sm.push((nx.nosmsc?"No SMS saved for ":"No SMS removed for ")+(nx.cell||c.cell));
- S.msg=(sm.length?sm.join(". ")+". ":"")+(inFxWin()?"Saved. Changes entered from Friday 12:00 pm to Sunday 7:00 pm take effect right away.":"Saved as changes for next week. This week is not changed.");S.err="";render();if(sm.length)uiToast(sm.join(". ")+" (starts next week)");if(own)autoApplyNow();else if(inFxWin())applyNow(id,true).then(ok=>{if(ok){S.msg="Saved and applied right away.";S.err="";render()}})}
+ S.msg=(sm.length?sm.join(". ")+". ":"")+(inFxWin()?"Saved. Changes entered from Friday 12:00 pm to Sunday 7:00 pm take effect right away.":"Saved as changes for next week. This week is not changed.");S.err="";render();if(sm.length)uiToast(sm.join(". ")+" (starts next week)");const sumTxt=Object.keys(nx).filter(k=>["phone","cell","notes","note2","area","addr","food"].includes(k)).map(k=>(LBL[k]||k)+" → "+(k=="food"?nlabel(nx.food):nx[k])).join(", ");
+ if(inFxWin()){const done=ok=>{if(ok){S.msg="✓ Applied immediately: "+sumTxt+". It is in effect now and recorded in History.";S.err="";render();uiToast("✓ Applied immediately: "+sumTxt)}else{S.msg="Saved, but it could not be applied right away: "+sumTxt+". It stays as a change for next week.";S.err="";render()}};
+  if(own)autoApplyNow(sumTxt);else applyNow(id,true).then(done)}}
 async function applyNow(id,quiet){
  const c=cust.find(x=>x.id==id),x=c.next,own=S.user.role=="owner";if(!x)return false;
  if(!own){/* other users: the server applies it, only Friday 12:00 pm to Sunday 7:00 pm */
@@ -3070,10 +3072,10 @@ async function applyNow(id,quiet){
  c.next=null;if(!quiet){S.msg="Applied. It is recorded in History.";S.err="";render()}return true}
 const inFxWin=()=>{try{const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"numeric",hourCycle:"h23"}).formatToParts(new Date()),w=p.find(x=>x.type=="weekday").value,h=+p.find(x=>x.type=="hour").value;return (w=="Fri"&&h>=12)||w=="Sat"||(w=="Sun"&&h<19)}catch(e){return false}};
 /* Friday 12:00 pm - Sunday 7:00 pm (New York): every waiting change takes effect right away */
-async function autoApplyNow(){
+async function autoApplyNow(sum){
  if(!inFxWin()||!S.user||S.user.role!="owner"||window.__aa||!S.real)return;window.__aa=1;
  try{const ids=cust.filter(c=>c.next&&c.next.rid&&(!c.next.ew||c.next.ew==nwk())).map(c=>c.id);let n=0;for(const id of ids){if(await applyNow(id,true))n++;else break}
-  if(n){S.msg=n+" change"+(n>1?"s":"")+" applied automatically (Friday 12:00 pm to Sunday 7:00 pm: changes take effect right away). It is recorded in History.";S.err="";render()}}
+  if(n){if(sum&&n==1){S.msg="✓ Applied immediately: "+sum+". It is in effect now and recorded in History.";S.err="";render();uiToast("✓ Applied immediately: "+sum);return}S.msg=n+" change"+(n>1?"s":"")+" applied automatically (Friday 12:00 pm to Sunday 7:00 pm: changes take effect right away). It is recorded in History.";S.err="";render()}}
  catch(e){}finally{window.__aa=0}}
 setInterval(autoApplyNow,60000);setTimeout(autoApplyNow,12000);
 async function applyAll(ids){
