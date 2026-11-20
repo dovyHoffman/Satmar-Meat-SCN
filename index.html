@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b500">
+<meta name="build" content="b501">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2478,7 +2478,7 @@ function prodCounts(){
  const useDraft=NL.useDraft!==false&&!!nlDD(),J=nlProj(useDraft),now=cust.filter(c=>c.active),cn={},cx={};LET.forEach(l=>{cn[l]={};cx[l]={}});
  const add=(m,p)=>{if(!(Number.isInteger(p.hh)&&p.hh>=1))return;codesFor(p.food,p.hh,p.area,p.mid).split(" ").forEach(l=>{if(m[l])m[l][p.area]=(m[l][p.area]||0)+1})};
  now.forEach(c=>add(cx,{food:c.food,hh:c.hh,area:c.area,mid:c.mid}));[...J.P.values()].forEach(o=>add(cn,o.p));
- const SN=(NL.ws=="cur"||NL.ws=="prev")&&S.view=="newlist"&&NL.W[NL.ws]&&NL.W[NL.ws].snap&&NL.W[NL.ws].snap.cn;if(SN)LET.forEach(l=>{cn[l]=SN[l]||{}});
+ const PS=NL.ws=="cur"&&NL.W.prev&&NL.W.prev.snap&&NL.W.prev.snap.cn;if(PS)LET.forEach(l=>{cx[l]=PS[l]||{}});
  const DX=nlDX(),sum=m=>Object.keys(m).reduce((t,a)=>t+m[a],0),ex=l=>Object.keys(DX[l]||{}).reduce((t,a)=>t+(+DX[l][a]||0),0);
  return {cn:cn,cx:cx,sum:sum,ex:ex,useDraft:useDraft}}
 function prodWeekLabel(){const s=new Date(wkKey(Date.now()).getTime()+7*864e5),a=new Date(s.getFullYear(),s.getMonth(),s.getDate()+2),b=new Date(s.getFullYear(),s.getMonth(),s.getDate()+8),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});return f(a)+" – "+f(b)}
