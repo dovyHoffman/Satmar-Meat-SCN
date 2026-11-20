@@ -282,6 +282,28 @@ Deno.serve(async (req) => {
       const orders = (j.data || []).slice(0, 12).map((o: any) => { const r: Record<string, string> = {}; for (const [k, v] of Object.entries(o)) { if (v === null || v === undefined) continue; const t = typeof v === "object" ? JSON.stringify(v) : String(v); if (t !== "" && t !== "{}" && t !== "[]") r[k] = t.slice(0, typeof v === "object" ? 600 : 60); } return r; });
       return json({ ok: true, count: (j.data || []).length, orders });
     }
+    // ---- mode "optfind": owner only. Read only. For a few phones / words, shows the OptimoRoute orders (this week) and whether each one is finished. ----
+    if (body.mode === "optfind") {
+      const key = String(Deno.env.get("OPTIMOROUTE_KEY") ?? "").trim();
+      if (!key) return json({ ok: false, error: "Secret OPTIMOROUTE_KEY is not set." });
+      const K = encodeURIComponent(key), days = Math.min(Math.max(Number(body.days) || 10, 1), 30), iso = (d: Date) => d.toISOString().slice(0, 10);
+      const phs = (Array.isArray(body.phones) ? body.phones : []).map((x: unknown) => digits(x)).filter((x: string) => x.length === 10).slice(0, 6);
+      const words = (Array.isArray(body.words) ? body.words : []).map((x: unknown) => String(x).toLowerCase()).filter((x: string) => x.length >= 3).slice(0, 6);
+      const sr = await fetch("https://api.optimoroute.com/v1/search_orders?key=" + K, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dateRange: { from: iso(new Date(Date.now() - days * 864e5)), to: iso(new Date(Date.now() + 864e5)) }, includeOrderData: true, includeScheduleInformation: true }) });
+      const sj: any = await sr.json().catch(() => ({}));
+      if (!sj.success) return json({ ok: false, error: "search_orders: " + (sj.code || sr.status) });
+      const list: any[] = (sj.orders || []).filter((o: any) => o && o.id);
+      const hit = list.filter((o: any) => { const od = o.data || o, t = String((od.location && od.location.locationName) || "") + " " + String(od.orderNo || ""); return phs.includes(digits(od.phone)) || words.some((w: string) => t.toLowerCase().includes(w)); }).slice(0, 12);
+      const out: any[] = [];
+      for (const o of hit) {
+        const od = o.data || o;
+        const cr = await fetch("https://api.optimoroute.com/v1/get_completion_details?key=" + K, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orders: [{ id: String(o.id) }] }) });
+        const cj: any = await cr.json().catch(() => ({}));
+        const c = cj.orders && cj.orders[0], d = c && c.data;
+        out.push({ orderNo: String(od.orderNo || "").slice(0, 60), name: String((od.location && od.location.locationName) || "").slice(0, 40), date: String(od.date || ""), driver: String((o.scheduleInformation && o.scheduleInformation.driverName) || ""), status: d ? String(d.status) : "no details", end: d && d.endTime ? String(d.endTime.utcTime || "") : "", pictures: d && d.form && d.form.images ? d.form.images.length : 0 });
+      }
+      return json({ ok: true, searched: list.length, found: hit.length, orders: out });
+    }
     // ---- mode "optsync": owner only. Reads OptimoRoute (Motty's delivery system: BP / Monsey / Monroe), matches each order to a customer by phone + name, and saves finished deliveries (time, driver, pictures) in the same table as the Scanovator ones. ----
     if (body.mode === "optsync") {
       const key = String(Deno.env.get("OPTIMOROUTE_KEY") ?? "").trim();
