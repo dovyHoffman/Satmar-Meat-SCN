@@ -176,6 +176,7 @@ Deno.serve(async (req) => {
           read++;
           let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
           for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
+          if (!app && String(o.online_order_id ?? "").trim()) app = String(o.online_order_id).trim();   // the built-in online_order_id column also carries our ID
           if (!app) continue;   // not an uploaded order (point of sale): never saved
           uploaded++;
           const c = byRef.get(ik(app));
@@ -237,6 +238,7 @@ Deno.serve(async (req) => {
         d.orders++;
         let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
         for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
+          if (!app && String(o.online_order_id ?? "").trim()) app = String(o.online_order_id).trim();   // the built-in online_order_id column also carries our ID
         if (!String(o.phone || o.cell1 || o.cell2 || "").trim()) d.noPhone++;
         if (String(o.actually_delivered || "").trim()) d.delivered++;
         if (!app) return;   // not an uploaded order (point of sale): never saved
@@ -680,7 +682,7 @@ Deno.serve(async (req) => {
           if (created < oldest) oldest = created;
           if (created < since && !thisWeek(o)) continue;   // an order created earlier but delivered this week still counts
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
-          const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || "";
+          const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || String(o.online_order_id ?? "").trim() || "";
           if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // only UPLOADED orders (they carry our Application ID, or are in the export). Point-of-sale orders are never saved.
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
