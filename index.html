@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b475">
+<meta name="build" content="b476">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1587,7 +1587,7 @@ async function wnOpen(){
  await wnLoad();const B=document.getElementById("wnB");if(!B)return;
  const L=WN.filter(x=>own||(WNOK&&WNOK[x[0]]));
  if(!L.length){B.textContent="Nothing new to show yet.";return}
- B.className="";B.innerHTML=L.map(x=>`<label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-weight:400">${own?`<input type="checkbox" data-w="${x[0]}" ${WNOK&&WNOK[x[0]]?"checked":""} style="margin-top:3px;flex:none">`:""}<span><span class="note" style="display:inline-block;min-width:52px">${x[1]}</span>${esc(x[2])}</span></label>`).join("");
+ B.className="";B.innerHTML=L.map(x=>`<label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-weight:400">${own?`<input type="checkbox" data-w="${x[0]}" ${WNOK&&WNOK[x[0]]?"checked":""} style="width:18px;height:18px;min-width:18px;margin:2px 0 0;padding:0;flex:none">`:""}<span style="flex:1;min-width:0"><span class="note" style="display:inline-block;min-width:52px">${x[1]}</span>${esc(x[2])}</span></label>`).join("");
  B.querySelectorAll("input[data-w]").forEach(c=>c.onchange=async()=>{const ok=await wnTick(c.dataset.w,c.checked);if(!ok)c.checked=!c.checked})}
 async function actOpen(){
  const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
