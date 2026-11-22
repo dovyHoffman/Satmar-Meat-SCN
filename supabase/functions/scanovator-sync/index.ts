@@ -786,6 +786,8 @@ Deno.serve(async (req) => {
         const unmatched: string[] = [];
         const om = new Map<string, any>();   // order number -> Application ID + box letters (uploaded from the Scanovator export)
         { const ids = (j.data || []).map((o: any) => String(o.order_id)); if (ids.length) { const r: any = await sb.from("order_map").select("order_id,app_id,letters").in("order_id", ids); if (!r.error) (r.data || []).forEach((x: any) => om.set(String(x.order_id), x)); } }
+        // Our uploaded orders always carry a case description (the box letters); regular point-of-sale orders never do. When this page of results shows case descriptions at all, an order without one is skipped.
+        const cfWorks = (j.data || []).some((o: any) => cfAll(o).has("casedescription"));
         for (const o of j.data || []) {
           seen++;
           const created = new Date(o.createdAtIso).getTime();
@@ -793,6 +795,7 @@ Deno.serve(async (req) => {
           if (created < since && !thisWeek(o)) continue;   // an order created earlier but delivered this week still counts
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
           const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || String(o.online_order_id ?? "").trim() || "";
+          if (cfWorks && !cf.get("casedescription") && !String(om.get(String(o.order_id))?.letters ?? "").trim()) { diag.no_case = (diag.no_case || 0) + 1; continue; }
           if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // only UPLOADED orders (they carry our Application ID, or are in the export). Point-of-sale orders are never saved.
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
