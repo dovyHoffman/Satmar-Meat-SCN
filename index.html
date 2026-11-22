@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b512">
+<meta name="build" content="b514">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -204,13 +204,13 @@ let S={user:null,view:"customers",sel:null,q:"",allowMid:false,real:false,mcpOK:
 
 const NAV={owner:[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"],["billing","Billing"],["history","History"]],secretary:[["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["menu","Menu"]],billing:[["billing","Billing"]]};
 const canEdit=()=>S.user&&S.user.role!=="billing";
-const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Office chat"],["menuchat","Menus updates"],["raw","Menu · Raw"],["kitchen","Menu · Kitchen"],["meat","Menu · Meat"],["billing","Billing"],["history","History"],["import","Import"],["newlist","New list"],["settings","Settings"]];
+const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Changes"],["delivery","Delivery"],["delivery_prev","Previous deliveries"],["menu","Menu"],["chat","Office chat"],["menuchat","Menus updates"],["raw","Menu · Raw"],["rawbill","Menu · Raw billing"],["kitchen","Menu · Kitchen"],["meat","Menu · Meat"],["billing","Billing"],["history","History"],["import","Import"],["newlist","New list"],["settings","Settings"]];
 const ROLE_PAGES={owner:PAGES.map(p=>p[0]),admin:PAGES.map(p=>p[0]).filter(x=>x!="import"&&x!="settings"&&x!="newlist"),manager:["dashboard","customers","changes","delivery","menu"],secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner",admin:"Admin",manager:"Manager",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"&&p!="newlist"):[]}
 const NAVHID={history:1,import:1,delivery_prev:1,chat:1,menuchat:1,raw:1,meat:1,kitchen:1};
 const MTABS=[["menu","Menu"],["raw","Raw"],["kitchen","Kitchen"],["meat","Meat"]];
-const mTabsFor=u=>{const a=upages(u);return MTABS.filter(t=>a.indexOf(t[0])>=0)};
+const mTabsFor=u=>{const a=upages(u);return MTABS.filter(t=>a.indexOf(t[0])>=0||(t[0]=="raw"&&a.indexOf("rawbill")>=0))};
 const inMenu=(u,v)=>!!u&&(v=="raw"||v=="meat"||v=="kitchen")&&mTabsFor(u).some(t=>t[0]==v);
 function navFor(u){const a=upages(u);return PAGES.filter(p=>!NAVHID[p[0]]&&(a.indexOf(p[0])>=0||(p[0]=="delivery"&&a.indexOf("delivery_prev")>=0)||(p[0]=="menu"&&mTabsFor(u).length>0)))}
 const setTabs=()=>`<div class="bar" style="margin-bottom:8px">${[["settings","Settings"],["chat","Chat"],["history","History"],["import","Import"]].map(t=>`<button class="${S.view==t[0]?"pri":""}" onclick="go('${t[0]}')">${t[1]}</button>`).join("")}</div>`;
@@ -3206,7 +3206,7 @@ const rwIsM=k=>rwMeatCode(k)||(RW.types[k]||{}).kind=="meat",rwMM=()=>RW.mode=="
 async function rwLoad(force){
  if(!sb||RW.loading||(RW.ok&&!force))return;RW.loading=true;RW.err="";
  try{const [w,t,l,i,c]=await Promise.all([fetchAll("raw_weeks","*",q=>q.order("week_date",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_box_types","*",q=>q.order("sort").order("code")),fetchAll("raw_items","*",q=>q.order("last_used",{ascending:false,nullsFirst:false}).order("id")),fetchAll("raw_week_items","*",q=>q.order("id")),fetchAll("raw_week_counts","*",q=>q.order("week_id").order("code"))]);
-  RW.weeks=w;RW.types={};t.forEach(x=>RW.types[x.code]=x);RW.lib=l.filter(x=>!x.merged_into&&!x.hidden);RW.wi=i;RW.cnt=c;RW.ok=true;rwLoadBc();rwApprLoad()}
+  RW.weeks=w;RW.types={};t.forEach(x=>RW.types[x.code]=x);RW.lib=l.filter(x=>!x.merged_into&&!x.hidden);RW.wi=i;RW.cnt=c;try{RW.bill=await fetchAll("raw_billing","*",q=>q.order("week_id"))}catch(e){RW.bill=[]}RW.ok=true;rwLoadBc();rwApprLoad()}
  catch(e){RW.err="Could not load the Raw Menu ("+dberr(e)+")."}
  RW.loading=false;render()}
 /* Boxes to make of a size: what was typed for the week; if nothing is typed, the count from the dashboard (today's active customers) */
@@ -3365,8 +3365,9 @@ function vRaw(){
  if(!sb||!S.user)return `<div class="card"><h2>Raw Menu</h2><p class="note">Sign in to use the Raw Menu.</p></div>`;
  if(!RW.ok){rwLoad();return `<div class="card"><h2>Raw Menu</h2>${RW.err?`<p class="err">${esc(RW.err)}</p><button onclick="RW.err='';rwLoad(true)">Try again</button>`:`<p class="note">Loading…</p>`}</div>`}
  const msg=(RW.msg?`<p class="msg">${esc(RW.msg)}</p>`:"")+(RW.err?`<p class="err">${esc(RW.err)}</p>`:"");
- if(RW.page=="lib")return rwLibView(msg);
+ if(RW.page=="lib"&&!rbOnly())return rwLibView(msg);
  if(RW.open)return rwWeekView(msg);
+ if(RW.page=="bill"&&!rwMM())return rwBillWeeks(msg);
  return rwWeeksView(msg)}
 function rwHas(w){return RW.wi.some(x=>x.week_id==w.id&&((x.section=="meat")==rwMM()))||(rwMM()&&RW.cnt.some(x=>x.week_id==w.id&&rwIsM(x.code)&&(+x.ordered||0)>0))}
 function rwCurrent(){return RW.weeks.filter(rwHas).sort((a,b)=>String(b.week_date||"").localeCompare(String(a.week_date||"")))[0]}
@@ -3376,14 +3377,42 @@ function rwWeeksView(msg){
  msg=rwAlert()+(msg||"");
  const M=rwMM(),wl=RW.weeks.filter(w=>rwHas(w)||!RW.wi.some(x=>x.week_id==w.id));
  const cards=wl.map(w=>{const c=rwCalc(w.id),n=RW.wi.filter(x=>x.week_id==w.id&&((x.section=="meat")==M)).length,ks=c.codes.filter(k=>c.eff(k)>0),boxes=ks.reduce((t,k)=>t+c.eff(k),0);
-  return `<button class="rwwk" onclick="RW.open=${w.id};RW.tab='${n?(M?"meat":"order"):"boxes"}';RW.msg='';RW.err='';render()"><div><b>Week ${esc(w.label)}</b><span class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}">${w.status=="live"?"live":"draft"}</span></div><div class="note">${n} items · ${rwN(boxes,0)} boxes</div>${M&&ks.length?`<div class="note">${ks.map(k=>esc(k)+" "+rwN(c.eff(k),0)).join(" · ")}</div>`:""}<div class="rwamt">${rwTot(c)?rwMoney(rwTot(c)):"—"}</div></button>`}).join("");
+  return `<button class="rwwk" onclick="RW.open=${w.id};RW.tab='${rbOnly()?"bill":n?(M?"meat":"order"):"boxes"}';${!M&&rbSt(w).bad?"RW.bf='bad';":""}RW.msg='';RW.err='';render()"><div><b>Week ${esc(w.label)}</b><span class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}">${w.status=="live"?"live":"draft"}</span>${M?"":rbTag(w)}</div><div class="note">${n} items · ${rwN(boxes,0)} boxes</div>${M&&ks.length?`<div class="note">${ks.map(k=>esc(k)+" "+rwN(c.eff(k),0)).join(" · ")}</div>`:""}<div class="rwamt">${rwTot(c)?rwMoney(rwTot(c)):"—"}</div></button>`}).join("");
  const last=RW.weeks.find(rwHas);
  const nxt=(()=>{const d=new Date();d.setDate(d.getDate()+((8-d.getDay())%7||7));return d})();
  return `<div class="card rwhome"><h2 style="margin:0">${rwMM()?"Meat Menu":"Raw Menu"}</h2><p class="note" style="margin:4px 0 0">${rwMM()?"Plan each week's meat boxes and items. Past weeks below are the meat history with box counts and totals. Tap a week to open it.":"Plan each week's grocery boxes and items. Tap a week to open it."}</p>${msg}
- <div class="rwbar"><button class="pri rwbig" onclick="RW.nw=!RW.nw;render()">+ New week</button><button class="rwbig" onclick="RW.page='lib';RW.msg='';render()">Item library (${RW.lib.filter(x=>rwMM()==(x.section=='meat')).length})</button>${S.user.role=="owner"&&!rwMM()?`<button class="rwbig" onclick="rwImportOpen()">Import from Excel</button>`:""}</div>
+ <div class="rwbar" ${rbOnly()?"style=\"display:none\"":""}>${!rwMM()?`<button class="rwbig" onclick="RW.page='bill';RW.msg='';render()">Billing${RW.weeks.some(w=>rbSt(w).bad)?" ⚠":""}</button>`:""}<button class="pri rwbig" onclick="RW.nw=!RW.nw;render()">+ New week</button><button class="rwbig" onclick="RW.page='lib';RW.msg='';render()">Item library (${RW.lib.filter(x=>rwMM()==(x.section=='meat')).length})</button>${S.user.role=="owner"&&!rwMM()?`<button class="rwbig" onclick="rwImportOpen()">Import from Excel</button>`:""}</div>
  ${RW.nw?`<div class="rwform"><label>Week name<input id="rw_nl" value="${nxt.getMonth()+1}/${nxt.getDate()}"></label><label>Week date<input id="rw_nd" type="date" value="${isoD(nxt)}"></label><label>Start from<select id="rw_nf"><option value="">Empty week</option>${RW.weeks.filter(rwHas).map(w=>`<option value="${w.id}">Week ${esc(w.label)} (${RW.wi.filter(x=>x.week_id==w.id&&((x.section=="meat")==rwMM())).length} items)</option>`).join("")}</select></label><button class="pri rwbig" onclick="rwCreateWeek()" ${RW.busy?"disabled":""}>${RW.busy?"Creating…":"Create week"}</button></div>`:""}
  ${RW.imp?rwImportCard():""}${rwCurCard(true)}</div>
  <div class="rwgrid">${cards||`<div class="card"><p class="note">No weeks yet. Create one, or import your Excel file.</p></div>`}</div>`}
+/* ---- Raw billing review: what the company charged per case vs the menu price ---- */
+const rbCan=()=>!!S.user&&(S.user.role=="owner"||upages(S.user).indexOf("rawbill")>=0),rbOnly=()=>!!S.user&&S.user.role!="owner"&&upages(S.user).indexOf("rawbill")>=0&&upages(S.user).indexOf("raw")<0;
+const rbOne=(wid,iid)=>(RW.bill||[]).find(x=>x.week_id==wid&&x.item_id==iid);
+function rbRows(w){const c=rwCalc(w.id);return c.g.filter(r=>r.cp>0&&(r.use>0||rbOne(w.id,r.it.id)&&rbOne(w.id,r.it.id).charged!=null)).map(r=>{const b=rbOne(w.id,r.it.id)||{},ent=b.charged!=null&&b.charged!=="",ch=ent?+b.charged:null,d=ent?ch-r.cp:0,bad=ent&&Math.abs(d)>=0.005&&!b.reviewed;return {r:r,b:b,ent:ent,ch:ch,d:d,bad:bad,acc:ent&&Math.abs(d)>=0.005&&!!b.reviewed}})}
+function rbSt(w){if(rwMM())return {n:0,ent:0,bad:0};const L=rbRows(w);return {n:L.length,ent:L.filter(x=>x.ent).length,bad:L.filter(x=>x.bad).length}}
+function rbTag(w){const t=rbSt(w);if(!t.n||!t.ent)return "";return t.bad?`<span class="ctag" style="--c:#d92d20" title="The billing price is different from the menu price">⚠ ${t.bad} don't match</span>`:t.ent>=t.n?`<span class="ctag" style="--c:#2a9d5c">✓ billing matches</span>`:`<span class="ctag" style="--c:#98a2b3">billing ${t.ent}/${t.n}</span>`}
+async function rbSave(wid,iid,patch){const w=RW.weeks.find(x=>x.id==wid),r=rwCalc(wid).g.find(x=>x.it.id==iid);if(!rbCan()||!r)return;
+ let b=rbOne(wid,iid);if(!b){b={week_id:wid,item_id:iid,charged:null,expected_at:null,comment:"",reviewed:false};(RW.bill=RW.bill||[]).push(b)}
+ Object.assign(b,patch);if("charged" in patch){b.expected_at=r.cp;if(b.charged==null)b.reviewed=false}
+ b.updated_by_name=S.user.name||"";b.updated_at=new Date().toISOString();render();
+ const row={week_id:wid,item_id:iid,charged:b.charged,expected_at:b.expected_at,comment:b.comment||"",reviewed:!!b.reviewed,updated_by_name:b.updated_by_name,updated_at:b.updated_at};
+ const {error}=await sb.from("raw_billing").upsert(row,{onConflict:"week_id,item_id"});if(error)rwSaveErr(error)}
+function rwBill(w,c){
+ const L=rbRows(w),can=rbCan(),f=RW.bf||"all",bad=L.filter(x=>x.bad).length,ent=L.filter(x=>x.ent).length,exp=L.reduce((t,x)=>t+x.r.use*x.r.cp,0),chg=L.filter(x=>x.ent).reduce((t,x)=>t+x.r.use*x.ch,0),expE=L.filter(x=>x.ent).reduce((t,x)=>t+x.r.use*x.r.cp,0),dif=chg-expE;
+ const show=L.filter(x=>f=="bad"?x.bad:f=="open"?!x.ent:true),vs={};show.forEach(x=>{(vs[x.r.it.vendor||"No vendor"]=vs[x.r.it.vendor||"No vendor"]||[]).push(x)});
+ const sum=`<div class="card"><h2 style="margin:0">Billing · Week ${esc(w.label)}</h2><p class="note">Price per case. Menu price = what the menu person entered. Type what the company actually charged. ${can?"":"<b>View only.</b>"}</p>
+ <div class="rwbudg"><div><b>${rwMoney(exp)}</b><div class="note">Menu total (all ${L.length} items)</div></div><div><b>${rwMoney(chg)}</b><div class="note">Charged (${ent} of ${L.length} entered)</div></div><div><b class="${Math.abs(dif)<0.005?"ok":"bad"}">${dif>0?"+":""}${rwMoney(dif)}</b><div class="note">Difference on the entered items</div></div><div><b class="${bad?"bad":"ok"}">${bad}</b><div class="note">Don't match</div></div></div>
+ <div class="bar" style="margin-top:8px">${[["all","All items"],["bad","Only problems ("+bad+")"],["open","Not entered yet ("+(L.length-ent)+")"]].map(t=>`<button class="${f==t[0]?"pri":""}" onclick="RW.bf='${t[0]}';render()">${t[1]}</button>`).join("")}</div></div>`;
+ return sum+Object.keys(vs).sort().map(v=>`<div class="card"><div class="rwvh"><b>${esc(v)}</b><b>${rwMoney(vs[v].reduce((t,x)=>t+x.r.use*x.r.cp,0))}</b></div>${vs[v].map(x=>{const r=x.r,it=r.it,b=x.b,col=x.bad?"#fdecea":x.acc?"#f2f4f7":"";
+  return `<div class="rwor" style="${col?"background:"+col+";":""}flex-wrap:wrap;gap:8px"><div style="min-width:180px;flex:1"><b>${esc(it.name)}</b><div class="note">${rwN(r.use,0)} cases${r.upc?" · "+r.upc+" per case":""} · menu ${rwMoney(r.cp)} a case${b.updated_by_name&&x.ent?" · entered by "+esc(b.updated_by_name):""}</div>${x.bad?`<div class="bad"><b>Charged ${rwMoney(x.ch)} · ${x.d>0?"+":""}${rwMoney(x.d)} a case · ${x.d>0?"+":""}${rwMoney(x.d*r.use)} on ${rwN(r.use,0)} cases</b></div>`:x.acc?`<div class="note">Accepted: charged ${rwMoney(x.ch)} (${x.d>0?"+":""}${rwMoney(x.d)} a case)</div>`:x.ent?`<div class="ok">Matches</div>`:""}${b.expected_at!=null&&x.ent&&Math.abs(b.expected_at-r.cp)>=0.005?`<div class="note bad">The menu price changed after this was entered (it was ${rwMoney(b.expected_at)}).</div>`:""}</div>
+  <div class="rwcs"><input type="number" inputmode="decimal" step="0.01" value="${x.ent?x.ch:""}" placeholder="charged $" ${can?"":"disabled"} onchange="rbSave(${w.id},${it.id},{charged:rwNum(this.value)})"><small>charged a case</small></div>
+  <div style="min-width:150px"><input value="${esc(b.comment||"")}" placeholder="comment" ${can?"":"disabled"} onchange="rbSave(${w.id},${it.id},{comment:this.value})" style="margin:0"></div>
+  ${x.ent&&Math.abs(x.d)>=0.005?`<label style="display:flex;gap:4px;align-items:center;font-size:12px"><input type="checkbox" style="width:auto" ${b.reviewed?"checked":""} ${can?"":"disabled"} onchange="rbSave(${w.id},${it.id},{reviewed:this.checked})"> OK, accepted</label>`:""}</div>`}).join("")}</div>`).join("")||`<div class="card"><p class="note">${f=="bad"?"No problems. Everything entered matches the menu price.":f=="open"?"Everything is entered.":"No items with a price in this week."}</p></div>`}
+function rwBillWeeks(msg){
+ const wl=RW.weeks.filter(w=>rbSt(w).n>0),tot=wl.reduce((t,w)=>t+rbSt(w).bad,0);
+ return `<div class="card rwhome"><div class="bar">${rbOnly()?"":`<button onclick="RW.page='weeks';RW.msg='';render()">← Raw Menu</button>`}</div><h2 style="margin:0">Raw billing</h2><p class="note" style="margin:4px 0 0">Every week with its menu total and what the company charged. A red tag means a price does not match. Tap a week to see the items.</p>${msg||""}<p class="${tot?"bad":"ok"}"><b>${tot?tot+" item"+(tot==1?"":"s")+" don't match":"Everything entered matches"}</b></p></div>
+ <div class="rwgrid">${wl.map(w=>{const t=rbSt(w),L=rbRows(w),exp=L.reduce((a,x)=>a+x.r.use*x.r.cp,0),chg=L.filter(x=>x.ent).reduce((a,x)=>a+x.r.use*x.ch,0),dif=chg-L.filter(x=>x.ent).reduce((a,x)=>a+x.r.use*x.r.cp,0);
+  return `<button class="rwwk" onclick="RW.open=${w.id};RW.tab='bill';RW.bf='${t.bad?"bad":"all"}';RW.msg='';RW.err='';render()"><div><b>Week ${esc(w.label)}</b>${rbTag(w)||'<span class="ctag" style="--c:#98a2b3">not started</span>'}</div><div class="note">${t.ent} of ${t.n} items entered</div><div class="note">Menu ${rwMoney(exp)}${t.ent?" · charged "+rwMoney(chg)+" ("+(dif>0?"+":"")+rwMoney(dif)+")":""}</div></button>`}).join("")||`<div class="card"><p class="note">No weeks with priced items yet.</p></div>`}</div>`}
 function rwHdr(w,c){
  const ks=c.codes.filter(k=>(c.cm[k]||{}).ordered!=null||c.perBox[k]||c.eff(k));
  return ks.map(k=>{const x=c.cm[k]||{},n=c.eff(k),pb=c.perBox[k]||0,bud=x.budget==null?(RW.types[k]||{}).budget:x.budget,rem=bud==null?null:bud-pb,meat=rwMeatCode(k)||(RW.types[k]||{}).kind=="meat";
@@ -3419,9 +3448,9 @@ function rwNIt(c,k){return c.rows.filter(r=>+((r.it.qty||{})[k]||0)>0).length}
 function rwHdrRefresh(wid){const e=document.getElementById("rw_hdr");if(e)e.innerHTML=rwHdr(null,rwCalc(wid))}
 function rwWeekView(msg){
  const w=RW.weeks.find(x=>x.id==RW.open);if(!w){RW.open=null;return rwWeeksView(msg)}
- const c=rwCalc(w.id),tabs=rwMM()?[["meat","Items"],["boxes","Box counts"]]:[["boxes","Boxes"],["items","Items"],["order","Order"]];if(!tabs.some(t=>t[0]==RW.tab))RW.tab=tabs[0][0];
- const body={boxes:rwBoxes,items:rwItems,order:rwOrder,meat:rwMeat}[RW.tab](w,c);
- return `<div class="rwwrap"><div class="card rwtop"><button onclick="RW.open=null;RW.msg='';RW.err='';render()">← All weeks</button><h2 style="margin:0">Week ${esc(w.label)}</h2><button onclick="RW.page='lib';RW.msg='';render()">Library</button><button class="rwimp" onclick="rwImportAll(${w.id})" title="Write this week's items into the Menu tab (unapproved boxes too)">↻ Menu</button><button onclick="rwStatus(${w.id})" class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}" title="Tap to change">${w.status=="live"?"live":"draft"}</button><span class="rwsum">${rwTot(c)?rwMoney(rwTot(c)):""}</span>${rwMM()?`<div class="rwtb"><span>Total boxes needed</span><b>${rwN(rwMeatCodes(c).reduce((t,k)=>t+c.eff(k),0),0)}</b></div>`:""}<div id="rw_hdr" class="rwhdr">${rwHdr(w,c)}</div></div>${rwAlert()}${msg}${body}
+ const c=rwCalc(w.id),tabs=rwMM()?[["meat","Items"],["boxes","Box counts"]]:rbOnly()?[["bill","Billing"]]:[["boxes","Boxes"],["items","Items"],["order","Order"],["bill","Billing"+(rbSt(w).bad?" ⚠":"")]];if(!tabs.some(t=>t[0]==RW.tab))RW.tab=tabs[0][0];
+ const body={boxes:rwBoxes,items:rwItems,order:rwOrder,meat:rwMeat,bill:rwBill}[RW.tab](w,c);
+ return `<div class="rwwrap"><div class="card rwtop"><button onclick="RW.open=null;RW.msg='';RW.err='';render()">← All weeks</button><h2 style="margin:0">Week ${esc(w.label)}</h2>${rbOnly()?"":`<button onclick="RW.page='lib';RW.msg='';render()">Library</button>`}${rbOnly()?"":`<button class="rwimp" onclick="rwImportAll(${w.id})" title="Write this week's items into the Menu tab (unapproved boxes too)">↻ Menu</button><button onclick="rwStatus(${w.id})" class="ctag" style="--c:${w.status=="live"?"#2a9d5c":"#98a2b3"}" title="Tap to change">${w.status=="live"?"live":"draft"}</button>`}<span class="rwsum">${rwTot(c)?rwMoney(rwTot(c)):""}</span>${rwMM()?`<div class="rwtb"><span>Total boxes needed</span><b>${rwN(rwMeatCodes(c).reduce((t,k)=>t+c.eff(k),0),0)}</b></div>`:""}${rbOnly()?"":`<div id="rw_hdr" class="rwhdr">${rwHdr(w,c)}</div>`}</div>${rbOnly()?"":rwAlert()}${msg}${body}
  <div class="rwtabs" style="${tabs.length<2?"display:none":""}">${tabs.map(t=>`<button class="${RW.tab==t[0]?"on":""}" onclick="RW.tab='${t[0]}';RW.ex=null;RW.add=false;render();scrollTo(0,0)">${t[1]}</button>`).join("")}</div><div style="height:76px"></div></div>`}
 function rwBoxes(w,c){
  const types=Object.keys(RW.types).filter(k=>rwKeep(k)&&(c.cm[k]||c.rows.some(r=>(r.it.qty||{})[k])));
