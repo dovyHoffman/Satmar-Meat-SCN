@@ -428,7 +428,9 @@ Deno.serve(async (req) => {
           if (error) throw new Error(error.message);
           rows.push(...(data || [])); if (!data || data.length < 1000) break;
         }
+        // A number marked No SMS anywhere (phone or cell, any customer) is never texted, even if it also sits in another field.
         const blockSet = new Set<string>(String(await getSec("sms_block")).split(/[\s,;]+/).map(e164).filter(Boolean));
+        for (const c of rows) { if (c.no_sms) numsOf(c.phone).forEach((n) => blockSet.add(n)); if (c.no_sms_cell) numsOf(c.cell).forEach((n) => blockSet.add(n)); }
         const bFound = new Set<string>(), bFlag = new Set<string>();
         const st = { customers: 0, inactive: 0, noHH: 0, noNumber: 0, noSms: 0, numbers: 0, dupNumbers: 0, blockTotal: blockSet.size, blockFound: 0, blockAlreadyFlagged: 0, blockedSkipped: 0 };
         const seen = new Set<string>(); const msgs: { to: string; text: string; name: string; hh: number; agency: string }[] = [];
