@@ -451,7 +451,7 @@ Deno.serve(async (req) => {
       };
       if (body.mode === "smsstatus") {
         const { data: log } = await sb.from("sms_log").select("created_at,kind,label,n_sent,n_invalid,note,by_name").order("created_at", { ascending: false }).limit(8);
-        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, template: await getSec("sms_template"), block: await getSec("sms_block"), log: log || [] });
+        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, template: await getSec("sms_template"), monitor: await getSec("sms_monitor"), block: await getSec("sms_block"), log: log || [] });
       }
       if (body.mode === "smssave") {
         const k = String(body.key || "").trim();
@@ -459,6 +459,7 @@ Deno.serve(async (req) => {
         if (body.account_id != null) await setSec("dataphone_account", String(body.account_id).trim());
         if (body.block != null) await setSec("sms_block", String(body.block));
         if (body.template != null) await setSec("sms_template", String(body.template));
+        if (body.monitor != null) { const m = String(body.monitor).trim(); await setSec("sms_monitor", m ? e164(m) : ""); }
         if (body.from) await setSec("dataphone_from", e164(body.from) || "+19292501110");
         return json({ ok: true });
       }
@@ -491,15 +492,19 @@ Deno.serve(async (req) => {
             const { data: dup } = await sb.from("sms_log").select("id").eq("kind", "send").eq("day", nyDay).limit(1);
             if (dup && dup.length) return json({ ok: false, error: "A send was already done today. Nothing was sent.", already: true });
           }
-          list = (await build(tpl)).msgs;
-          if (!list.length) return json({ ok: false, error: "No recipients." });
+          const built = (await build(tpl)).msgs;
+          if (!built.length) return json({ ok: false, error: "No recipients." });
+          list = built;
+          // the owner's own number gets the same text, placed in the middle of the batch, so he can see it arrive
+          const mon = await getSec("sms_monitor");
+          if (mon && !built.some((m) => m.to === mon)) { const mid = Math.floor(built.length / 2); list = [...built.slice(0, mid), { to: mon, text: built[mid].text }, ...built.slice(mid)]; }
         }
         const label = (test ? "Test " : "Household ") + nyDay;
         let sent = 0, invalid = 0, err = "";
-        for (let i = 0; i < list.length; i += 200) {
-          const chunk = list.slice(i, i + 200).map((m) => ({ to: m.to, text: m.text }));
+        for (let i = 0; i < list.length; i += 5000) {
+          const chunk = list.slice(i, i + 5000).map((m) => ({ to: m.to, text: m.text }));
           try {
-            const r = await dpFetch("/sms/send-bulk?account_id=" + encodeURIComponent(acct), { method: "POST", body: JSON.stringify({ label: label + (list.length > 200 ? " #" + (i / 200 + 1) : ""), from, messages: chunk, scheduled_at: null }) });
+            const r = await dpFetch("/sms/send-bulk?account_id=" + encodeURIComponent(acct), { method: "POST", body: JSON.stringify({ label: label + (list.length > 5000 ? " #" + (i / 5000 + 1) : ""), from, messages: chunk, scheduled_at: null }) });
             if (r.status !== 200 || r.j?.success === false) { err = "Dataphone said " + r.status + ": " + (r.j?.error || r.t); break; }
             sent += Number(r.j?.data?.sent ?? chunk.length); invalid += (r.j?.data?.invalid || []).length;
           } catch (e) { err = String((e as Error).message || e); break; }
