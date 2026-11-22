@@ -405,6 +405,101 @@ Deno.serve(async (req) => {
         return json({ ok: true, count: list.length, orders: list.slice(0, 3).map((o: any) => cut({ ...o, ...(o.data || {}), data: undefined })), completion: comp });
       } catch (e) { return json({ ok: false, error: String((e as any)?.message || e) }); }
     }
+    // ---- modes "sms*": owner only. Sunday household text through Dataphone (key stored in server_secrets, never sent to the page). ----
+    if (typeof body.mode === "string" && body.mode.startsWith("sms")) {
+      const DP = "https://api.dataphone.cloud";
+      const getSec = async (n: string) => { const { data } = await sb.from("server_secrets").select("value").eq("name", n).maybeSingle(); return String(data?.value || ""); };
+      const setSec = async (n: string, v: string) => { await sb.from("server_secrets").upsert({ name: n, value: v, updated_at: new Date().toISOString() }); };
+      const e164 = (x: string) => { let d = String(x || "").replace(/\D/g, ""); if (d.length === 11 && d[0] === "1") d = d.slice(1); return d.length === 10 ? "+1" + d : ""; };
+      const numsOf = (x: string) => String(x || "").split(/[\/,;|\n]+|\s{2,}|\s+or\s+/i).map(e164).filter(Boolean);
+      const nyDay = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+      const DEFAULT_TXT = "Message from Satmar Meat: Your authorize family Size is: {{household}} This is the household size authorized by our system. If this number is incorrect, please contact your agency. The menu for this week will be available on our system Monday at 929-250-1110 Ext. 6. The menu will be updated every Monday. Thank you for contacting the Satmar Meat - SCN Program.";
+      const dpFetch = async (path: string, init: any = {}) => {
+        const key = await getSec("dataphone_key");
+        if (!key) throw new Error("The Dataphone key has not been saved yet.");
+        const r = await fetch(DP + path, { ...init, headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", Accept: "application/json" } });
+        const t = await r.text(); let j: any = null; try { j = JSON.parse(t); } catch (_) { /* not json */ }
+        return { status: r.status, j, t: t.slice(0, 300) };
+      };
+      const build = async (tpl: string) => {
+        const rows: any[] = [];
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await sb.from("customers").select("id,name,phone,cell,no_sms,no_sms_cell,hh,active").order("id").range(from, from + 999);
+          if (error) throw new Error(error.message);
+          rows.push(...(data || [])); if (!data || data.length < 1000) break;
+        }
+        const st = { customers: 0, inactive: 0, noHH: 0, noNumber: 0, noSms: 0, numbers: 0, dupNumbers: 0 };
+        const seen = new Set<string>(); const msgs: { to: string; text: string; name: string; hh: number }[] = [];
+        for (const c of rows) {
+          if (!c.active) { st.inactive++; continue; }
+          const hh = Number(c.hh) || 0;
+          if (hh <= 0) { st.noHH++; continue; }
+          const to = [...(c.no_sms ? [] : numsOf(c.phone)), ...(c.no_sms_cell ? [] : numsOf(c.cell))];
+          if (!to.length) { (numsOf(c.phone).length || numsOf(c.cell).length) ? st.noSms++ : st.noNumber++; continue; }
+          st.customers++;
+          for (const n of to) { if (seen.has(n)) { st.dupNumbers++; continue; } seen.add(n); msgs.push({ to: n, text: tpl.split("{{household}}").join(String(hh)), name: c.name, hh }); }
+        }
+        st.numbers = msgs.length;
+        return { st, msgs };
+      };
+      if (body.mode === "smsstatus") {
+        const { data: log } = await sb.from("sms_log").select("created_at,kind,label,n_sent,n_invalid,note,by_name").order("created_at", { ascending: false }).limit(8);
+        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, log: log || [] });
+      }
+      if (body.mode === "smssave") {
+        const k = String(body.key || "").trim();
+        if (k) await setSec("dataphone_key", k);
+        if (body.account_id != null) await setSec("dataphone_account", String(body.account_id).trim());
+        if (body.from) await setSec("dataphone_from", e164(body.from) || "+19292501110");
+        return json({ ok: true });
+      }
+      if (body.mode === "smscheck") {
+        try {
+          const r = await dpFetch("/sms/dids");
+          const list = Array.isArray(r.j?.data) ? r.j.data : [];
+          const acct = list.map((d: any) => d.account_id || d.accountId).find(Boolean);
+          if (acct && !(await getSec("dataphone_account"))) await setSec("dataphone_account", String(acct));
+          return json({ ok: r.status === 200, status: r.status, numbers: list.map((d: any) => d.did || d.number || d.phone_number).filter(Boolean), account_found: !!acct, keys_seen: list[0] ? Object.keys(list[0]) : [], error: r.status === 200 ? "" : r.t });
+        } catch (e) { return json({ ok: false, error: String((e as Error).message || e) }); }
+      }
+      const tpl = String(body.template || DEFAULT_TXT);
+      if (!tpl.includes("{{household}}")) return json({ ok: false, error: "The message must contain {{household}}." });
+      if (body.mode === "smspreview") {
+        const { st, msgs } = await build(tpl);
+        return json({ ok: true, stats: st, samples: msgs.slice(0, 3).map((m) => ({ name: m.name, to: "***-***-" + m.to.slice(-4), text: m.text })) });
+      }
+      if (body.mode === "smssend") {
+        const from = (await getSec("dataphone_from")) || "+19292501110";
+        const acct = await getSec("dataphone_account");
+        if (!acct) return json({ ok: false, error: "The Dataphone account ID is missing. Press 'Check connection' first." });
+        const test = body.test_to ? e164(String(body.test_to)) : "";
+        if (body.test_to && !test) return json({ ok: false, error: "That test phone number is not valid." });
+        let list: { to: string; text: string }[];
+        if (test) list = [{ to: test, text: tpl.split("{{household}}").join("3") }];
+        else {
+          if (!body.force) {
+            const { data: dup } = await sb.from("sms_log").select("id").eq("kind", "send").eq("day", nyDay).limit(1);
+            if (dup && dup.length) return json({ ok: false, error: "A send was already done today. Nothing was sent.", already: true });
+          }
+          list = (await build(tpl)).msgs;
+          if (!list.length) return json({ ok: false, error: "No recipients." });
+        }
+        const label = (test ? "Test " : "Household ") + nyDay;
+        let sent = 0, invalid = 0, err = "";
+        for (let i = 0; i < list.length; i += 200) {
+          const chunk = list.slice(i, i + 200).map((m) => ({ to: m.to, text: m.text }));
+          try {
+            const r = await dpFetch("/sms/send-bulk?account_id=" + encodeURIComponent(acct), { method: "POST", body: JSON.stringify({ label: label + (list.length > 200 ? " #" + (i / 200 + 1) : ""), from, messages: chunk, scheduled_at: null }) });
+            if (r.status !== 200 || r.j?.success === false) { err = "Dataphone said " + r.status + ": " + (r.j?.error || r.t); break; }
+            sent += Number(r.j?.data?.sent ?? chunk.length); invalid += (r.j?.data?.invalid || []).length;
+          } catch (e) { err = String((e as Error).message || e); break; }
+        }
+        let by = ""; try { const { data: p } = await sb.from("profiles").select("name").eq("id", me.id).maybeSingle(); by = p?.name || ""; } catch (_) { /* ignore */ }
+        await sb.from("sms_log").insert({ kind: test ? "test" : "send", label, day: nyDay, n_sent: sent, n_invalid: invalid, note: err.slice(0, 300), by_name: by });
+        return json({ ok: !err, sent, invalid, error: err, total: list.length });
+      }
+      return json({ ok: false, error: "unknown sms mode" });
+    }
     // ---- mode "smtptest": owner only. Checks whether this server can reach the mail server (no password used). ----
     if (body.mode === "smtptest") {
       if (!me.owner) return json({ ok: false, error: "Only the owner." });

@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b518">
+<meta name="build" content="b519">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2893,6 +2893,7 @@ function vSettings(){
 <p class="note">${S.autoAt?"Last automatic check: "+new Date(S.autoAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+(S.autoErr?" · problem: "+esc(S.autoErr):""):"No automatic check yet in this session."}</p>
 <button onclick="syncNow()" ${S.syncing?"disabled":""}>${S.syncing?esc(S.syncMsg||"Syncing…"):"Sync deliveries now (full, last 4 weeks)"}</button>
 </div>
+ <div class="card"><h2>Sunday household text (Dataphone)</h2>${smsCard()}</div>
  <div class="card"><h2>Scanovator order fields</h2>
 <p class="note">Shows every field Scanovator sends for the latest orders of one phone number, including the custom fields (ID, case description…). Only you see this. Type a phone number and press Show.</p>
 <div class="bar"><input id="sl_ph" inputmode="tel" placeholder="phone number" style="max-width:220px"><button onclick="scanLook()">Show</button></div>
@@ -2919,6 +2920,40 @@ function vSettings(){
 
  <p class="note">Type their email and choose a role. They get an email with a link; they click it once, and then they sign in here (they can also make their own password). You can change their pages in the table above afterwards.</p>
  <div class="bar" style="align-items:flex-end;flex-wrap:wrap"><label>Email<br><input id="iv_em" type="email" placeholder="name@email.com" style="width:240px"></label><label>Name (optional)<br><input id="iv_nm" style="width:170px"></label><label>Role<br><select id="iv_ro"><option value="secretary">Office secretary</option><option value="manager">Manager</option><option value="admin">Admin</option><option value="owner">Owner (full control)</option></select></label><button class="pri" onclick="inviteUser()" ${S.inviting?"disabled":""}>${S.inviting?"Sending…":"Send invitation"}</button></div></div>`}
+
+/* ===== Sunday household text through Dataphone (owner only). The API key is kept on the server, never in this page. ===== */
+S.sms=S.sms||{};
+async function smsCall(mode,extra){const {data:ss}=await sb.auth.getSession(),r=await fetch(SB_URL+"/functions/v1/scanovator-sync",{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+((ss.session||{}).access_token||SB_KEY)},body:JSON.stringify(Object.assign({mode:mode},extra||{}))});return await r.json().catch(()=>({ok:false,error:"No answer from the server (is the function updated?)"}))}
+async function smsLoad(){S.sms.busy="load";render();try{const j=await smsCall("smsstatus");if(j.ok){S.sms.st=j;if(S.sms.tpl==null)S.sms.tpl=j.defaultText}else S.sms.msg=j.error||"Could not load."}catch(e){S.sms.msg=String(e&&e.message||e)}S.sms.busy="";render()}
+function smsTpl(){const t=document.getElementById("sms_tpl");if(t)S.sms.tpl=t.value;return S.sms.tpl}
+async function smsSaveKey(){const k=(document.getElementById("sms_key").value||"").trim();if(!k){S.sms.msg="Paste the key first.";render();return}S.sms.busy="key";render();const j=await smsCall("smssave",{key:k});S.sms.msg=j.ok?"Key saved (hidden from now on). Press Check connection.":(j.error||"Not saved.");S.sms.busy="";await smsLoad()}
+async function smsCheck(){S.sms.busy="check";render();const j=await smsCall("smscheck");S.sms.msg=j.ok?"Connected. Numbers on the account: "+((j.numbers||[]).join(", ")||"(none listed)")+(j.account_found?" · account found.":" · account ID not found automatically."):"Not connected: "+(j.error||j.status||"unknown");S.sms.busy="";const st=await smsCall("smsstatus");if(st.ok)S.sms.st=st;render()}
+async function smsSaveAcct(){const v=(document.getElementById("sms_acct").value||"").trim();const j=await smsCall("smssave",{account_id:v});S.sms.msg=j.ok?"Account ID saved.":(j.error||"Not saved.");await smsLoad()}
+async function smsPreview(){smsTpl();S.sms.busy="prev";render();const j=await smsCall("smspreview",{template:S.sms.tpl});if(j.ok){S.sms.prev=j}else{S.sms.prev=null;S.sms.msg=j.error||"Preview failed."}S.sms.busy="";render()}
+async function smsTest(){smsTpl();const ph=(document.getElementById("sms_test").value||"").trim();if(!ph){S.sms.msg="Type your own phone number for the test.";render();return}if(!await uiConfirm("Send ONE test text to "+ph+" only? Nobody else gets anything."))return;S.sms.busy="test";render();const j=await smsCall("smssend",{template:S.sms.tpl,test_to:ph});S.sms.msg=j.ok?"Test sent to "+ph+" ("+j.sent+").":"Test not sent: "+(j.error||"unknown");S.sms.busy="";await smsLoad()}
+async function smsSend(){smsTpl();const p=S.sms.prev;if(!p){S.sms.msg="Press Preview first.";render();return}const n=p.stats.numbers;if(!await uiConfirm("Send the household text to "+n+" phone numbers ("+p.stats.customers+" customers) from (929) 250-1110 now? This cannot be undone."))return;S.sms.busy="send";render();const j=await smsCall("smssend",{template:S.sms.tpl});S.sms.msg=j.ok?"Sent: "+j.sent+" accepted by Dataphone, "+j.invalid+" invalid numbers.":("Stopped: "+(j.error||"unknown")+(j.sent?" · already accepted: "+j.sent:""));S.sms.busy="";await smsLoad()}
+function smsCard(){const x=S.sms,st=x.st,b=x.busy;
+ if(!st&&!b&&!x.loaded){x.loaded=1;setTimeout(smsLoad,0)}
+ if(!st)return `<p class="note">${b?"Loading…":esc(x.msg||"Loading…")}</p>`;
+ const dis=b?"disabled":"";
+ const log=(st.log||[]).map(l=>`<tr><td>${esc(new Date(l.created_at).toLocaleString())}</td><td>${esc(l.kind)}</td><td>${l.n_sent}</td><td>${l.n_invalid}</td><td>${esc(l.by_name||"")}</td><td>${esc(l.note||"")}</td></tr>`).join("");
+ const pv=x.prev;
+ return `<p class="note">Sends each customer their own household size, from (929) 250-1110, through Dataphone. Only you see this. Nothing is sent until you press Send, and a second send on the same day is blocked.</p>
+ ${x.msg?`<p class="note"><b>${esc(x.msg)}</b></p>`:""}
+ <h3 class="gh">1. Connection ${st.hasKey?"· key saved ✓":"· no key yet"}</h3>
+ <div class="bar" style="flex-wrap:wrap"><input id="sms_key" type="password" autocomplete="off" placeholder="${st.hasKey?"paste a new key to replace it":"paste the Dataphone API key"}" style="min-width:260px"><button onclick="smsSaveKey()" ${dis}>Save key</button><button onclick="smsCheck()" ${dis||(st.hasKey?"":"disabled")}>Check connection</button></div>
+ <div class="bar" style="flex-wrap:wrap"><input id="sms_acct" value="${esc(st.account_id||"")}" placeholder="Dataphone account ID (found automatically)" style="min-width:300px"><button onclick="smsSaveAcct()" ${dis}>Save account ID</button></div>
+ <h3 class="gh">2. Message</h3>
+ <textarea id="sms_tpl" rows="6" style="width:100%" oninput="S.sms.tpl=this.value">${esc(x.tpl==null?st.defaultText:x.tpl)}</textarea>
+ <p class="note">{{household}} is replaced with each customer's household size. Customers marked "No SMS" are skipped, and so is anyone without a household size or phone number.</p>
+ <h3 class="gh">3. Preview</h3>
+ <div class="bar"><button onclick="smsPreview()" ${dis}>${b=="prev"?"Working…":"Preview who gets it"}</button></div>
+ ${pv?`<p class="note"><b>${pv.stats.numbers}</b> phone numbers · <b>${pv.stats.customers}</b> customers. Skipped: ${pv.stats.noHH} without household size, ${pv.stats.noSms} marked No SMS, ${pv.stats.noNumber} without a phone number, ${pv.stats.inactive} inactive${pv.stats.dupNumbers?", "+pv.stats.dupNumbers+" repeated numbers":""}.</p>
+ <div class="wrap"><table><tr><th>Customer</th><th>Phone</th><th>Text</th></tr>${pv.samples.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.to)}</td><td style="max-width:420px">${esc(m.text)}</td></tr>`).join("")}</table></div>`:""}
+ <h3 class="gh">4. Test, then send</h3>
+ <div class="bar" style="flex-wrap:wrap"><input id="sms_test" inputmode="tel" placeholder="your own phone number" style="max-width:220px"><button onclick="smsTest()" ${dis||(st.hasKey?"":"disabled")}>Send ONE test to me</button></div>
+ <div class="bar"><button onclick="smsSend()" ${dis||(st.hasKey&&pv?"":"disabled")} style="background:#d92d20;color:#fff">${b=="send"?"Sending…":"Send to everyone"}</button></div>
+ ${log?`<h3 class="gh">History</h3><div class="wrap"><table><tr><th>When</th><th>Type</th><th>Sent</th><th>Invalid</th><th>By</th><th>Problem</th></tr>${log}</table></div>`:""}`}
 async function inviteUser(){
  const em=document.getElementById("iv_em").value.trim(),nm=document.getElementById("iv_nm").value.trim(),ro=document.getElementById("iv_ro").value;
  if(!em){S.err="Type the email first.";S.msg="";render();return}
