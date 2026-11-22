@@ -407,7 +407,7 @@ Deno.serve(async (req) => {
     }
     // ---- modes "sms*": owner only. Sunday household text through Dataphone (key stored in server_secrets, never sent to the page). ----
     if (typeof body.mode === "string" && body.mode.startsWith("sms")) {
-      const DP = "https://api.dataphone.cloud";
+      const DP = "https://api.dataphone.cloud/messages";
       const getSec = async (n: string) => { const { data } = await sb.from("server_secrets").select("value").eq("name", n).maybeSingle(); return String(data?.value || ""); };
       const setSec = async (n: string, v: string) => { await sb.from("server_secrets").upsert({ name: n, value: v, updated_at: new Date().toISOString() }); };
       const e164 = (x: string) => { let d = String(x || "").replace(/\D/g, ""); if (d.length === 11 && d[0] === "1") d = d.slice(1); return d.length === 10 ? "+1" + d : ""; };
