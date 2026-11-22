@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b523">
+<meta name="build" content="b524">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1705,8 +1705,8 @@ async function fetchAllPar(table,cols,build){
   const n=Math.ceil(r0.count/1000)||1,jobs=[Promise.resolve(r0.data)];for(let i=1;i<n;i++){let q=sb.from(table).select(cols).range(i*1000,i*1000+999);if(build)q=build(q);jobs.push(q.then(r=>{if(r.error)throw r.error;return r.data}))}
   return (await Promise.all(jobs)).flat()}catch(e){return fetchAll(table,cols,build)}}
 const fdate=v=>{if(!v)return "";const t=new Date(v);return isNaN(t)?"":t.toLocaleString("en-US",{month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
-const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,enh,base,food,area,middleton,active,auth_end,door_lock";
-const ccKey=()=>"sm_cc_"+(S.user?S.user.id:"");
+const CC_COLS="id,agency,agency_ref,name,phone,legal_address,cell,email,cin,notes_labels,note2,street,apt,city,state,zip,notes,hh,enh,base,food,area,middleton,active,auth_end,door_lock,no_sms,no_sms_cell";
+const ccKey=()=>"sm_cc2_"+(S.user?S.user.id:"");
 const IDB={db:null,open(){return this.db||(this.db=new Promise((res,rej)=>{try{const q=indexedDB.open("sm_cache",1);q.onupgradeneeded=()=>q.result.createObjectStore("kv");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}catch(e){rej(e)}}))},
  async get(k){try{const d=await this.open();return await new Promise(r=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch(e){return null}},
  async set(k,v){try{const d=await this.open();await new Promise(r=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=()=>r();t.onerror=()=>r()})}catch(e){}},
