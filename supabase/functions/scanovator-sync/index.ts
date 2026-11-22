@@ -468,32 +468,6 @@ Deno.serve(async (req) => {
           return json({ ok: r.status === 200, status: r.status, numbers: list.map((d: any) => d.did || d.number || d.phone_number).filter(Boolean), account_found: !!acct, keys_seen: list[0] ? Object.keys(list[0]) : [], error: r.status === 200 ? "" : r.t });
         } catch (e) { return json({ ok: false, error: String((e as Error).message || e) }); }
       }
-      if (body.mode === "smsflag") {
-        // Marks "No SMS" on the customer cards for every number in the saved do-not-text list. body.apply=false only counts.
-        const bl = new Set<string>(String(await getSec("sms_block")).split(/[\s,;]+/).map(e164).filter(Boolean));
-        if (!bl.size) return json({ ok: false, error: "The do-not-text list is empty. Save it first." });
-        const rows: any[] = [];
-        for (let from = 0; ; from += 1000) {
-          const { data, error } = await sb.from("customers").select("id,phone,cell,no_sms,no_sms_cell").order("id").range(from, from + 999);
-          if (error) return json({ ok: false, error: error.message });
-          rows.push(...(data || [])); if (!data || data.length < 1000) break;
-        }
-        const allBl = (v: string) => { const n = numsOf(v); return n.length > 0 && n.every((x) => bl.has(x)); };
-        const anyBl = (v: string) => numsOf(v).some((x) => bl.has(x));
-        const setP: string[] = [], setC: string[] = []; let partial = 0, already = 0;
-        const found = new Set<string>();
-        for (const c of rows) {
-          numsOf(c.phone).concat(numsOf(c.cell)).forEach((x) => { if (bl.has(x)) found.add(x); });
-          if (anyBl(c.phone)) { if (c.no_sms) already++; else if (allBl(c.phone)) setP.push(c.id); else partial++; }
-          if (anyBl(c.cell)) { if (c.no_sms_cell) already++; else if (allBl(c.cell)) setC.push(c.id); else partial++; }
-        }
-        const out = { ok: true, listed: bl.size, found: found.size, notFound: bl.size - found.size, willMarkPhone: setP.length, willMarkCell: setC.length, alreadyMarked: already, partial };
-        if (!body.apply) return json({ ...out, applied: false });
-        const now = new Date().toISOString();
-        for (let i = 0; i < setP.length; i += 100) { const r = await sb.from("customers").update({ no_sms: true, updated_at: now }).in("id", setP.slice(i, i + 100)); if (r.error) return json({ ok: false, error: r.error.message }); }
-        for (let i = 0; i < setC.length; i += 100) { const r = await sb.from("customers").update({ no_sms_cell: true, updated_at: now }).in("id", setC.slice(i, i + 100)); if (r.error) return json({ ok: false, error: r.error.message }); }
-        return json({ ...out, applied: true });
-      }
       const tpl = String(body.template || DEFAULT_TXT);
       if (!tpl.includes("{{household}}")) return json({ ok: false, error: "The message must contain {{household}}." });
       if (body.mode === "smspreview") {
