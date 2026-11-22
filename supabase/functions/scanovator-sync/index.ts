@@ -424,14 +424,14 @@ Deno.serve(async (req) => {
       const build = async (tpl: string) => {
         const rows: any[] = [];
         for (let from = 0; ; from += 1000) {
-          const { data, error } = await sb.from("customers").select("id,name,phone,cell,no_sms,no_sms_cell,hh,active").order("id").range(from, from + 999);
+          const { data, error } = await sb.from("customers").select("id,name,phone,cell,no_sms,no_sms_cell,hh,active,agency").order("id").range(from, from + 999);
           if (error) throw new Error(error.message);
           rows.push(...(data || [])); if (!data || data.length < 1000) break;
         }
         const blockSet = new Set<string>(String(await getSec("sms_block")).split(/[\s,;]+/).map(e164).filter(Boolean));
         const bFound = new Set<string>(), bFlag = new Set<string>();
         const st = { customers: 0, inactive: 0, noHH: 0, noNumber: 0, noSms: 0, numbers: 0, dupNumbers: 0, blockTotal: blockSet.size, blockFound: 0, blockAlreadyFlagged: 0, blockedSkipped: 0 };
-        const seen = new Set<string>(); const msgs: { to: string; text: string; name: string; hh: number }[] = [];
+        const seen = new Set<string>(); const msgs: { to: string; text: string; name: string; hh: number; agency: string }[] = [];
         for (const c of rows) {
           if (!c.active) { st.inactive++; continue; }
           const hh = Number(c.hh) || 0;
@@ -442,20 +442,21 @@ Deno.serve(async (req) => {
           const to = to0.filter((n) => !blockSet.has(n)); st.blockedSkipped += to0.length - to.length;
           if (!to.length) { (numsOf(c.phone).length || numsOf(c.cell).length) ? st.noSms++ : st.noNumber++; continue; }
           st.customers++;
-          for (const n of to) { if (seen.has(n)) { st.dupNumbers++; continue; } seen.add(n); msgs.push({ to: n, text: tpl.split("{{household}}").join(String(hh)), name: c.name, hh }); }
+          for (const n of to) { if (seen.has(n)) { st.dupNumbers++; continue; } seen.add(n); msgs.push({ to: n, text: tpl.split("{{household}}").join(String(hh)), name: c.name, hh, agency: String(c.agency || "") }); }
         }
         st.numbers = msgs.length; st.blockFound = bFound.size; st.blockAlreadyFlagged = bFlag.size;
         return { st, msgs };
       };
       if (body.mode === "smsstatus") {
         const { data: log } = await sb.from("sms_log").select("created_at,kind,label,n_sent,n_invalid,note,by_name").order("created_at", { ascending: false }).limit(8);
-        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, block: await getSec("sms_block"), log: log || [] });
+        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, template: await getSec("sms_template"), block: await getSec("sms_block"), log: log || [] });
       }
       if (body.mode === "smssave") {
         const k = String(body.key || "").trim();
         if (k) await setSec("dataphone_key", k);
         if (body.account_id != null) await setSec("dataphone_account", String(body.account_id).trim());
         if (body.block != null) await setSec("sms_block", String(body.block));
+        if (body.template != null) await setSec("sms_template", String(body.template));
         if (body.from) await setSec("dataphone_from", e164(body.from) || "+19292501110");
         return json({ ok: true });
       }
@@ -472,7 +473,8 @@ Deno.serve(async (req) => {
       if (!tpl.includes("{{household}}")) return json({ ok: false, error: "The message must contain {{household}}." });
       if (body.mode === "smspreview") {
         const { st, msgs } = await build(tpl);
-        return json({ ok: true, stats: st, samples: msgs.slice(0, 3).map((m) => ({ name: m.name, to: "***-***-" + m.to.slice(-4), text: m.text })) });
+        const fmt = (n: string) => "(" + n.slice(2, 5) + ") " + n.slice(5, 8) + "-" + n.slice(8);
+        return json({ ok: true, stats: st, samples: msgs.slice(0, 3).map((m) => ({ name: m.name, to: fmt(m.to), text: m.text })), rows: msgs.map((m) => [m.name, m.agency, fmt(m.to), m.hh]) });
       }
       if (body.mode === "smssend") {
         const from = (await getSec("dataphone_from")) || "+19292501110";
