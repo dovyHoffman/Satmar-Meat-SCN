@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b514">
+<meta name="build" content="b515">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -208,7 +208,7 @@ const PAGES=[["dashboard","Dashboard"],["customers","Customers"],["changes","Cha
 const ROLE_PAGES={owner:PAGES.map(p=>p[0]),admin:PAGES.map(p=>p[0]).filter(x=>x!="import"&&x!="settings"&&x!="newlist"),manager:["dashboard","customers","changes","delivery","menu"],secretary:["customers","changes","delivery","menu"],billing:["billing"],demo:[]};
 const ROLE_NAMES={owner:"Owner",admin:"Admin",manager:"Manager",secretary:"Office secretary",billing:"Billing",demo:"Demo only"};
 function upages(u){if(!u)return [];if(u.role=="owner")return ROLE_PAGES.owner;return Array.isArray(u.pages)?u.pages.filter(p=>PAGES.some(q=>q[0]==p)&&p!="import"&&p!="settings"&&p!="newlist"):[]}
-const NAVHID={history:1,import:1,delivery_prev:1,chat:1,menuchat:1,raw:1,meat:1,kitchen:1};
+const NAVHID={history:1,import:1,delivery_prev:1,chat:1,menuchat:1,raw:1,rawbill:1,meat:1,kitchen:1};
 const MTABS=[["menu","Menu"],["raw","Raw"],["kitchen","Kitchen"],["meat","Meat"]];
 const mTabsFor=u=>{const a=upages(u);return MTABS.filter(t=>a.indexOf(t[0])>=0||(t[0]=="raw"&&a.indexOf("rawbill")>=0))};
 const inMenu=(u,v)=>!!u&&(v=="raw"||v=="meat"||v=="kitchen")&&mTabsFor(u).some(t=>t[0]==v);
