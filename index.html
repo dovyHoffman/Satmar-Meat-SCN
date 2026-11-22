@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b516">
+<meta name="build" content="b517">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -786,28 +786,33 @@ function dashCost(){
   out+=`<h3 class="gh">${g[1]} · ${g[2].join(" ")} · Week ${esc(w.label)}</h3><div class="wrap"><table><tr><th>Box</th><th style="text-align:right">Total boxes</th><th style="text-align:right">Cost per box</th><th style="text-align:right">Total cost</th></tr>${rows}<tr><td><b>Total</b></td><td style="text-align:right"><b>${rwN(nb,0)}</b></td><td></td><td style="text-align:right"><b>${rwMoney(tc)}</b></td></tr></table></div>`})}catch(e){out=`<p class="err">Could not calculate: ${esc(e.message||e)}</p>`}
  RW.mode=m0;
  return `<div class="card"><h2>Box cost</h2>${out||'<p class="note">No current week with items yet.</p>'}<p class="note">Total cost = total boxes × cost per box, from the current week in the Raw and Meat menus (Items &amp; prices).</p></div>`}
-/* ---- Weekly activity on the Dashboard: what was delivered each week (Monday to Sunday) ---- */
-S.act=S.act||{m:"fam",c:"prior"};
-function actWeeks(){
- const ws=t=>{const d=new Date(t);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()},cur=ws(Date.now()),M={};
- cust.forEach(c=>{(c.pods||[]).forEach(p=>{if(!p.ts)return;const k=ws(p.ts),o=M[k]=M[k]||{k:k,seen:{},fam:0,box:0,ppl:0,meals:0},sn=p.snap||{};
-  o.box+=sn.boxes>0?sn.boxes:1;
-  if(!o.seen[c.id]){o.seen[c.id]=1;const hh=+sn.hh>0?+sn.hh:(+c.hh||0),b=sn.base||c.base;o.fam++;o.ppl+=hh;if(b!="box")o.meals+=hh*21}})});
- const L=Object.keys(M).map(k=>M[k]).sort((a,b)=>a.k-b.k).slice(-12);
- L.forEach(o=>{o.lab=new Date(o.k).toLocaleDateString("en-US",{month:"short",day:"numeric"});o.cur=o.k==cur});return L}
+/* ---- Weekly activity on the Dashboard: families, people and meals per week, from the billing weeks + the current list ---- */
+S.act=S.act||{m:"fam",c:"prior",co:"UJO"};
+function actWeeks(co){
+ const dstr=t=>new Date(t).toISOString().slice(0,10),mon=d=>{d=new Date(d);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()},DAY=864e5,out=[];
+ const snapBy={};Object.keys(BILL.snap||{}).forEach(k=>{snapBy[dstr(+k)]=BILL.snap[k]});
+ (BILL.weeks||[]).forEach(w=>{const p=String(w.k).split("/"),sat=new Date(2026,+p[0]-1,+p[1]);sat.setHours(0,0,0,0);const m=mon(sat.getTime()+2*DAY),sn=snapBy[dstr(sat.getTime())];let fam=0,ppl=0,mh=0;
+  if(sn&&sn.length){sn.forEach(r=>{if(co&&r.agency!=co)return;const h=+r.hh||0;fam++;ppl+=h;if(r.base!="box")mh+=h})}
+  else{Object.keys(w.a||{}).forEach(c=>{if(co&&c!=co)return;const a=w.a[c];fam+=(a.meals||0)+(a.mraw||0)+(a.boxn!=null?a.boxn:(a.box||0));mh+=a.mhh||0;ppl+=(a.mhh||0)+Object.keys(a.boxh||{}).reduce((t,h)=>t+(+h)*a.boxh[h],0)})}
+  out.push({k:m,fam:fam,ppl:ppl,meals:mh*21,src:"billing"})});
+ const now=new Date(),dow=now.getDay(),curMon=mon(now.getTime()+((dow==6||dow==0)?2*DAY:0)),A=cust.filter(c=>c.active&&(!co||c.agency==co));
+ if(!out.some(o=>o.k==curMon)){const L={k:curMon,fam:A.length,ppl:A.reduce((t,c)=>t+(+c.hh||0),0),meals:A.filter(c=>c.base!="box").reduce((t,c)=>t+(+c.hh||0),0)*21,src:"list"};out.push(L)}
+ const R=out.sort((a,b)=>a.k-b.k).slice(-12);R.forEach(o=>{o.lab=new Date(o.k).toLocaleDateString("en-US",{month:"short",day:"numeric"});o.cur=o.k==curMon});return R}
 function vAct(){
- const L=actWeeks();if(!L.length)return "";
- const A=S.act,MT=[["fam","Families"],["box","Boxes"],["ppl","People"],["meals","Meals"]],lab=Object.fromEntries(MT),cur=L[L.length-1],prev=L.slice(0,-1);
+ if(!BILL.real||!(BILL.weeks||[]).length)return "";
+ const A=S.act,co=A.co||"",L=actWeeks(co);if(!L.length)return "";
+ const MT=[["fam","Families"],["ppl","People"],["meals","Meals"]],lab=Object.fromEntries(MT),cur=L[L.length-1],prev=L.slice(0,-1);
  const cmpV=m=>{if(!prev.length)return null;if(A.c=="avg4"){const q=prev.slice(-4);return q.reduce((t,x)=>t+x[m],0)/q.length}if(A.c=="w4")return prev.length>=4?prev[prev.length-4][m]:null;return prev[prev.length-1][m]};
  const kp=m=>{const v=cur[m],b=cmpV(m),d=b?Math.round((v-b)/b*100):null,nm=A.c=="avg4"?"4-week average":A.c=="w4"?"4 weeks ago":"prior week";return `<div class="kpi"><span class="note">${lab[m].toUpperCase()}</span><b>${Math.round(v).toLocaleString()}</b>${d==null?"":`<span class="note" style="color:${d<0?"#b42318":"#067647"}">${d<0?"↓":"↑"} ${Math.abs(d)}% vs ${nm}</span>`}</div>`};
- const m=A.m,mx=Math.max(1,...L.map(x=>x[m])),top=Math.ceil(mx/ (mx>=1000?1000:10))*(mx>=1000?1000:10),a=new Date(cur.k),e=new Date(cur.k+6*864e5),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
- return `<div class="card"><div class="bar" style="justify-content:space-between;align-items:flex-end"><div><span class="note" style="letter-spacing:.06em">WEEKLY ACTIVITY</span><h2 style="margin:2px 0">What was delivered</h2><p class="note" style="margin:0">${cur.cur?"This week (in progress)":"Latest week"}: <b>${f(a)} – ${f(e)}</b></p></div>
- <label class="note" style="display:flex;gap:6px;align-items:center">Compare to <select style="width:auto;margin:0" onchange="S.act.c=this.value;render()">${[["prior","Prior week"],["w4","4 weeks ago"],["avg4","Average of last 4 weeks"]].map(o=>`<option value="${o[0]}" ${A.c==o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></label></div>
+ const m=A.m,mx=Math.max(1,...L.map(x=>x[m])),st=mx>=1000?Math.pow(10,Math.floor(Math.log10(mx))):10,top=Math.ceil(mx/st)*st,a=new Date(cur.k),e=new Date(cur.k+6*864e5),f=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+ return `<div class="card"><div class="bar" style="justify-content:space-between;align-items:flex-end"><div><span class="note" style="letter-spacing:.06em">WEEKLY ACTIVITY</span><h2 style="margin:2px 0">${co?esc(co)+" · ":""}Weekly activity</h2><p class="note" style="margin:0">${cur.cur?"This week (in progress)":"Latest week"}: <b>${f(a)} – ${f(e)}</b></p></div>
+ <div class="bar"><label class="note" style="display:flex;gap:6px;align-items:center">Company <select style="width:auto;margin:0" onchange="S.act.co=this.value;render()">${[["","All companies"]].concat(allCos().map(c=>[c,c])).map(o=>`<option value="${o[0]}" ${co==o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></label>
+ <label class="note" style="display:flex;gap:6px;align-items:center">Compare to <select style="width:auto;margin:0" onchange="S.act.c=this.value;render()">${[["prior","Prior week"],["w4","4 weeks ago"],["avg4","Average of last 4 weeks"]].map(o=>`<option value="${o[0]}" ${A.c==o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></label></div></div>
  <div class="kpis" style="margin-top:8px">${MT.map(t=>kp(t[0])).join("")}</div>
  <div class="bar" style="margin-top:12px;border-bottom:1px solid #e5e7eb;gap:16px">${MT.map(t=>`<button style="border:0;background:none;border-bottom:2px solid ${A.m==t[0]?"#b45309":"transparent"};border-radius:0;color:${A.m==t[0]?"#b45309":"#667085"};font-weight:600" onclick="S.act.m='${t[0]}';render()">${t[1]}</button>`).join("")}</div>
  <div style="display:flex;align-items:flex-end;gap:8px;height:200px;margin:12px 0 4px;padding:0 2px;border-bottom:1px solid #e5e7eb">${L.map(x=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-width:0" title="${esc(x.lab)}: ${Math.round(x[m]).toLocaleString()}"><div style="font-size:11px;text-align:center;color:#475467">${Math.round(x[m]).toLocaleString()}</div><div style="background:#b45309;${x.cur?"opacity:.55;":""}border-radius:4px 4px 0 0;height:${Math.max(2,Math.round(x[m]/top*165))}px"></div></div>`).join("")}</div>
  <div style="display:flex;gap:8px;padding:0 2px">${L.map(x=>`<div style="flex:1;text-align:center;font-size:11px;color:#667085;min-width:0">${esc(x.lab)}</div>`).join("")}</div>
- <p class="note">${lab[m]} by delivery week (Monday to Sunday), ${L.length} week${L.length==1?"":"s"} of delivery history. Families = homes delivered to. Boxes = boxes delivered. People = household members of those families. Meals = people of Meals families × 21. The lighter bar is this week so far.</p></div>`}
+ <p class="note">${lab[m]} by week (Monday to Sunday), last ${L.length} weeks. Past weeks come from your billing weeks (the saved lists and sheets). The lighter bar is the current list. Meals = people of Meals families × 21.</p></div>`}
 function vDash(){
  const A=cust.filter(c=>c.active);
  const hhs=A.reduce((a,c)=>a+c.hh,0),box=A.filter(c=>c.base=="box").length,now=new Date();
