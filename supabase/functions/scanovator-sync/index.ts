@@ -428,28 +428,34 @@ Deno.serve(async (req) => {
           if (error) throw new Error(error.message);
           rows.push(...(data || [])); if (!data || data.length < 1000) break;
         }
-        const st = { customers: 0, inactive: 0, noHH: 0, noNumber: 0, noSms: 0, numbers: 0, dupNumbers: 0 };
+        const blockSet = new Set<string>(String(await getSec("sms_block")).split(/[\s,;]+/).map(e164).filter(Boolean));
+        const bFound = new Set<string>(), bFlag = new Set<string>();
+        const st = { customers: 0, inactive: 0, noHH: 0, noNumber: 0, noSms: 0, numbers: 0, dupNumbers: 0, blockTotal: blockSet.size, blockFound: 0, blockAlreadyFlagged: 0, blockedSkipped: 0 };
         const seen = new Set<string>(); const msgs: { to: string; text: string; name: string; hh: number }[] = [];
         for (const c of rows) {
           if (!c.active) { st.inactive++; continue; }
           const hh = Number(c.hh) || 0;
+          for (const n of numsOf(c.phone)) if (blockSet.has(n)) { bFound.add(n); if (c.no_sms) bFlag.add(n); }
+          for (const n of numsOf(c.cell)) if (blockSet.has(n)) { bFound.add(n); if (c.no_sms_cell) bFlag.add(n); }
           if (hh <= 0) { st.noHH++; continue; }
-          const to = [...(c.no_sms ? [] : numsOf(c.phone)), ...(c.no_sms_cell ? [] : numsOf(c.cell))];
+          const to0 = [...(c.no_sms ? [] : numsOf(c.phone)), ...(c.no_sms_cell ? [] : numsOf(c.cell))];
+          const to = to0.filter((n) => !blockSet.has(n)); st.blockedSkipped += to0.length - to.length;
           if (!to.length) { (numsOf(c.phone).length || numsOf(c.cell).length) ? st.noSms++ : st.noNumber++; continue; }
           st.customers++;
           for (const n of to) { if (seen.has(n)) { st.dupNumbers++; continue; } seen.add(n); msgs.push({ to: n, text: tpl.split("{{household}}").join(String(hh)), name: c.name, hh }); }
         }
-        st.numbers = msgs.length;
+        st.numbers = msgs.length; st.blockFound = bFound.size; st.blockAlreadyFlagged = bFlag.size;
         return { st, msgs };
       };
       if (body.mode === "smsstatus") {
         const { data: log } = await sb.from("sms_log").select("created_at,kind,label,n_sent,n_invalid,note,by_name").order("created_at", { ascending: false }).limit(8);
-        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, log: log || [] });
+        return json({ ok: true, hasKey: !!(await getSec("dataphone_key")), account_id: await getSec("dataphone_account"), from: (await getSec("dataphone_from")) || "+19292501110", defaultText: DEFAULT_TXT, block: await getSec("sms_block"), log: log || [] });
       }
       if (body.mode === "smssave") {
         const k = String(body.key || "").trim();
         if (k) await setSec("dataphone_key", k);
         if (body.account_id != null) await setSec("dataphone_account", String(body.account_id).trim());
+        if (body.block != null) await setSec("sms_block", String(body.block));
         if (body.from) await setSec("dataphone_from", e164(body.from) || "+19292501110");
         return json({ ok: true });
       }
