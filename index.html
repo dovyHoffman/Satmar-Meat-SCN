@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b532">
+<meta name="build" content="b533">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1245,6 +1245,8 @@ async function invSave(c,patch){
  const {error}=await sb.from("app_settings").upsert({key:"invoice_cos",value:nx,updated_at:new Date().toISOString()});
  if(error)throw error;INV.cos=nx}
 const inM2=n=>Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}),inQ=n=>Number(n).toLocaleString("en-US");
+const mailDom=e=>String(e).split("@")[1]?.toLowerCase()||"";
+const mailOther=(c,addrs,cos)=>{cos=cos||INV.cos;const own=new Set(),oth=new Map();Object.keys(cos).forEach(k=>{inMail((cos[k]||{}).emails).concat(inMail((cos[k]||{}).cc)).forEach(e=>{const d=mailDom(e);if(!d||d=="satmarmeat.com"||d=="gmail.com")return;if(k==c)own.add(d);else oth.set(d,k)})});return addrs.filter(e=>{const d=mailDom(e);return oth.has(d)&&!own.has(d)}).map(e=>e+" (belongs to "+coName(oth.get(mailDom(e)))+")")};
 const inMail=s=>String(s||"").split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean);
 function invModel(c,k,o){
  o=o||{};const w=BILL.weeks.find(x=>x.k==k),x=w&&w.a[c];if(!x)return null;
@@ -1329,6 +1331,7 @@ async function invOpen(c,k){
   if(block){invMsg(block,true);return}
   const r=invRead(c,k),to=inMail(r.emails),cc=inMail(r.cc);
   if(!to.length){invMsg("Add at least one email address in Send to.",true);return}
+  {const w=mailOther(c,to.concat(cc));if(w.length){invMsg("Not sent: an address belongs to a different company: "+w.join(", "),true);return}}
   if(!r.no){invMsg("Type the invoice number first.",true);return}
   const M2=invModel(c,k,r);M2.co=Object.assign({},invCo(c),{name:r.name||coName(c),addr:r.addr,phone:r.phone});
   if(M2.missing){invMsg("Some lines have no price yet.",true);return}
@@ -1385,8 +1388,9 @@ function invSetCard(){
  <p><button class="pri" onclick="invSetSave()" ${d}>Save invoice details</button> <span id="is_msg" class="note"></span></p></div>`}
 async function invSetSave(){
  const g=i=>document.getElementById(i),m=g("is_msg");
- try{const nx=JSON.parse(JSON.stringify(INV.cos));let bad="";COS.forEach(c=>{const to=g("is_to_"+c).value,cc=g("is_cc_"+c).value,b=inMail(to).concat(inMail(cc)).filter(e=>!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));if(b.length)bad=coName(c)+": "+b.join(", ");nx[c]=Object.assign({},nx[c]||{},{name:g("is_nm_"+c).value.trim()||coName(c),addr:g("is_ad_"+c).value.trim(),phone:g("is_ph_"+c).value.trim(),emails:to.trim(),cc:cc.trim()})});
+ try{const nx=JSON.parse(JSON.stringify(INV.cos));let bad="";COS.forEach(c=>{const to=g("is_to_"+c).value,cc=g("is_cc_"+c).value,b=inMail(to).concat(inMail(cc)).filter(e=>!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));if(b.length)bad=coName(c)+": "+b.join(", ");nx[c]=Object.assign({},nx[c]||{},{emails:to.trim(),cc:cc.trim()});nx[c]=Object.assign({},nx[c]||{},{name:g("is_nm_"+c).value.trim()||coName(c),addr:g("is_ad_"+c).value.trim(),phone:g("is_ph_"+c).value.trim(),emails:to.trim(),cc:cc.trim()})});
   if(bad){m.textContent="These do not look like emails: "+bad;m.style.color="#b42318";return}
+  {let x="";COS.forEach(c=>{const w=mailOther(c,inMail(nx[c].emails).concat(inMail(nx[c].cc)),nx);if(w.length)x+=coName(c)+": "+w.join(", ")+". "});if(x){m.textContent="Not saved. The same company address is used for two companies: "+x;m.style.color="#b42318";return}}
   const {error}=await sb.from("app_settings").upsert({key:"invoice_cos",value:nx,updated_at:new Date().toISOString()});if(error)throw error;INV.cos=nx;m.textContent="Saved ✓";m.style.color="var(--ok)"}
  catch(e){m.textContent="Not saved: "+dberr(e);m.style.color="#b42318"}}
 async function loadBillDb(){
@@ -2708,6 +2712,7 @@ async function dupMailOpen(ag){
  const G=id=>document.getElementById(id),msg=(t,bad)=>{G("dm_msg").textContent=t;G("dm_msg").style.color=bad?"#b42318":"var(--ok)"};
  G("dm_send").onclick=async()=>{
   const to=inMail(G("dm_to").value),cc=inMail(G("dm_cc").value);if(!to.length){msg("Add at least one email address.",true);return}
+  {const w=mailOther(ag,to.concat(cc));if(w.length){msg("Not sent: an address belongs to a different company: "+w.join(", "),true);return}}
   if(!await uiConfirm("Send the duplicates ("+gs.length+" groups) to "+to.join(", ")+"?"))return;
   const b=G("dm_send");b.disabled=true;
   try{msg("Sending…");const xl=await dupXlsx(ag,gs),txt=G("dm_body").value,subj=G("dm_sub").value.trim()||"Duplicate customers",html='<div style="font:14px Arial,sans-serif;color:#111;max-width:640px">'+esc(txt).replace(/\n/g,"<br>")+"</div>";
