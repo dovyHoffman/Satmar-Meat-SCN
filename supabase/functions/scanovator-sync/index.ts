@@ -796,29 +796,16 @@ Deno.serve(async (req) => {
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
           const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || cf.get("onlineorderid") || String(o.online_order_id ?? "").trim() || "";
           if (cfWorks && !cf.get("casedescription") && !String(om.get(String(o.order_id))?.letters ?? "").trim()) { diag.no_case = (diag.no_case || 0) + 1; continue; }
-          if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // only UPLOADED orders (they carry our Application ID, or are in the export). Point-of-sale orders are never saved.
+          if (body.mapOnly !== false && !(cfId && byId.has(idKey(cfId))) && !byId.has(idKey(o.customercode)) && !byId.has(idKey(o.online_order_id))) { notInExport++; continue; }   // only UPLOADED orders (they carry our Application ID, or are in the export). Point-of-sale orders are never saved.
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
           if (String(o.online_order_id ?? "").trim()) { withOnline++; if (codeEx.size < 6) codeEx.add("online:" + String(o.online_order_id).slice(0, 24)); }
           if (String(o.actually_delivered ?? "").trim()) { deliveredN++; if (!deliveredSample.length) { const fl2: [string, string][] = []; flat(o, "", fl2); deliveredSample = fl2.map(([pa, va]) => /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/.test(pa) ? pa + "=(hidden)" : pa + "=" + va.slice(0, 18)).slice(0, 40); } }
           // match ONLY by the customer ID Scanovator keeps on the order (customer code). The phone is used just to find the orders.
           let c: any = null;
-          const mp = om.get(String(o.order_id));
-          if (mp && idKey(mp.app_id)) { const hit = byId.get(idKey(mp.app_id)); if (hit) { c = hit; viaId++; } }
+          const mp = om.get(String(o.order_id));   // used only for the box letters, never to find the customer
           if (!c && cfId) { const hit = byId.get(idKey(cfId)); if (hit) { c = hit; viaId++; viaCf++; } }
           if (!c) for (const f of [o.customercode, o.online_order_id]) { const hit = byId.get(idKey(f)); if (hit && idKey(f)) { c = hit; viaId++; break; } }
-                    if (!c && loose) { const h = byNamePhone(o); if (h) { c = h; viaName++; } }
-          // phone + at least one shared name word, ONE customer only, and ONLY for deliveries of this week to customers that have no delivery yet this week
-          if (!c && word && thisWeek(o)) {
-            dbg.try++;
-            const ow = new Set(words(`${o.fname || ""} ${o.lname || ""}`).split(" ").filter((w) => w.length > 1));
-            const hits = new Map<string, any>();
-            for (const ph of [o.phone, o.cell1, o.cell2]) for (const cc of byPhone.get(last10(ph)) || []) {
-              if (haveWeek.has(cc.id) && owner.get(String(o.order_id)) !== cc.id) continue;
-              if (words(cc.name).split(" ").some((w) => w.length > 1 && ow.has(w))) hits.set(cc.id, cc);
-            }
-            if (hits.size === 1) { c = [...hits.values()][0]; viaName++; dbg.hit++; } else if (hits.size > 1) dbg.many++; else dbg.none++;
-          }
-          if (!c && diagN < 40) { diagN++; const fl: [string, string][] = []; flat(o, "", fl);
+                    if (!c && diagN < 40) { diagN++; const fl: [string, string][] = []; flat(o, "", fl);
             const PII = /^(fname|lname|phone|cell1|cell2|address|street_address|unit|city|state|zip)$/;
             for (const [pa, va] of fl) {
               const k = idKey(va); if (k && byId.has(k)) idPaths[pa] = (idPaths[pa] || 0) + 1;
