@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
         for (const o of (Array.isArray(j.data) ? j.data : [])) {
           read++;
           let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
-          for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
+          for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if ((nk === "applicationid" || (nk === "onlineorderid" && !app)) && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
           if (!app && String(o.online_order_id ?? "").trim()) app = String(o.online_order_id).trim();   // the built-in online_order_id column also carries our ID
           if (!app) continue;   // not an uploaded order (point of sale): never saved
           uploaded++;
@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
         const day = String(o.createdAtIso || "").slice(5, 10) || "?"; const d = days[day] || (days[day] = { orders: 0, uploaded: 0, matched: 0, delivered: 0, noPhone: 0 });
         d.orders++;
         let app = "", cs = ""; const cf = o.custom_fields && typeof o.custom_fields === "object" ? o.custom_fields : {};
-        for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if (nk === "applicationid" && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
+        for (const [k, v] of Object.entries(cf)) { const nk = ik(k); if ((nk === "applicationid" || (nk === "onlineorderid" && !app)) && v) app = String(v); if (nk === "casedescription" && v) cs = String(v); }
           if (!app && String(o.online_order_id ?? "").trim()) app = String(o.online_order_id).trim();   // the built-in online_order_id column also carries our ID
         if (!String(o.phone || o.cell1 || o.cell2 || "").trim()) d.noPhone++;
         if (String(o.actually_delivered || "").trim()) d.delivered++;
@@ -794,7 +794,7 @@ Deno.serve(async (req) => {
           if (created < oldest) oldest = created;
           if (created < since && !thisWeek(o)) continue;   // an order created earlier but delivered this week still counts
           // ONLY orders that were uploaded in the Scanovator export (order_map). Point-of-sale orders are never saved.
-          const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || String(o.online_order_id ?? "").trim() || "";
+          const cf = cfAll(o), cfId = cf.get("applicationid") || cf.get("applicationidcustom") || cf.get("onlineorderid") || String(o.online_order_id ?? "").trim() || "";
           if (cfWorks && !cf.get("casedescription") && !String(om.get(String(o.order_id))?.letters ?? "").trim()) { diag.no_case = (diag.no_case || 0) + 1; continue; }
           if (body.mapOnly !== false && !om.has(String(o.order_id)) && !(cfId && byId.has(idKey(cfId)))) { notInExport++; continue; }   // only UPLOADED orders (they carry our Application ID, or are in the export). Point-of-sale orders are never saved.
           if (String(o.customercode ?? "").trim()) { withCode++; if (codeEx.size < 6) codeEx.add(String(o.customercode).slice(0, 24)); }
