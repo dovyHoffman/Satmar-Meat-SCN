@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b543">
+<meta name="build" content="b544">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1452,6 +1452,35 @@ function billListRows(rows){
   cust.filter(c=>c.active||(c.offFrom&&t<c.offFrom)).forEach(c=>{const pr=proof[t+"|"+c.agency+"|"+c.ref];
    out.push({order_id:"sheet",delivered_at:mid.toISOString(),agency:c.agency,agency_ref:c.ref,name:c.name,base:c.base,food:c.food,hh:c.hh,enh:0,boxes:c.base=="box"?c.hh:1,letters:"",receipt_url:pr?pr.receipt_url||"":"",photo_urls:pr?pr.photo_urls||[]:[]})})});
  return out}
+function bSnapRow(t,r){const a=(BILL.snap||{})[t];return a&&a.find(x=>x.agency==r.co&&x.agency_ref==r.id)||null}
+function bEdit(t,co,ref,c,k){
+ const x=bSnapRow(t,{co:co,id:ref});if(!x){bmsg("This week is not an editable saved list.",true);return}
+ const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ const opts=b=>optList(b,co).map(o=>`<option value="${o[0]}"${o[0]==x.food?" selected":""}>${esc(o[1])}</option>`).join("");
+ d.innerHTML=`<div class="mod" style="max-width:420px;width:100%"><b>Edit billing line · ${esc(ref)}</b><div class="note">${esc(x.name||"")} · week of ${esc(k)}. Only this week's bill changes; the customer list stays as it is.</div>
+ <label>Type<select id="be_base"><option value="meals"${x.base!="box"?" selected":""}>Meals</option><option value="box"${x.base=="box"?" selected":""}>Box</option></select></label>
+ <label>Food<select id="be_food">${opts(x.base)}</select></label>
+ <label>Households<input id="be_hh" type="number" min="1" value="${x.hh||1}"></label>
+ <label>Enhanced<input id="be_enh" type="number" min="0" value="${x.enh||0}"></label>
+ <div class="bar"><button class="pri" id="be_save">Save</button><button data-x="1">Cancel</button><span class="note" id="be_msg"></span></div></div>`;
+ document.body.appendChild(d);
+ const bs=d.querySelector("#be_base"),fd=d.querySelector("#be_food");
+ bs.onchange=()=>{fd.innerHTML=optList(bs.value,co).map(o=>`<option value="${o[0]}">${esc(o[1])}</option>`).join("")};
+ d.querySelector("#be_save").onclick=async()=>{
+  const m=d.querySelector("#be_msg"),nb={base:bs.value,food:fd.value,hh:Math.max(1,+d.querySelector("#be_hh").value||1),enh:Math.max(0,+d.querySelector("#be_enh").value||0)};
+  if(nb.base==x.base&&nb.food==x.food&&nb.hh==x.hh&&nb.enh==(x.enh||0)){d.remove();return}
+  m.textContent="Saving…";
+  try{const r=await sb.from("billing_snap").update(nb).eq("week",x.week).eq("agency",x.agency).eq("agency_ref",x.agency_ref).select();
+   if(r.error||!r.data||r.data.length!=1){m.textContent="Not saved"+(r.error?": "+r.error.message:" (no row changed)");return}
+   Object.assign(x,nb);billRelist();d.remove();render();
+   const ivs=(BILL.inv||[]).filter(i=>i.company==c&&!i.voided&&i.note==="Week "+k);
+   if(ivs.length)bResendAsk(c,k,ivs[0]);else bmsg("Saved.")
+  }catch(e){m.textContent="Not saved: "+(e.message||e)}}}
+function bResendAsk(c,k,iv){
+ const w=(BILL.weeks||[]).find(q=>wkLab(new Date(q.t))==k),est=w?estA(c,w.a[c]):null;
+ const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ d.innerHTML=`<div class="mod" style="max-width:440px;width:100%"><b>Billing list changed</b><p>Invoice ${esc(iv.inv_no||"")} for this week was already created for ${money2(Number(iv.amount))}. The list now calculates to <b>${est==null?"—":money2(est)}</b>.</p><p>Open the invoice to update the amount and send it again?</p><div class="bar"><button class="pri" data-go="1">Open invoice · send again</button><button data-x="1">Not now</button></div></div>`;
+ document.body.appendChild(d);d.querySelector("[data-go]").onclick=()=>{d.remove();invOpen(c,k)}}
 function billRelist(){if(!BILL.rowsBase)return;BILL.rows=billListRows(BILL.rowsBase);BILL.weeks=buildWeeks(BILL.rows);BILL.det={};BILL.weeks.forEach(w=>Object.keys(w.a).forEach(c=>{if(!PR[c])PR[c]={raw:null,meals:null};if(COS.indexOf(c)<0)COS.push(c)}))}
 function buildWeeks(rows){
  const W={};
@@ -1480,8 +1509,8 @@ function bDb(c,k){
  const ivCard=`<div class="card"><h2>Invoice · ${esc(coName(c))} · week of ${esc(k)} <span class="note">calculated from households: ${est==null?"—":money2(est)}</span></h2><div class="wrap"><table><tr><th>Invoice no.</th><th>Date</th><th style="text-align:right">Amount</th><th>Note</th><th></th></tr>${ivs.map(ivRow).join("")}${ivs.length?"":ivRow(null)}</table></div><p class="note">The saved invoice amount is what the balance and the statement use for this week. Change a number and press Save; every change is kept in History.${ivs.length?` To add another invoice for this week, ask me.`:""}</p></div>`;
  return ivCard+`<div class="card"><h2>Customers · ${esc(coName(c))} · week of ${esc(k)} <span class="note">${all.length} customers billed · ${all.reduce((t,r)=>t+r.dl.length,0)} deliveries${rows.length!=all.length?" · "+rows.length+" shown":""}</span></h2>
  <div class="bar"><input placeholder="Search name, ID, address or phone" value="${esc(B.q||"")}" onchange="S.b.q=this.value;render()" style="max-width:260px"><button class="pri" onclick="billPodCsv('${c}','${k}')">Download full list + PODs (CSV)</button>${(BILL.inv||[]).some(i=>i.company==c&&!i.voided&&i.note==="Week "+k)?`<button class="pri" onclick="invOpen('${c}','${k}')">Invoice · send again</button>`:`<button class="pri" onclick="invOpen('${c}','${k}')">Invoice · create / send</button>`}<button onclick="billInvoice('${c}','${k}',true)">Invoice · totals only</button><button onclick="billInvoice('${c}','${k}')">Invoice · with customers</button><span id="bill_msg" class="note"></span></div>
- <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Address</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th></tr>
- ${rows.slice(0,200).map(r=>{const amt=billAmt(r);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(bAddrOf(r))}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td></tr>`}).join("")||`<tr><td colspan="7" class="no">None.</td></tr>`}</table></div>
+ <div class="wrap"><table><tr><th>ID</th><th>Name</th><th>Type</th><th>Address</th><th style="text-align:right">HH</th><th style="text-align:right">Billed</th><th>Deliveries · receipt · picture</th><th></th></tr>
+ ${rows.slice(0,200).map(r=>{const amt=billAmt(r);return `<tr><td style="white-space:nowrap">${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.base=="box"?"Box":"Meals"}</td><td>${esc(bAddrOf(r))}</td><td style="text-align:right">${r.hh||""}</td><td style="text-align:right">${money(amt)}${r.base=="box"&&r.boxes>1?` <span class="note">(${r.boxes} boxes)</span>`:""}</td><td>${r.dl.map(dl).join("")}</td><td>${bSnapRow(w.t,r)?`<button onclick="bEdit(${w.t},'${esc(r.co).replace(/'/g,"")}',decodeURIComponent('${encodeURIComponent(r.id)}'),'${c}','${k}')">Edit</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="8" class="no">None.</td></tr>`}</table></div>
  ${rows.length>200?`<p class="note">Showing the first 200 of ${rows.length}. Use the search to find the rest.</p>`:""}</div>`}
 const LNK=(u,t)=>/^https?:\/\//i.test(u)?`<a href="${esc(u)}" onclick="return linkPop(this.href,this.textContent)">${t}</a>`:"";
 function linkPop(u,t){
