@@ -1,0 +1,2 @@
+with u as (update customers set agency_ref='FAM-3942' where agency_ref='FAM-3762' and not exists(select 1 from customers where agency_ref='FAM-3942') returning 1)
+select (select count(*) from u) updated, (select count(*) from customers where agency_ref='FAM-3762') old_left, (select count(*) from customers where agency_ref='FAM-3942') new_now, (select count(*) from billing_snap where agency_ref='FAM-3762') snaps_old, (select count(*) from billing_snap where agency_ref='FAM-3942') snaps_new;
