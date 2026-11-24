@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b545">
+<meta name="build" content="b546">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1001,7 +1001,7 @@ function coInvoices(c){
  return `<div class="card"><h2>Invoices · ${esc(invCo(c).name||coName(c))} <button style="margin-left:10px" onclick="coListPdf('${c}','inv',true)">Preview</button> <button class="pri" onclick="coListPdf('${c}','inv')">Download PDF</button></h2>${coMeta(c)}
  <div class="wrap"><table><tr><th>Date</th><th>Invoice no.</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr>
  <tr><td><input id="iv_dt_gnew" type="date" value="${TODAY()}" style="width:150px"></td><td><input id="iv_no_gnew" placeholder="Invoice no." style="width:130px"></td><td><input id="iv_nt_gnew" placeholder="Note" style="width:200px"></td><td style="text-align:right"><input id="iv_amt_gnew" inputmode="decimal" placeholder="0.00" style="width:120px;text-align:right"></td><td><button class="pri" onclick="invRowSave('gnew','${c}')">Add old invoice</button></td></tr>
- ${ivs.slice(0,150).map(i=>`<tr style="${i.voided?"opacity:.5;text-decoration:line-through":""}"><td style="white-space:nowrap">${esc(i.inv_date)}</td><td>${/^Week /.test(i.note||"")&&!i.voided&&(BILL.weeks||[]).some(w=>w.k==i.note.slice(5))?`<a href="#" style="font-weight:600" onclick="invOpen('${c}','${esc(i.note.slice(5))}');return false">${esc(i.inv_no)}</a>`:esc(i.inv_no)}</td><td>${esc(i.note)}</td><td style="text-align:right;white-space:nowrap">${money2(Number(i.amount))}</td><td>${i.voided?'<span class="note">voided</span>':(/^Week /.test(i.note||"")&&(BILL.weeks||[]).some(w=>w.k==i.note.slice(5))?`<button onclick="invOpen('${c}','${esc(i.note.slice(5))}')">Open</button> `:"")+`<button onclick="invVoid(${i.id})">Void</button>`}</td></tr>`).join("")||'<tr><td colspan="5" class="no">No invoices saved yet.</td></tr>'}
+ ${ivs.slice(0,150).map(i=>`<tr style="${i.voided?"opacity:.5;text-decoration:line-through":""}"><td style="white-space:nowrap">${esc(i.inv_date)}</td><td>${/^Week /.test(i.note||"")&&!i.voided&&(BILL.weeks||[]).some(w=>w.k==i.note.slice(5))?`<a href="#" style="font-weight:600" onclick="invOpen('${c}','${esc(i.note.slice(5))}');return false">${esc(i.inv_no)}</a>`:esc(i.inv_no)}</td><td>${esc(i.note)}</td><td style="text-align:right;white-space:nowrap">${money2(Number(i.amount))}</td><td>${i.voided?'<span class="note">voided</span>':(/^Week /.test(i.note||"")&&(BILL.weeks||[]).some(w=>w.k==i.note.slice(5))?`<button onclick="invOpen('${c}','${esc(i.note.slice(5))}')">Open</button> `:"")+`<button onclick="ivEdit(${i.id},'${c}')">Edit</button> <button onclick="invVoid(${i.id})">Void</button>`}</td></tr>`).join("")||'<tr><td colspan="5" class="no">No invoices saved yet.</td></tr>'}
  <tr><td colspan="3"><b>Total invoiced</b></td><td style="text-align:right"><b>${money2(tot)}</b></td><td></td></tr></table></div>
  <p class="note">The first row is only for <b>old invoices</b> from before this site. New invoices are made from the week below with <b>Invoice · create / send</b>: the number comes by itself and it is emailed with the Excel.</p></div>`}
 function coPayments(c){
@@ -1105,6 +1105,25 @@ async function invRowSave(id,c){
   const r=(id=="new"||id=="gnew")?await sb.from("invoices").insert(row):await sb.from("invoices").update(row).eq("id",id);if(r.error)throw r.error;
   await loadPayDb();S.msg="Invoice saved.";S.err=""}catch(e){S.err="Not saved: "+dberr(e)+(/relation|does not exist|schema cache/i.test(String(e&&e.message))?" The database update 023 has not been run yet.":"");S.msg=""}
  render()}
+function ivEdit(id,c){
+ const i=(BILL.inv||[]).find(q=>q.id==id);if(!i)return;
+ const d=document.createElement("div");d.className="ov";d.onclick=e=>{if(e.target==d||e.target.dataset.x)d.remove()};
+ d.innerHTML=`<div class="mod" style="max-width:420px;width:100%"><b>Edit invoice · ${esc(i.inv_no||"")}</b><div class="note">Every change is kept in History.</div>
+ <label>Invoice no.<input id="ie_no" value="${esc(i.inv_no||"")}"></label><label>Date<input id="ie_dt" type="date" value="${esc(i.inv_date)}"></label>
+ <label>Amount<input id="ie_amt" inputmode="decimal" value="${Number(i.amount).toFixed(2)}"></label><label>Note<input id="ie_nt" value="${esc(i.note||"")}"></label>
+ <div class="bar"><button class="pri" id="ie_save">Save</button><button data-x="1">Cancel</button><span class="note" id="ie_msg"></span></div></div>`;
+ document.body.appendChild(d);
+ d.querySelector("#ie_save").onclick=async()=>{
+  const m=d.querySelector("#ie_msg"),g=n=>d.querySelector("#ie_"+n).value,t=String(g("amt")).trim().replace(/[$,]/g,""),amt=Number(t);
+  if(!g("dt")||t===""||!(amt>=0)){m.textContent="Enter the date and a valid amount.";return}
+  m.textContent="Saving…";
+  try{const row={inv_no:g("no").trim(),inv_date:g("dt"),amount:Math.round(amt*100)/100,note:g("nt").trim(),updated_at:new Date().toISOString()};
+   const r=await sb.from("invoices").update(row).eq("id",id).select();if(r.error||!r.data||r.data.length!=1)throw r.error||new Error("no row changed");
+   await loadPayDb();d.remove();S.msg="Invoice saved.";S.err="";render();
+   if(/^Week /.test(row.note)&&(BILL.weeks||[]).some(w=>w.k==row.note.slice(5))){const d2=document.createElement("div");d2.className="ov";d2.onclick=e=>{if(e.target==d2||e.target.dataset.x)d2.remove()};
+    d2.innerHTML=`<div class="mod" style="max-width:420px;width:100%"><b>Invoice changed</b><p>Send the updated invoice to the customer again?</p><div class="bar"><button class="pri" data-go="1">Open invoice · send again</button><button data-x="1">Not now</button></div></div>`;
+    document.body.appendChild(d2);d2.querySelector("[data-go]").onclick=()=>{d2.remove();invOpen(c,row.note.slice(5))}}
+  }catch(e){m.textContent="Not saved: "+dberr(e)}}}
 async function invVoid(id){
  try{const r=await sb.from("invoices").update({voided:true,updated_at:new Date().toISOString()}).eq("id",id);if(r.error)throw r.error;await loadPayDb();S.msg="Invoice voided (kept in History).";S.err=""}catch(e){S.err="Not saved: "+dberr(e);S.msg=""}
  render()}
