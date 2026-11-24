@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b538">
+<meta name="build" content="b539">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2358,9 +2358,19 @@ function nlAddPlan(){
   (l.added||[]).forEach(ref=>{const r=nlAddFind(D,ref,l.file);if(!r){P.skip.push(ref+": not found in the list");return}
    const key=String(r.agency).toUpperCase()+"|"+nk(r.agency_ref),k=nlKey(r),e=nlEff({r:r,k:k}),c=nlAddCust(r.agency,r.agency_ref);
    if(c){const ap=D.apOn[key];if(ap&&ap.n&&Number(c.hh)!==Number(e.hh)&&Number(e.hh)>=1)P.up.push({key:key,r:r,c:c,need:0,enhNeed:0,set:Number(e.hh),target:Number(e.hh),name:c.name,isNew:true});return}
+   if(r.cases){P.skip.push(ref+": two cases (Meals + Box), held back like the main list. See the Two cases tab");return}
    if(!(e.base&&Number(e.hh)>=1)){P.skip.push(ref+": needs a type (Box/Meals) and a household first");return}
    P.nw.push({key:key,r:r,e:e})})});
  return P}
+async function nlAddUndo(i){
+ const D=NL.d,l=D&&(D.addLog||[])[i];if(!l||NL.busy)return;NL.err="";NL.msg="";
+ const keys=(l.up||[]).map(x=>x[0]).concat(l.added||[]).map(ref=>{const r=nlAddFind(D,ref,l.file);return r?String(r.agency).toUpperCase()+"|"+nk(r.agency_ref):null}).filter(Boolean);
+ if(keys.some(k=>D.apOn&&D.apOn[k])){NL.err="This add-on file was already approved into your real customers, so it can't be removed here.";render();return}
+ if(!await uiConfirm("Remove the add-on file \""+l.file+"\" from the draft?\n\nIts "+(l.added||[]).length+" new customers leave the draft and its "+(l.up||[]).length+" raised households go back to what they were. Your real customers are not touched. You can upload the file again afterwards.",{ok:"Yes, remove",danger:true}))return;
+ (l.up||[]).forEach(x=>{const r=nlAddFind(D,x[0],l.file);if(r){r.hh=x[1];if(Number(x[3])>0)r.enh=Math.max(0,(Number(r.enh)||0)-Number(x[3]))}});
+ const gone=new Set((l.added||[]).map(ref=>{const r=nlAddFind(D,ref,l.file);return r}).filter(Boolean));
+ D.rows=D.rows.filter(r=>!gone.has(r));D.addLog.splice(i,1);D.addFiles=(D.addFiles||[]).filter(n=>n!=l.file);
+ try{await nlSave();NL.msg="Removed "+l.file+" from the draft."}catch(e){NL.err="Not saved: "+dberr(e)}render()}
 async function nlApplyAddOns(){
  const D=NL.d;if(!D||NL.busy||NL.ws!="cur")return;if(!S.user||S.user.role!="owner"){NL.err="Only the owner can approve.";render();return}
  const P=nlAddPlan();
@@ -2385,9 +2395,9 @@ function nlAddView(D){
  const lg=(D&&D.addLog)||[];if(!lg.length)return "";const H=esc;
  const find=(ref,file)=>{const pre=(/^\s*([A-Za-z]{2,4})\b/.exec(String(file))||[])[1];const all=(D.rows||[]).filter(r=>nk(r.agency_ref)==nk(ref));return (pre&&all.find(r=>String(r.agency||"").toUpperCase()==pre.toUpperCase()))||all[0]||null};
  const inp=r=>{if(!r)return "";const k=nlKey(r),e=nlEff({r:r,k:k});return `<input type="number" min="1" max="30" value="${e.hh==null?"":e.hh}" style="width:64px;margin:0;padding:2px 4px" onchange="nlEdit(decodeURIComponent('${encodeURIComponent(k)}'),'hh',this.value)">`};
- return `<div style="margin-top:10px"><b>What the add-ons changed</b> <span class="note">· the same numbers are in the Preview tab and in the Dashboard. Change a household here and it is saved.</span> ${S.user&&S.user.role=="owner"&&NL.ws=="cur"?`<div style="margin:6px 0"><button class="pri" onclick="nlApplyAddOns()" ${NL.busy?"disabled":""}>✓ Approve the add-ons only (customers + billing)</button> <span class="note">${(()=>{try{const p=nlAddPlan();return p.up.length+p.nw.length?p.up.length+" households · "+p.nw.length+" new customers waiting":"all applied"}catch(e){return ""}})()}</span></div>`:""}${lg.map(l=>{
+ return `<div style="margin-top:10px"><b>What the add-ons changed</b> <span class="note">· the same numbers are in the Preview tab and in the Dashboard. Change a household here and it is saved.</span> ${S.user&&S.user.role=="owner"&&NL.ws=="cur"?`<div style="margin:6px 0"><button class="pri" onclick="nlApplyAddOns()" ${NL.busy?"disabled":""}>✓ Approve the add-ons only (customers + billing)</button> <span class="note">${(()=>{try{const p=nlAddPlan();return p.up.length+p.nw.length?p.up.length+" households · "+p.nw.length+" new customers waiting":"all applied"}catch(e){return ""}})()}</span></div>`:""}${lg.map((l,li)=>{
   const up=l.up||[],ad=l.added||[];
-  return `<div style="margin:8px 0;padding:8px 10px;border:1px solid var(--ln);border-radius:10px"><b>${H(l.file)}</b> <span class="note">· ${up.length} households raised · ${ad.length} new customers${l.at?" · "+H(new Date(l.at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})):""}</span>
+  return `<div style="margin:8px 0;padding:8px 10px;border:1px solid var(--ln);border-radius:10px"><b>${H(l.file)}</b> ${S.user&&S.user.role=="owner"&&NL.ws=="cur"?`<button onclick="nlAddUndo(${li})" style="float:right;padding:2px 10px">Remove file</button>`:""}<span class="note">· ${up.length} households raised · ${ad.length} new customers${l.at?" · "+H(new Date(l.at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})):""}</span>
   ${up.length?`<div class="wrap"><table style="font-size:13px"><tr><th>ID</th><th>Name</th><th>Type</th><th>Menu</th><th>Was</th><th>Now</th></tr>${up.map(x=>{const r=find(x[0],l.file);return `<tr><td>${H(x[0])}</td><td>${H(r?r.name:"")}</td><td>${r?(r.base=="box"?"Box":"Meals"):""}</td><td>${r?H(optName(r.base,r.food)||""):""}</td><td>${x[1]}</td><td>${inp(r)}</td></tr>`}).join("")}</table></div>`:""}
   ${ad.length?`<div class="wrap"><table style="font-size:13px"><tr><th>New customer ID</th><th>Name</th><th>Type</th><th>Menu</th><th>Household</th></tr>${ad.map(ref=>{const r=find(ref,l.file);const cs=r&&r.cases&&r.cases.length>1?`<div class="note">Two cases: ${r.cases.map(q=>(q.base=="box"?"Box":"Meals")+" "+(q.hh||q.enh||"")).join(" + ")}</div>`:"";return `<tr><td>${H(ref)}</td><td>${H(r?r.name:"")}</td><td>${r?(r.base=="box"?"Box":"Meals"):""}${cs}</td><td>${r?H(optName(r.base,r.food)||""):""}</td><td>${inp(r)}</td></tr>`}).join("")}</table></div>`:""}</div>`}).join("")}</div>`}
 async function nlAddOns(files){
