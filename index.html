@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b540">
+<meta name="build" content="b541">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -2381,7 +2381,10 @@ async function nlApplyAddOns(){
  try{
   if(P.nw.length){const ags=[...new Set(P.nw.map(x=>x.r.agency))].map(c=>({code:c,name:c}));const ra=await sb.from("agencies").upsert(ags,{onConflict:"code",ignoreDuplicates:true});if(ra.error)throw ra.error;
    const rows=P.nw.map(x=>{const o=Object.assign({},x.r,{name:x.e.name||x.r.name,hh:x.e.hh,base:x.e.base,food:x.e.food,active:true,area:x.r.middleton?"lee":(AREADB[nlAreaPick({k:x.key,r:x.r})]||"lee")});delete o.cases;delete o.ak;delete o.raw;delete o.a;delete o.addr;o.notes_labels=o.notes_labels&&!/^New(\s·\s|$)/.test(o.notes_labels)?"New · "+o.notes_labels:"New";return o});
-   const rr=await sb.from("customers").upsert(rows,{onConflict:"agency,id_norm",ignoreDuplicates:true});if(rr.error)throw rr.error}
+   const rr=await sb.from("customers").upsert(rows,{onConflict:"agency,id_norm",ignoreDuplicates:true});if(rr.error)throw rr.error
+   /* this week's billing is a saved list: the new customers must be put into it too, or they never show in billing */
+   try{const u=upKey(),prev=new Date(u.getTime()-7*864e5);prev.setHours(0,0,0,0);const wk=isoD(prev),ex=await sb.from("billing_snap").select("agency_ref",{count:"exact",head:true}).eq("week",wk);
+    if(!ex.error&&ex.count>0){const sr=rows.map(o=>({week:wk,agency:o.agency,agency_ref:o.agency_ref,name:o.name,base:o.base,food:o.food,hh:o.hh,enh:o.enh||0}));const q=await sb.from("billing_snap").upsert(sr,{onConflict:"week,agency,agency_ref",ignoreDuplicates:true});if(q.error)throw q.error}}catch(e){throw new Error("The new customers were saved, but could not be added to this week's billing: "+dberr(e))}}
   await billFreeze();
   const items=P.up.map(x=>({agency:x.r.agency,ref:x.r.agency_ref,hh:x.target,enh:x.enhNeed?(Number(x.c.enh)||0)+x.enhNeed:null}));
   let n=0;if(items.length){const q=await sb.rpc("apply_list_draft",{p:items});if(q.error)throw q.error;n=q.data||0}
