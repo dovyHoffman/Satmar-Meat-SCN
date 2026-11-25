@@ -1,2 +1,2 @@
-select 'Q' k, calls::text a, round(total_exec_time)::text b, shared_blks_read::text c, shared_blks_written::text d, left(regexp_replace(query,'\s+',' ','g'),110) e
-from pg_stat_statements order by (shared_blks_read+shared_blks_written+shared_blks_dirtied) desc limit 12;
+select calls::text a, round(total_exec_time)::text b, regexp_replace(query,'\s+',' ','g') e
+from pg_stat_statements where query like '%pgrst_call%' order by total_exec_time desc limit 2;
