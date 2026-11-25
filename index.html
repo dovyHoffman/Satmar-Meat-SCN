@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b566">
+<meta name="build" content="b567">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1434,7 +1434,11 @@ async function invSetSave(){
 async function loadBillDb(){
  if(!sb||!S.user||BILL.loading)return;BILL.loading=true;BILL.err="";render();
  try{
-  const rpcAll=async(name,args)=>{const page=async a=>{const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;return r.data||[]},out=[],B=5;for(let a=0;;a+=1000*B){const ps=await Promise.all([...Array(B).keys()].map(i=>page(a+i*1000)));ps.forEach(q=>out.push(...q));if(ps[B-1].length<1000)break}return out};
+  const rpcOld=async(name,args)=>{const page=async a=>{const r=await sb.rpc(name,args).range(a,a+999);if(r.error)throw r.error;return r.data||[]},out=[],B=5;for(let a=0;;a+=1000*B){const ps=await Promise.all([...Array(B).keys()].map(i=>page(a+i*1000)));ps.forEach(q=>out.push(...q));if(ps[B-1].length<1000)break}return out};
+  /* Disk IO fix (b567): one call per date window instead of re-running the query for every 1000-row page. Falls back to the old way if the database update 135 has not been run. */
+  const winOK={v:true},DAY=864e5,winAll=async(fn,from,to,step,fmt)=>{const W=[];for(let t=from;t<to;t+=step*DAY)W.push([fmt(t),t+step*DAY>=to?null:fmt(t+step*DAY)]);const out=new Array(W.length);let i=0;await Promise.all([0,1,2].map(async()=>{while(i<W.length){const k=i++,r=await sb.rpc(fn,{since:W[k][0],until:W[k][1]});if(r.error)throw r.error;if(!Array.isArray(r.data))throw new Error("bad window");out[k]=r.data}}));return [].concat(...out)};
+  const fT=t=>new Date(t).toISOString(),fD=t=>isoD(new Date(t));
+  const rpcAll=async(name,args)=>{if(winOK.v){try{if(name=="billing_rows_since")return await winAll("billing_rows_win",Date.parse(args.since),Date.now()+DAY,15,fT);if(name=="billing_rows")return await winAll("billing_rows_win",Date.parse("2025-06-01"),Date.now()+DAY,30,fT);if(name=="billing_import_rows_since")return await winAll("billing_import_win",Date.parse(args.since+"T00:00:00Z"),Date.now()+7*DAY,14,fD)}catch(e){winOK.v=false}}return rpcOld(name,args)};
   const cache=await IDB.get(bkey()),sinceTs=new Date(Date.now()-22*864e5).toISOString();let useCache=!!(cache&&Array.isArray(cache.rows)&&Array.isArray(cache.imp)&&Date.now()-cache.t<7*864e5);
   const getRows=async()=>{if(useCache){try{return await rpcAll("billing_rows_since",{since:sinceTs})}catch(e){useCache=false}}return rpcAll("billing_rows")};
   const pPay=loadPayDb(),pInv=Promise.all([invLoad(),invLastLoad()]),since1=isoD(new Date(Date.now()-22*864e5)),since2=isoD(new Date(Date.now()-120*864e5));
