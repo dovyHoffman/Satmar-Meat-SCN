@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b569">
+<meta name="build" content="b570">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -4271,7 +4271,9 @@ function autoSet(v){try{localStorage.setItem("sm_autosync",v?"1":"0")}catch(e){}
 function nyNow(){const p=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",weekday:"short",hour:"numeric",hour12:false}).formatToParts(new Date()),g=t=>(p.find(x=>x.type==t)||{}).value;return {d:g("weekday"),h:Number(g("hour"))%24}}
 function autoDays(){const m={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6}[nyNow().d]||0;return m+4}   // back to Monday of this week, plus 3 days because an order is created before it is delivered
 function autoWin(){const n=nyNow();return ["Mon","Tue","Wed","Thu","Fri"].includes(n.d)&&n.h>=9&&n.h<=21}
-setInterval(()=>{try{if(!S.user||S.user.role!="owner"||S.syncing||!autoOn()||!autoWin())return;const sl=new Date().toDateString()+"|"+nyNow().h;if(S.autoSlot===sl)return;S.autoSlot=sl;S.autoAt=Date.now();syncNow(true)}catch(e){}},60e3);
+setInterval(()=>{try{if(!S.user||S.user.role!="owner"||S.syncing||!autoOn()||!autoWin())return;const sl=new Date().toDateString()+"|"+nyNow().h;if(S.autoSlot===sl)return;S.autoSlot=sl;
+ /* b570: only ONE open tab/device runs the automatic sync each hour (a lock in the database). Before this, every open owner tab synced at once, which overloaded the database. If the lock cannot be read, nothing runs. */
+ (async()=>{try{await new Promise(r=>setTimeout(r,Math.random()*20000));const k="autosync_lock",now=Date.now(),r=await sb.from("app_settings").select("value").eq("key",k).limit(1);if(r.error)return;const v=r.data&&r.data[0]&&r.data[0].value;if(v&&v.at&&now-v.at<50*60*1000)return;const me=Math.random().toString(36).slice(2);const w=await sb.from("app_settings").upsert({key:k,value:{at:Date.now(),by:me},updated_at:new Date().toISOString()});if(w.error)return;await new Promise(r=>setTimeout(r,3000));const c=await sb.from("app_settings").select("value").eq("key",k).limit(1);const cv=c.data&&c.data[0]&&c.data[0].value;if(!cv||cv.by!==me)return;S.autoAt=Date.now();syncNow(true)}catch(e){}})()}catch(e){}},60e3);
 
 
 /* ---- deliveries shown from the database ---- */
