@@ -1,2 +1,2 @@
-select count(*)::text a, state b, coalesce(wait_event,'-') c, left(regexp_replace(query,'\s+',' ','g'),110) d, round(max(extract(epoch from now()-query_start)))::text e
-from pg_stat_activity where datname=current_database() and pid<>pg_backend_pid() and usename not in ('supabase_admin','supabase_auth_admin','supabase_storage_admin') group by 2,3,4 order by 1 desc limit 15;
+select calls::text a, round(total_exec_time)::text b, shared_blks_read::text c, shared_blks_written::text d, left(regexp_replace(query,'\s+',' ','g'),150) e
+from pg_stat_statements order by total_exec_time desc limit 8;
