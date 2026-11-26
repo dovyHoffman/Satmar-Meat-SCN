@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b571">
+<meta name="build" content="b572">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -731,12 +731,12 @@ const AR=["Lee","Bedford","BP","Monsey/Monroe","Monsey","Monroe"],LET=["3","5","
 const BG=[["Grocery boxes · A B C D",["A","B","C","D"]],["Meals · E H F",["E","H","F"]],["Shabbos · 3 5 G",["3","5","G"]],["Raw meat · S M L",["S","M","L"]],["No Beef · Sc Mc Lc Bc",["Sc","Mc","Lc","Bc"],1],["Middleton · MN1 MN2 MN3+",["MN1","MN2","MN3+"]]];
 const FCOL=[["meals","Meals"],["raw","Box (Raw)"],["supper","Suppers"],["shabbos","Shabbos"]],OKT=new Set(["A","B","C","D","E","F","G","H","3","5","S","M","L"]);
 function boxSettings(){
- const rows=[1,2,3,4,5,6,7,8,9,10].map(n=>`<tr><td><b>${n}</b></td>${FCOL.map((f,ci)=>`<td><input id="bs_${n}_${ci}" value="${esc(SET[n][ci])}" style="width:64px;font-size:11px;padding:2px 3px;font-weight:700;text-align:center" ${S.user&&S.user.role=="owner"?"":"disabled"}></td>`).join("")}</tr>`).join("");
+ const rows=[1,2,3,4,5,6,7,8,9,10].map(n=>`<tr><td><b>${n}</b></td>${FCOL.map((f,ci)=>`<td><input id="bs_${n}_${ci}" value="${esc(SET[n][ci])}" style="width:64px;font-size:11px;padding:2px 3px;font-weight:700;text-align:center" ${S.user&&/^(owner|admin)$/.test(S.user.role)?"":"disabled"}></td>`).join("")}</tr>`).join("");
  return `<div class="card" style="flex:0 1 520px;min-width:0;font-size:12px"><h2 style="font-size:14px">Box settings (edit box types)</h2><p class="note" style="font-size:11px">Which box each family gets, by household size (1 to 10; households 7 to 10 start with the same boxes as 6 until you change them). Write box letters or numbers separated by a space, for example <b>E A</b> or <b>A D L</b>. Allowed: A B C D E F G H 3 5 S M L. "Box - No Beef" changes S, M, L, B to Sc, Mc, Lc, Bc by itself. Middleton is automatic by household: MN1, MN2, MN3+. Every change is saved in History (who and when), and the box totals above update at once.</p>
  <div class="wrap"><table style="font-size:11px"><tr><th>HH</th>${FCOL.map(f=>`<th>${f[1]}</th>`).join("")}</tr>${rows}</table></div>
  <p><button class="pri" onclick="saveBoxSettings()">Save box settings</button> <button onclick="render()">Undo my edits</button></p></div>`}
 function saveBoxSettings(){
- if(!S.user||S.user.role!="owner"){S.err="Only the admin can change box settings.";S.msg="";render();return}
+ if(!S.user||!/^(owner|admin)$/.test(S.user.role)){S.err="Only the owner or an admin can change box settings.";S.msg="";render();return}
  const nw={};let bad="";
  for(let n=1;n<=10;n++){nw[n]=[];for(let ci=0;ci<4;ci++){const v=document.getElementById("bs_"+n+"_"+ci).value.trim().replace(/\s+/g," ").toUpperCase();
   if(!v||v.split(" ").some(t=>!OKT.has(t))){bad="Household "+n+", "+FCOL[ci][1]+": use only A B C D E F G H 3 5 S M L separated by spaces.";}
