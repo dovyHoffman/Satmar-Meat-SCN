@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b567">
+<meta name="build" content="b568">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1761,10 +1761,10 @@ async function afterLogin(){
 S.firstLoad=true;let pDB=null;if(S.user.role=="owner"||pg.some(x=>["customers","dashboard","changes"].indexOf(x)>=0))pDB=loadDB();else{S.rerr="";render()}
  /* the customer list and dashboard come first; menu and billing load right after, so they do not slow the first screen */
  const start=(String(location.pathname).slice(BASE.length).match(/^([a-z]+)/)||String(location.hash).match(/^#\/([a-z]+)/)||[])[1]||"",
-  doMenu=()=>{if(S.user.role=="owner"||pg.indexOf("menu")>=0||pg.indexOf("customers")>=0)loadMenuDb()},doBill=()=>{if(S.user.role=="owner"||pg.indexOf("billing")>=0)loadBillDb()},later=()=>{doMenu();doBill()};
+  doMenu=()=>{if(S.user.role=="owner"||pg.indexOf("menu")>=0||pg.indexOf("customers")>=0)loadMenuDb()},doBill=()=>{if(S.user.role=="owner"||pg.indexOf("billing")>=0)loadBillDb()},later0=()=>{doMenu();doBill()},kick=()=>{if(window.__kicked)return;window.__kicked=1;later0()},later=kick;window.__afterCust=kick;
  /* the page you open first loads first: opening Billing starts billing at once, opening Menu starts the menu at once */
- if(start=="billing"){doBill();if(pDB&&pDB.then)pDB.then(doMenu,doMenu);else doMenu()}
- else if(start=="menu"){doMenu();if(pDB&&pDB.then)pDB.then(doBill,doBill);else doBill()}
+ if(start=="billing"){window.__kicked=1;doBill();if(pDB&&pDB.then)pDB.then(doMenu,doMenu);else doMenu()}
+ else if(start=="menu"){window.__kicked=1;doMenu();if(pDB&&pDB.then)pDB.then(doBill,doBill);else doBill()}
  else if(pDB&&pDB.then)pDB.then(later,later);else later();
  routeFromHash();
  if(pDB)await pDB;
@@ -1827,6 +1827,7 @@ async function loadDB(){
   S.real=true;try{billRelist()}catch(e){}S.q="";S.pg=0;S.dq="";S.dpg=0;if(!S.firstLoad)S.sel=null;
  }catch(e){S.rerr="Could not load customers: "+dberr(e)}
  S.loading=false;render();
+ if(S.real&&window.__afterCust&&S.firstLoad)try{window.__afterCust()}catch(e){}
  if(S.real){const byU={};cust.forEach(c=>byU[c.uuid]=c);
   try{const since=new Date(Date.now()-42*864e5).toISOString();S.dSince=since;S.dOld={};
    const dcols="order_id,customer_id,week_label,driver,delivered_at,created_at:synced_at,receipt_url,photo_urls,photo_paths",dord=q=>q.gte("delivered_at",since).order("delivered_at",{ascending:false,nullsFirst:false}).order("order_id",{ascending:true});let ds;try{ds=await fetchAllPar("deliveries",dcols+",snap",dord)}catch(e){ds=await fetchAllPar("deliveries",dcols,dord)}
