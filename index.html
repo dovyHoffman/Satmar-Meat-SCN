@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b591">
+<meta name="build" content="b592">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -3757,7 +3757,7 @@ tfoot td{border-bottom:0;background:#fff!important;font-weight:800;font-size:${f
 <div class="hd"><img id="lg" src="${E(new URL(typeof LOGO!=="undefined"?LOGO:"logo.png",location.href).href)}" alt=""><div class="mid"><h1>${E(v)}</h1><p class="sub">Order for week ${E(w.label||"")} · ${n} item${n==1?"":"s"}</p></div><div class="tt"><small>Order total</small><b>${rwMoney(tot)}</b></div></div>
 <table><colgroup><col style="width:22%"><col style="width:9%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:10%"><col style="width:11%"><col></colgroup><tr><th>Item</th><th>Box</th><th class="r">Units needed</th><th class="r">Per case</th><th class="r">Cases</th><th class="r">Price / case</th><th class="r">Total</th><th>Notes</th></tr>
 ${L.map(r=>`<tr><td class="it">${E(r.it.name)}</td><td class="bx">${E(bxs(r))}</td><td class="r">${rwN(r.need,0)}</td><td class="r">${r.upc?rwN(r.upc,0):""}</td><td class="r cs">${E(cs(r))}</td><td class="r">${r.cp?rwMoney(r.cp):""}</td><td class="r">${rwMoney(r.cost)}</td><td></td></tr>`).join("")}
-<tfoot><tr><td colspan="6">Total</td><td class="r">${rwMoney(tot)}</td><td></td></tr></tfoot></table>
+<tfoot><tr><td colspan="4">Total</td><td colspan="3" class="r">${rwMoney(tot)}</td><td></td></tr></tfoot></table>
 <div class="nt"><b>Notes</b><div class="box"></div></div>
 <div class="sg"><div>Signature</div><div style="max-width:170px">Date</div></div>
 <div class="ft"><span>Satmar Meats · ${E(v)}</span><span>Printed ${E(dt)}</span></div></body></html>`;
