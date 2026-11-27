@@ -160,7 +160,7 @@ th.srt{cursor:pointer;user-select:none}th.srt:hover{color:var(--ac)}th .ar{displ
 </head><body>
 <div id="shell"><aside id="side"><div class="brand"><img src="logo.png" alt=""><b>Satmar Meats</b></div><nav id="nav"></nav><div id="who"></div></aside><main id="app"></main></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="build" content="b585">
+<meta name="build" content="b586">
 <script>
 (function(){var m=document.querySelector('meta[name=build]').content;function chk(){try{fetch(BASE+"?nc="+Date.now(),{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){var x=/name="build" content="([^"]+)"/.exec(t);if(!x||x[1]===m)return;if(!document.getElementById("newver")){var d=document.createElement("div");d.id="newver";d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#b42318;color:#fff;padding:10px 14px;text-align:center;font:600 14px system-ui,sans-serif;cursor:pointer";d.textContent="A newer version of this site is ready ("+x[1]+"; you are on "+m+"). Click here to update.";d.onclick=function(){try{sessionStorage.setItem("resume",JSON.stringify({t:Date.now(),view:S.view,sel:S.sel,b:S.b||null,rw:{page:RW.page,open:RW.open,tab:RW.tab,mode:RW.mode}}))}catch(e){}location.href=BASE+"?v="+x[1]+"&t="+Date.now()};document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)})}}).catch(function(){})}catch(e){}}chk();setInterval(chk,180000)})();
 const F={raw:"Raw",rawnb:"Raw - No Beef",meals:"Meals",supper:"Supper",shabbos:"Shabbos"};
@@ -1503,10 +1503,10 @@ function billListRows(rows){
  rows.forEach(r=>{const d=wkKey(Date.parse(r.delivered_at)),t=d.getTime();
   if(t<=BILL.impMax){keep.push(r);return}
   weeks[t]=1;const k=t+"|"+r.agency+"|"+r.agency_ref;if(!proof[k]&&(r.receipt_url||(r.photo_urls||[]).length))proof[k]=r});
- const out=keep.slice();
+ const out=keep.slice(),pf=(t,a,r)=>proof[t+"|"+a+"|"+r]||proof[t+"|"+a+"|"+String(r).replace(/\s*\(\d+\)\s*$/,"")];/* a second case "X (2)" is the same delivery as "X": it uses the same POD */
  Object.keys(weeks).forEach(ts=>{const t=+ts,mid=new Date(t+3*864e5);mid.setHours(12,0,0,0);
   const live=t>=wkKey(new Date()).getTime(),SN=(BILL.snap||{})[t];   // a week whose list was saved (frozen when a new list was approved) always bills that saved list. The running week follows the customer list live only while nothing was saved for it yet: activate = in billing, inactive = out
-  if(SN&&SN.length){SN.forEach(c=>{const pr=proof[t+"|"+c.agency+"|"+c.agency_ref];out.push({order_id:"sheet",delivered_at:mid.toISOString(),agency:c.agency,agency_ref:c.agency_ref,name:c.name,base:c.base,food:c.food,hh:c.hh,enh:live?0:(c.enh||0),boxes:c.base=="box"?c.hh:1,letters:"",receipt_url:pr?pr.receipt_url||"":"",photo_urls:pr?pr.photo_urls||[]:[]})});return}   // the running week keeps its calculation as before (Enhanced not used)
+  if(SN&&SN.length){SN.forEach(c=>{const pr=pf(t,c.agency,c.agency_ref);out.push({order_id:"sheet",delivered_at:mid.toISOString(),agency:c.agency,agency_ref:c.agency_ref,name:c.name,base:c.base,food:c.food,hh:c.hh,enh:live?0:(c.enh||0),boxes:c.base=="box"?c.hh:1,letters:"",receipt_url:pr?pr.receipt_url||"":"",photo_urls:pr?pr.photo_urls||[]:[]})});return}   // the running week keeps its calculation as before (Enhanced not used)
   const H=live?null:(BILL.hist||{})[t];
   if(H&&H.length){const nk=v=>String(v||"").toLowerCase().replace(/\s/g,""),byRef={};cust.forEach(c=>byRef[nk(c.ref)]=c);
    H.filter(h=>h.in_list).forEach(h=>{const c=byRef[nk(h.ref)]||{},pr=proof[t+"|"+h.company+"|"+h.ref],q=String(h.request||"").toLowerCase(),base=/box/i.test(h.food_type)?"box":"meals",hh=+h.hh||+c.hh||1,food=/raw/.test(q)?(/no\s*beef/.test(q)?"rawnb":"raw"):/shabbos/.test(q)?"shabbos":/supper/.test(q)?"supper":"meals";
